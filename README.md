@@ -7,7 +7,7 @@
 
 > **Plateforme de commande de nourriture moderne pour les employés de la Banque Africaine de Développement (BAD) à Abidjan, Côte d'Ivoire**
 
-ZINA est une **solution digitale révolutionnaire** qui permet aux employés de la BAD de commander leur nourriture en ligne et de la retirer directement à la cantine pour un paiement sur place.
+ZINA propose une **solution digitale révolutionnaire** qui permet aux employés de la BAD de commander leur nourriture en ligne et de la retirer directement à la cantine pour un paiement sur place.
 
 ---
 
@@ -15,7 +15,7 @@ ZINA est une **solution digitale révolutionnaire** qui permet aux employés de 
 
 **Commande en ligne → Retrait à la cantine → Paiement sur place**
 
-Les employés BAD peuvent :
+Les employés peuvent :
 - **Parcourir les menus quotidiens** depuis leur bureau
 - **Commander des repas** via une interface intuitive
 - **Retirer et payer** directement à la cantine (pas de paiement en ligne)
