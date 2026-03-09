@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZINA Cantine BAD - Commander en Ligne</title>
+    <meta name="description" content="Commandez votre repas en ligne - ZINA Cantine de la BAD Abidjan">
+    <link rel="icon" type="image/png" href="images/logo.PNG">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600&family=Playfair+Display:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/ordering.css') }}">
+</head>
+<body>
+    <!-- Login Modal -->
+    <div class="login-overlay" id="loginOverlay">
+        <div class="login-modal">
+            <div class="login-header">
+                <div class="login-logo">
+                    <i class="fas fa-utensils"></i>
+                </div>
+                <h1>ZINA Cantine BAD</h1>
+                <p>Accès Employés - Banque Africaine de Développement</p>
+            </div>
+            
+            <div class="login-tabs">
+                <button class="login-tab active" data-tab="qr">
+                    <i class="fas fa-qrcode"></i>
+                    <span>QR Code</span>
+                </button>
+                <button class="login-tab" data-tab="manual">
+                    <i class="fas fa-id-card"></i>
+                    <span>Matricule</span>
+                </button>
+            </div>
+            
+            <div class="login-content">
+                <!-- QR Code Tab -->
+                <div class="login-panel active" id="qrPanel">
+                    <div class="qr-scanner">
+                        <div class="qr-frame">
+                            <i class="fas fa-qrcode"></i>
+                            <p>Scannez votre badge employé</p>
+                        </div>
+                        <button class="scan-btn" onclick="startScanner()">
+                            <i class="fas fa-camera"></i>
+                            <span>Lancer le Scanner</span>
+                        </button>
+                    </div>
+                    <div class="qr-demo">
+                        <p>ou entrez manuellement</p>
+                        <button class="switch-btn" onclick="switchToManual()">
+                            <i class="fas fa-keyboard"></i>
+                            <span>Saisir le matricule</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Manual Entry Tab -->
+                <div class="login-panel" id="manualPanel">
+                    <form id="loginForm" onsubmit="handleLogin(event)">
+                        <div class="form-group">
+                            <label for="employeeId">
+                                <i class="fas fa-id-badge"></i>
+                                Matricule Employé
+                            </label>
+                            <input type="text" id="employeeId" placeholder="Ex: BAD-2024-001" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="employeeName">
+                                <i class="fas fa-user"></i>
+                                Nom Complet
+                            </label>
+                            <input type="text" id="employeeName" placeholder="Votre nom" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="department">
+                                <i class="fas fa-building"></i>
+                                Département
+                            </label>
+                            <select id="department" required>
+                                <option value="">Sélectionnez votre département</option>
+                                <option value="agriculture">Agriculture et Agro-industrie</option>
+                                <option value="finance">Finance et Administration</option>
+                                <option value="operations">Opérations</option>
+                                <option value="ressources">Ressources Humaines</option>
+                                <option value="juridique">Juridique</option>
+                                <option value="communication">Communication</option>
+                                <option value="informatique">Informatique et Systèmes</option>
+                                <option value="autre">Autre</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="login-submit-btn">
+                            <i class="fas fa-sign-in-alt"></i>
+                            <span>Se Connecter</span>
+                        </button>
+                    </form>
+                    
+                    <div class="register-option">
+                        <div class="divider">
+                            <span>OU</span>
+                        </div>
+                        <button class="register-btn" onclick="showRegistration()">
+                            <i class="fas fa-user-plus"></i>
+                            <span>Nouvel Employé ? S'inscrire</span>
+                        </button>
+                        <button class="guest-btn" onclick="handleGuestAccess()">
+                            <i class="fas fa-user-secret"></i>
+                            <span>Continuer en tant qu'Invité</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Registration Panel -->
+                <div class="login-panel" id="registerPanel">
+                    <form id="registerForm" onsubmit="handleRegistration(event)">
+                        <div class="form-group">
+                            <label for="regEmployeeId">
+                                <i class="fas fa-id-badge"></i>
+                                Matricule Employé *
+                            </label>
+                            <input type="text" id="regEmployeeId" placeholder="Ex: BAD-2024-001" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="regFullName">
+                                <i class="fas fa-user"></i>
+                                Nom Complet *
+                            </label>
+                            <input type="text" id="regFullName" placeholder="Votre nom complet" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="regEmail">
+                                <i class="fas fa-envelope"></i>
+                                Email Professionnel *
+                            </label>
+                            <input type="email" id="regEmail" placeholder="votre.nom@bad.org" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="regDepartment">
+                                <i class="fas fa-building"></i>
+                                Département *
+                            </label>
+                            <select id="regDepartment" required>
+                                <option value="">Sélectionnez votre département</option>
+                                <option value="agriculture">Agriculture et Agro-industrie</option>
+                                <option value="finance">Finance et Administration</option>
+                                <option value="operations">Opérations</option>
+                                <option value="ressources">Ressources Humaines</option>
+                                <option value="juridique">Juridique</option>
+                                <option value="communication">Communication</option>
+                                <option value="informatique">Informatique et Systèmes</option>
+                                <option value="autre">Autre</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="regPhone">
+                                <i class="fas fa-phone"></i>
+                                Téléphone (Optionnel)
+                            </label>
+                            <input type="tel" id="regPhone" placeholder="+225 XX XX XX XX XX">
+                        </div>
+                        <button type="submit" class="register-submit-btn">
+                            <i class="fas fa-user-plus"></i>
+                            <span>S'inscrire</span>
+                        </button>
+                    </form>
+                    
+                    <div class="back-to-login">
+                        <button class="back-btn" onclick="showLogin()">
+                            <i class="fas fa-arrow-left"></i>
+                            <span>Retour à la connexion</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="login-footer">
+                <p><i class="fas fa-info-circle"></i> Utilisez votre badge employé BAD pour accéder au service</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App (hidden until login) -->
+    <div class="app-container" id="appContainer" style="display: none;">
+        <!-- Header -->
+        <header class="order-header">
+            <div class="header-container">
+                <div class="header-left">
+                    <div class="brand-logo">
+                        <img src="{{ url_for('static', filename='images/logo.PNG') }}" alt="ZINA Logo" class="header-logo">
+                        
+                            <span class="brand-main">INA</span>
+                    
+                    </div>
+                </div>
+                
+                <div class="header-center">
+                    <div class="date-display">
+                        <i class="fas fa-calendar-alt"></i>
+                        <span id="currentDate"></span>
+                    </div>
+                    <div class="meal-period">
+                        <span class="period-badge" id="mealPeriod">Petit-Déjeuner</span>
+                    </div>
+                </div>
+                
+                <div class="header-right">
+                    <div class="user-info">
+                        <div class="user-avatar">
+                            <i class="fas fa-user-circle"></i>
+                        </div>
+                        <div class="user-details">
+                            <span class="user-name" id="userName">Employé</span>
+                            <span class="user-dept" id="userDept">Département</span>
+                        </div>
+                        <button class="order-history-btn" onclick="showOrderHistory()" title="Mes Commandes">
+                            <i class="fas fa-history"></i>
+                        </button>
+                    </div>
+                    <button class="cart-button" onclick="toggleCart()">
+                        <i class="fas fa-shopping-cart"></i>
+                        <span class="cart-count" id="cartCount">0</span>
+                    </button>
+                    <button class="logout-btn" onclick="handleLogout()">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="order-main">
+            <!-- Category Sidebar -->
+            <aside class="category-sidebar">
+                <h3 class="sidebar-title">
+                    <i class="fas fa-th-large"></i>
+                    Catégories
+                </h3>
+                <nav class="category-nav">
+                    <button class="cat-btn active" data-category="all" onclick="filterCategory('all')">
+                        <i class="fas fa-th"></i>
+                        <span>Tous</span>
+                        <span class="cat-count" id="countAll">0</span>
+                    </button>
+                    <button class="cat-btn" data-category="breakfast" onclick="filterCategory('breakfast')">
+                        <div class="cat-img-container"><img src="{{ url_for('static', filename='images/food/ptidej.jpg') }}" alt="Petit-Déjeuner" class="cat-img"></div>
+                        <span>Petit-Déjeuner</span>
+                        <span class="cat-count" id="countBreakfast">0</span>
+                    </button>
+                    <button class="cat-btn" data-category="lunch" onclick="filterCategory('lunch')">
+                        <div class="cat-img-container"><img src="{{ url_for('static', filename='images/food/dejeuner.jpg') }}" alt="Plats Complets" class="cat-img"></div>
+                        <span>Plats Complets</span>
+                        <span class="cat-count" id="countLunch">0</span>
+                    </button>
+                    <button class="cat-btn" data-category="snacks" onclick="filterCategory('snacks')">
+                         <div class="cat-img-container"><img src="{{ url_for('static', filename='images/food/snacks.jpg') }}" alt="Snacks" class="cat-img"></div>
+                        <span>Snacks</span>
+                        <span class="cat-count" id="countSnacks">0</span>
+                    </button>
+                    <button class="cat-btn" data-category="salads" onclick="filterCategory('salads')">
+                        <div class="cat-img-container"><img src="{{ url_for('static', filename='images/food/salade.jpg') }}" alt="Salades" class="cat-img"></div>
+                        <span>Salades</span>
+                        <span class="cat-count" id="countSalads">0</span>
+                    </button>
+                    <button class="cat-btn" data-category="drinks" onclick="filterCategory('drinks')">
+                         <div class="cat-img-container"><img src="{{ url_for('static', filename='images/food/boissons.jpg') }}" alt="Boissons" class="cat-img"></div>
+                        <span>Boissons</span>
+                        <span class="cat-count" id="countDrinks">0</span>
+                    </button>
+                    <button class="cat-btn" data-category="desserts" onclick="filterCategory('desserts')">
+                        <div class="cat-img-container"><img src="{{ url_for('static', filename='images/food/desserts.jpg') }}" alt="Desserts" class="cat-img"></div>
+                        <span>Desserts</span>
+                        <span class="cat-count" id="countDesserts">0</span>
+                    </button>
+                    <button class="cat-btn" data-category="specials" onclick="filterCategory('specials')">
+                         <div class="cat-img-container"><img src="{{ url_for('static', filename='images/food/special.jpg') }}" alt="Spécialités" class="cat-img"></div>
+                        <span>Spécialités</span>
+                        <span class="cat-count" id="countSpecials">0</span>
+                    </button>
+                </nav>
+                
+                <div class="sidebar-promo">
+                    <div class="promo-card">
+                        <i class="fas fa-tag"></i>
+                        <div class="promo-text">
+                            <h4>Menu du Jour</h4>
+                            <p>-10% avant 10h</p>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Menu Grid -->
+            <section class="menu-section">
+                <div class="menu-header">
+                    <h2 id="menuTitle">Tous les Plats</h2>
+                    <div class="menu-filters">
+                        <button class="filter-chip active" data-filter="all" onclick="filterItems('all')">
+                            Tous
+                        </button>
+                        <button class="filter-chip" data-filter="available" onclick="filterItems('available')">
+                            <i class="fas fa-check-circle"></i> Disponibles
+                        </button>
+                        <button class="filter-chip" data-filter="popular" onclick="filterItems('popular')">
+                            <i class="fas fa-fire"></i> Populaires
+                        </button>
+                        <button class="filter-chip" data-filter="new" onclick="filterItems('new')">
+                            <i class="fas fa-sparkles"></i> Nouveautés
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="search-bar">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="searchInput" placeholder="Rechercher un plat, un snack..." onkeyup="searchMenu()">
+                </div>
+                
+                <div class="menu-grid" id="menuGrid">
+                    <!-- Menu items will be loaded here -->
+                    <div class="loading-spinner">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p>Chargement du menu...</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Cart Sidebar -->
+        <div class="cart-sidebar" id="cartSidebar">
+            <div class="cart-header">
+                <h3>
+                    <i class="fas fa-shopping-cart"></i>
+                    Mon Panier
+                </h3>
+                <button class="close-cart" onclick="toggleCart()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="cart-items" id="cartItems">
+                <div class="empty-cart">
+                    <i class="fas fa-shopping-basket"></i>
+                    <p>Votre panier est vide</p>
+                    <span>Ajoutez des articles pour commencer</span>
+                </div>
+            </div>
+            
+            <div class="cart-footer">
+                <div class="cart-summary">
+                    <div class="summary-row total">
+                        <span>Total</span>
+                        <span id="cartTotal">0 FCFA</span>
+                    </div>
+                </div>
+
+                <div class="cart-actions">
+                    <button class="checkout-btn" onclick="proceedToCheckout()">
+                        <i class="fas fa-receipt"></i>
+                        <span>Commander</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cart Overlay -->
+        <div class="cart-overlay" id="cartOverlay" onclick="toggleCart()"></div>
+
+        <!-- Order Confirmation Modal -->
+        <div class="modal" id="orderModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <i class="fas fa-check-circle"></i>
+                    <h2>Confirmation de Commande</h2>
+                </div>
+                <div class="modal-body">
+                    <div class="order-summary" id="orderSummary">
+                        <!-- Order details will be shown here -->
+                    </div>
+                    <div class="pickup-time">
+                        <h4>Heure de Récupération</h4>
+                        <select id="pickupTime">
+                            <option value="now">Immédiatement</option>
+                            <option value="15">Dans 15 minutes</option>
+                            <option value="30">Dans 30 minutes</option>
+                            <option value="45">Dans 45 minutes</option>
+                            <option value="60">Dans 1 heure</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-cancel" onclick="closeOrderModal()">Annuler</button>
+                    <button class="btn-confirm" onclick="confirmOrder()">
+                        <i class="fas fa-check"></i>
+                        <span>Confirmer la Commande</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Order History Modal -->
+        <div class="modal order-history-modal" id="orderHistoryModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2><i class="fas fa-history"></i> Mes Commandes</h2>
+                    <button class="btn-close" onclick="closeOrderHistoryModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div id="orderHistoryContent">
+                        <div class="loading-spinner">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <p>Chargement de vos commandes...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Order Success Modal -->
+        <div class="modal success-modal" id="successModal">
+            <div class="modal-content">
+                <div class="success-icon">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <h2>Commande Confirmée !</h2>
+                <p>Votre commande #<span id="orderNumber"></span> a été enregistrée</p>
+                <div class="order-details">
+                    <div class="detail-row">
+                        <span>Temps d'attente estimé:</span>
+                        <strong id="waitTime">15-20 min</strong>
+                    </div>
+                    <div class="detail-row">
+                        <span>Lieu de récupération:</span>
+                        <strong>Cantine BAD - Comptoir 1</strong>
+                    </div>
+                </div>
+                <button class="btn-close" onclick="closeSuccessModal()">Fermer</button>
+            </div>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div class="toast-container" id="toastContainer"></div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="{{ url_for('static', filename='js/ordering.js') }}"></script>
+</body>
+</html>

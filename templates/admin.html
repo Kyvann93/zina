@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - ZINA Cantine BAD</title>
+    <meta name="description" content="Interface d'administration - Gestion du site ZINA Cantine BAD">
+    <link rel="icon"  href="images/logo.PNG">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+</head>
+<body>
+    <!-- Page Loader -->
+    <div class="page-loader" id="pageLoader">
+        <div class="loader-logo-container">
+            <div class="loader-logo-wrapper">
+                <div class="loader-logo-fill-container">
+                    <div class="loader-logo-fill" id="loaderFill"></div>
+                </div>
+                <img src="{{ url_for('static', filename='images/logo.PNG') }}" alt="ZINA Logo" class="loader-logo">
+            </div>
+            <div class="loader-text">
+                <p>Chargement...</p>
+                <div class="loader-progress-bar">
+                    <div class="loader-progress" id="loaderProgress"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Login Modal -->
+    <div class="login-overlay" id="loginOverlay">
+        <div class="login-modal">
+            <div class="login-header">
+                <div class="login-logo">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <h1>Administration ZINA</h1>
+                <p>Accès réservé au personnel autorisé</p>
+            </div>
+            
+            <form id="adminLogin" onsubmit="handleAdminLogin(event)">
+                <div class="form-group">
+                    <label for="adminUsername">
+                        <i class="fas fa-user"></i>
+                        Identifiant
+                    </label>
+                    <input type="text" id="adminUsername" placeholder="admin" required>
+                </div>
+                <div class="form-group">
+                    <label for="adminPassword">
+                        <i class="fas fa-lock"></i>
+                        Mot de passe
+                    </label>
+                    <input type="password" id="adminPassword" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="login-submit-btn">
+                    <i class="fas fa-sign-in-alt"></i>
+                    <span>Se Connecter</span>
+                </button>
+            </form>
+            
+            <div class="login-footer">
+                <p><i class="fas fa-info-circle"></i> Interface d'administration sécurisée</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Dashboard (hidden until login) -->
+    <div class="admin-wrapper" id="adminWrapper" style="display: none;">
+        <!-- Sidebar -->
+        <aside class="admin-sidebar">
+            <div class="sidebar-header">
+                <div class="brand-logo">
+                    <img src="{{ url_for('static', filename='images/logo.PNG') }}" alt="ZINA Logo" class="sidebar-logo">
+                    <span style="color: #713d40;">INA</span>
+                </div>
+                <button class="sidebar-toggle" onclick="toggleSidebar()">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <a href="#dashboard" class="nav-item active" onclick="showSection('dashboard')">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>Tableau de Bord</span>
+                </a>
+                <a href="#menu" class="nav-item" onclick="showSection('menu')">
+                    <i class="fas fa-hamburger"></i>
+                    <span>Menu / Plats</span>
+                </a>
+                <a href="#categories" class="nav-item" onclick="showSection('categories')">
+                    <i class="fas fa-tags"></i>
+                    <span>Catégories</span>
+                </a>
+                <a href="#orders" class="nav-item" onclick="showSection('orders')">
+                    <i class="fas fa-receipt"></i>
+                    <span>Commandes</span>
+                </a>
+                <a href="#users" class="nav-item" onclick="showSection('users')">
+                    <i class="fas fa-users"></i>
+                    <span>Utilisateurs</span>
+                </a>
+                <a href="#settings" class="nav-item" onclick="showSection('settings')">
+                    <i class="fas fa-cog"></i>
+                    <span>Paramètres</span>
+                </a>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <button class="logout-btn" onclick="handleLogout()">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Déconnexion</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="admin-main">
+            <!-- Top Bar -->
+            <header class="admin-header">
+                <div class="header-left">
+                    <button class="mobile-toggle" onclick="toggleSidebar()">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h1 id="pageTitle">Tableau de Bord</h1>
+                </div>
+                <div class="header-right">
+                    <div class="notifications">
+                        <button class="notif-btn" onclick="toggleNotifs()">
+                            <i class="fas fa-bell"></i>
+                            <span class="notif-count" id="notifCount">3</span>
+                        </button>
+                        <div class="notif-dropdown" id="notifDropdown">
+                            <div class="notif-header">Notifications</div>
+                            <div class="notif-list">
+                                <div class="notif-item">
+                                    <i class="fas fa-shopping-cart"></i>
+                                    <div>
+                                        <strong>Nouvelle commande #4827</strong>
+                                        <p>Il y a 5 minutes</p>
+                                    </div>
+                                </div>
+                                <div class="notif-item">
+                                    <i class="fas fa-user-plus"></i>
+                                    <div>
+                                        <strong>Nouvel utilisateur inscrit</strong>
+                                        <p>Il y a 15 minutes</p>
+                                    </div>
+                                </div>
+                                <div class="notif-item">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    <div>
+                                        <strong>Stock faible: Eau Minérale</strong>
+                                        <p>Il y a 1 heure</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="admin-user">
+                        <div class="user-avatar">
+                            <i class="fas fa-user-circle"></i>
+                        </div>
+                        <div class="user-info">
+                            <span class="user-name" id="adminName">Administrateur</span>
+                            <span class="user-role">Super Admin</span>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Dashboard Section -->
+            <section class="admin-section active" id="dashboardSection">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                            <i class="fas fa-hamburger"></i>
+                        </div>
+                        <div class="stat-details">
+                            <h3 id="totalMenus">65</h3>
+                            <p>Menus Totaux</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                            <i class="fas fa-shopping-cart"></i>
+                        </div>
+                        <div class="stat-details">
+                            <h3 id="todayOrders">24</h3>
+                            <p>Commandes du Jour</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="stat-details">
+                            <h3 id="totalUsers">156</h3>
+                            <p>Utilisateurs</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                            <i class="fas fa-coins"></i>
+                        </div>
+                        <div class="stat-details">
+                            <h3 id="todayRevenue">125000</h3>
+                            <p>Revenu du Jour (FCFA)</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dashboard-grid">
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h3>Commandes Récentes</h3>
+                            <a href="#orders" onclick="showSection('orders')" class="view-all">Voir tout</a>
+                        </div>
+                        <div class="card-body">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Commande #</th>
+                                        <th>Client</th>
+                                        <th>Montant</th>
+                                        <th>Statut</th>
+                                        <th>Heure</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>#4827</td>
+                                        <td>Jean Kouamé</td>
+                                        <td>14300 FCFA</td>
+                                        <td><span class="status-badge success">Complété</span></td>
+                                        <td>10:45</td>
+                                    </tr>
+                                    <tr>
+                                        <td>#4826</td>
+                                        <td>Marie Diallo</td>
+                                        <td>8500 FCFA</td>
+                                        <td><span class="status-badge warning">En cours</span></td>
+                                        <td>10:30</td>
+                                    </tr>
+                                    <tr>
+                                        <td>#4825</td>
+                                        <td>Patrick Aka</td>
+                                        <td>12000 FCFA</td>
+                                        <td><span class="status-badge success">Complété</span></td>
+                                        <td>10:15</td>
+                                    </tr>
+                                    <tr>
+                                        <td>#4824</td>
+                                        <td>Fatou Traoré</td>
+                                        <td>6500 FCFA</td>
+                                        <td><span class="status-badge info">En attente</span></td>
+                                        <td>10:00</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h3>Plats Populaires</h3>
+                            <a href="#menu" onclick="showSection('menu')" class="view-all">Gérer</a>
+                        </div>
+                        <div class="card-body">
+                            <div class="popular-list">
+                                <div class="popular-item">
+                                    <span class="popular-rank">1</span>
+                                    <span class="popular-name">Riz Gras au Poulet</span>
+                                    <span class="popular-count">45 commandes</span>
+                                </div>
+                                <div class="popular-item">
+                                    <span class="popular-rank">2</span>
+                                    <span class="popular-name">Alloco & Poisson</span>
+                                    <span class="popular-count">38 commandes</span>
+                                </div>
+                                <div class="popular-item">
+                                    <span class="popular-rank">3</span>
+                                    <span class="popular-name">Burger ZINA</span>
+                                    <span class="popular-count">32 commandes</span>
+                                </div>
+                                <div class="popular-item">
+                                    <span class="popular-rank">4</span>
+                                    <span class="popular-name">Attiéké Poisson</span>
+                                    <span class="popular-count">28 commandes</span>
+                                </div>
+                                <div class="popular-item">
+                                    <span class="popular-rank">5</span>
+                                    <span class="popular-name">Café Complet</span>
+                                    <span class="popular-count">25 commandes</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Menu Management Section -->
+            <section class="admin-section" id="menuSection">
+                <div class="section-header">
+                    <h2>Gestion des Menus / Plats</h2>
+                    <button class="btn-primary" onclick="openMenuModal()">
+                        <i class="fas fa-plus"></i>
+                        <span>Ajouter un Plat</span>
+                    </button>
+                </div>
+
+                <div class="filters-bar">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="menuSearch" placeholder="Rechercher un plat..." onkeyup="filterMenus()">
+                    </div>
+                    <div class="filter-group">
+                        <select id="categoryFilter" onchange="filterMenus()">
+                            <option value="" disabled selected>Toutes les catégories</option>
+                        </select>
+                        <select id="availabilityFilter" onchange="filterMenus()">
+                            <option value="">Tous</option>
+                            <option value="available">Disponibles</option>
+                            <option value="unavailable">Indisponibles</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="menu-grid" id="menuGrid">
+                    <div class="section-loader-container" id="menuLoaderContainer">
+                        <div class="loader-logo-container-small">
+                            <div class="loader-logo-wrapper-small">
+                                <div class="loader-logo-fill-container-small">
+                                    <div class="loader-logo-fill-small" id="menuLoaderFill"></div>
+                                </div>
+                                <img src="{{ url_for('static', filename='images/logo.PNG') }}" alt="ZINA Logo" class="loader-logo-small">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Categories Section -->
+            <section class="admin-section" id="categoriesSection">
+                <div class="section-header">
+                    <h2>Gestion des Catégories</h2>
+                    <button class="btn-primary" onclick="openCategoryModal()">
+                        <i class="fas fa-plus"></i>
+                        <span>Ajouter une Catégorie</span>
+                    </button>
+                </div>
+
+                <div class="categories-grid" id="categoriesGrid">
+                    <div class="section-loader-container" id="categoriesLoaderContainer">
+                        <div class="loader-logo-container-small">
+                            <div class="loader-logo-wrapper-small">
+                                <div class="loader-logo-fill-container-small">
+                                    <div class="loader-logo-fill-small" id="categoriesLoaderFill"></div>
+                                </div>
+                                <img src="{{ url_for('static', filename='images/logo.PNG') }}" alt="ZINA Logo" class="loader-logo-small">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Orders Section -->
+            <section class="admin-section" id="ordersSection">
+                <div class="section-header">
+                    <h2>Gestion des Commandes</h2>
+                    <div class="filter-group">
+                        <select id="ordersFilter" onchange="loadOrders()">
+                            <option value="all">Toutes les commandes</option>
+                            <option value="pending">En attente</option>
+                            <option value="processing">En cours</option>
+                            <option value="completed">Complétées</option>
+                            <option value="cancelled">Annulées</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="orders-table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Commande #</th>
+                                <th>Client</th>
+                                <th>Articles</th>
+                                <th>Total</th>
+                                <th>Paiement</th>
+                                <th>Statut</th>
+                                <th>Heure</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ordersTableBody">
+                            <tr class="section-loader-row" id="ordersLoaderRow">
+                                <td colspan="8">
+                                    <div class="loader-logo-container-small">
+                                        <div class="loader-logo-wrapper-small">
+                                            <div class="loader-logo-fill-container-small">
+                                                <div class="loader-logo-fill-small" id="ordersLoaderFill"></div>
+                                            </div>
+                                            <img src="{{ url_for('static', filename='images/logo.PNG') }}" alt="ZINA Logo" class="loader-logo-small">
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Users Section -->
+            <section class="admin-section" id="usersSection">
+                <div class="section-header">
+                    <h2>Gestion des Utilisateurs</h2>
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" placeholder="Rechercher un utilisateur..." onkeyup="filterUsers()">
+                    </div>
+                </div>
+
+                <div class="users-table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Matricule</th>
+                                <th>Nom</th>
+                                <th>Département</th>
+                                <th>Commandes</th>
+                                <th>Inscription</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody">
+                            <tr class="section-loader-row" id="usersLoaderRow">
+                                <td colspan="6">
+                                    <div class="loader-logo-container-small">
+                                        <div class="loader-logo-wrapper-small">
+                                            <div class="loader-logo-fill-container-small">
+                                                <div class="loader-logo-fill-small" id="usersLoaderFill"></div>
+                                            </div>
+                                            <img src="{{ url_for('static', filename='images/logo.PNG') }}" alt="ZINA Logo" class="loader-logo-small">
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Settings Section -->
+            <section class="admin-section" id="settingsSection">
+                <div class="section-header">
+                    <h2>Paramètres du Site</h2>
+                </div>
+
+                <div class="settings-grid">
+                    <div class="settings-card">
+                        <h3>Informations Générales</h3>
+                        <form id="generalSettings" onsubmit="saveGeneralSettings(event)">
+                            <div class="form-group">
+                                <label>Nom de l'entreprise</label>
+                                <input type="text" value="ZINA Cantine BAD">
+                            </div>
+                            <div class="form-group">
+                                <label>Email de contact</label>
+                                <input type="email" value="contact@zina-cantine.ci">
+                            </div>
+                            <div class="form-group">
+                                <label>Téléphone</label>
+                                <input type="tel" value="+225 27 20 00 00 00">
+                            </div>
+                            <div class="form-group">
+                                <label>Adresse</label>
+                                <textarea rows="3">Cantine BAD, Avenue Joseph Anoma, Abidjan, Côte d'Ivoire</textarea>
+                            </div>
+                            <button type="submit" class="btn-primary">
+                                <i class="fas fa-save"></i>
+                                <span>Enregistrer</span>
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="settings-card">
+                        <h3>Horaires d'Ouverture</h3>
+                        <form id="hoursSettings" onsubmit="saveHoursSettings(event)">
+                            <div class="form-group">
+                                <label>Lundi - Vendredi</label>
+                                <input type="text" value="7h00 - 18h00">
+                            </div>
+                            <div class="form-group">
+                                <label>Samedi</label>
+                                <input type="text" value="8h00 - 14h00">
+                            </div>
+                            <div class="form-group">
+                                <label>Dimanche</label>
+                                <input type="text" value="Fermé">
+                            </div>
+                            <button type="submit" class="btn-primary">
+                                <i class="fas fa-save"></i>
+                                <span>Enregistrer</span>
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="settings-card">
+                        <h3>Frais de Service</h3>
+                        <form id="feesSettings" onsubmit="saveFeesSettings(event)">
+                            <div class="form-group">
+                                <label>Frais de service (FCFA)</label>
+                                <input type="number" value="200">
+                            </div>
+                            <div class="form-group">
+                                <label>TVA (%)</label>
+                                <input type="number" value="18">
+                            </div>
+                            <button type="submit" class="btn-primary">
+                                <i class="fas fa-save"></i>
+                                <span>Enregistrer</span>
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="settings-card">
+                        <h3>Modes de Paiement</h3>
+                        <div class="toggle-group">
+                            <label class="toggle-item">
+                                <span>Espèces</span>
+                                <input type="checkbox" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <label class="toggle-item">
+                                <span>Carte Bancaire</span>
+                                <input type="checkbox" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <label class="toggle-item">
+                                <span>Orange Money</span>
+                                <input type="checkbox" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <label class="toggle-item">
+                                <span>MTN Mobile Money</span>
+                                <input type="checkbox" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Menu Modal -->
+    <div class="modal" id="menuModal">
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h2 id="menuModalTitle">Ajouter un Plat</h2>
+                <button class="modal-close" onclick="closeMenuModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="menuForm" onsubmit="saveMenu(event)">
+                <input type="hidden" id="menuId">
+                <div class="modal-body">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Nom du Plat *</label>
+                            <input type="text" id="menuName" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Catégorie *</label>
+                            <select id="menuCategory" required>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Prix (FCFA) *</label>
+                            <input type="number" id="menuPrice" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Temps de Préparation (min)</label>
+                            <input type="number" id="menuPrepTime" value="15">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea id="menuDescription" rows="3" placeholder="Description du plat..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Image du Plat</label>
+                        <input type="file" id="menuImageFile" accept="image/*">
+                        <small class="form-help">Formats acceptés: PNG, JPG, JPEG, GIF, WebP</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Emoji (si pas d'image)</label>
+                        <input type="text" id="menuImage" placeholder="Ex: 🍗">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Statut</label>
+                            <select id="menuAvailable">
+                                <option value="true">Disponible</option>
+                                <option value="false">Indisponible</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="menuPopular">
+                                <span class="checkmark"></span>
+                                Plat Populaire
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" onclick="closeMenuModal()">Annuler</button>
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-save"></i>
+                        <span>Enregistrer</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Category Modal -->
+    <div class="modal" id="categoryModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="categoryModalTitle">Ajouter une Catégorie</h2>
+                <button class="modal-close" onclick="closeCategoryModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="categoryForm" onsubmit="saveCategory(event)">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Nom de la Catégorie <span style="color: red;">*</span></label>
+                        <input type="text" id="categoryName" required placeholder="Ex: Petit Déjeuner">
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea id="categoryDescription" rows="3" placeholder="Description de la catégorie..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Image de la Catégorie</label>
+                        <input type="file" id="categoryImage" accept="image/*">
+                        <small class="form-help">Formats acceptés: PNG, JPG, JPEG, GIF, WebP</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Icône (Emoji)</label>
+                        <input type="text" id="categoryIcon" placeholder="Ex: 🍔">
+                    </div>
+                    <div class="form-group">
+                        <label>Couleur</label>
+                        <input type="color" id="categoryColor" value="#581b1f">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" onclick="closeCategoryModal()">Annuler</button>
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-save"></i>
+                        <span>Enregistrer</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Order Details Modal -->
+    <div class="modal" id="orderDetailsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Détails de la Commande</h2>
+                <button class="modal-close" onclick="closeOrderDetails()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="orderDetailsContent">
+                <!-- Order details will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" onclick="closeOrderDetails()">Fermer</button>
+                <button type="button" class="btn-primary" onclick="updateOrderStatus()">
+                    <i class="fas fa-check"></i>
+                    <span>Mettre à Jour</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div class="modal" id="confirmModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="confirmModalTitle">Confirmation</h2>
+                <button class="modal-close" onclick="closeConfirmModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p id="confirmMessage">Êtes-vous sûr ?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" onclick="closeConfirmModal()">Annuler</button>
+                <button type="button" class="btn-danger" id="confirmBtn">
+                    <i class="fas fa-trash"></i>
+                    <span>Supprimer</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- JavaScript -->
+    <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+</body>
+</html>

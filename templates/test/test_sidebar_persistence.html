@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Sidebar Persistence</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        .success { background-color: #d4edda; color: #155724; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover { background-color: #0056b3; }
+        .current-section {
+            font-weight: bold;
+            color: #007bff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Test de Persistance du Sidebar Admin</h1>
+        
+        <div class="test-section">
+            <h3>📋 État Actuel</h3>
+            <p>Section sauvegardée: <span class="current-section" id="savedSection">Non détectée</span></p>
+            <div id="status" class="status info">
+                Test de la persistance du sidebar...
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>🧪 Simulation de Navigation</h3>
+            <p>Cliquez sur ces boutons pour simuler la navigation dans l'admin:</p>
+            <button onclick="simulateSection('menu')">Menu</button>
+            <button onclick="simulateSection('categories')">Catégories</button>
+            <button onclick="simulateSection('orders')">Commandes</button>
+            <button onclick="simulateSection('users')">Utilisateurs</button>
+        </div>
+        
+        <div class="test-section">
+            <h3>🔄 Test de Rechargement</h3>
+            <p>Après avoir cliqué sur une section ci-dessus, rechargez cette page pour voir si la section est restaurée.</p>
+            <button onclick="location.reload()">Recharger la Page</button>
+            <button onclick="clearStorage()">Effacer le Stockage</button>
+        </div>
+        
+        <div class="test-section">
+            <h3>📝 Instructions</h3>
+            <ol>
+                <li>Cliquez sur un bouton de section ci-dessus</li>
+                <li>Rechargez la page (F5 ou bouton Recharger)</li>
+                <li>Vérifiez que la même section est affichée</li>
+                <li>Testez avec différentes sections</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        // Simulate the admin sidebar navigation
+        function simulateSection(section) {
+            localStorage.setItem('adminCurrentSection', section);
+            updateStatus();
+            document.getElementById('status').className = 'status success';
+            document.getElementById('status').innerHTML = `✅ Section "${section}" sauvegardée! Rechargez la page pour tester la restauration.`;
+        }
+        
+        function clearStorage() {
+            localStorage.removeItem('adminCurrentSection');
+            updateStatus();
+            document.getElementById('status').className = 'status info';
+            document.getElementById('status').innerHTML = '🗑️ Stockage effacé. La page reviendra à la section par défaut (menu).';
+        }
+        
+        function updateStatus() {
+            const savedSection = localStorage.getItem('adminCurrentSection');
+            const element = document.getElementById('savedSection');
+            
+            if (savedSection) {
+                element.textContent = savedSection;
+                element.style.color = '#28a745';
+            } else {
+                element.textContent = 'Non détectée';
+                element.style.color = '#6c757d';
+            }
+        }
+        
+        // Update status on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            updateStatus();
+            
+            const savedSection = localStorage.getItem('adminCurrentSection');
+            if (savedSection) {
+                document.getElementById('status').innerHTML = `✅ Section "${savedSection}" restaurée depuis le stockage local!`;
+                document.getElementById('status').className = 'status success';
+            } else {
+                document.getElementById('status').innerHTML = 'ℹ️ Aucune section sauvegardée. Le menu affichera la section par défaut.';
+                document.getElementById('status').className = 'status info';
+            }
+        });
+    </script>
+</body>
+</html>

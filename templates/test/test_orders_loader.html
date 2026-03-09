@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Orders Loader Fix</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        
+        /* Simulate the admin table structure */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid #ddd;
+        }
+        .data-table th {
+            background: #f8f9fa;
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        /* The fixed loader styles */
+        .section-loader-row {
+            height: 300px;
+            display: none; /* Hidden by default */
+        }
+
+        .section-loader-row.show {
+            display: table-row; /* Show when loading */
+        }
+        
+        .section-loader-row td {
+            padding: 0 !important;
+            vertical-align: middle;
+            text-align: center;
+            border: none;
+        }
+        
+        .loader-logo-container-small {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .loader-logo-wrapper-small {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            margin: 0 auto;
+            background: #581b1f;
+            border-radius: 50%;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2), inset 0 1px 2px rgba(255, 255, 255, 0.1);
+        }
+        
+        .loader-logo-small {
+            width: 90px;
+            height: 90px;
+            object-fit: contain;
+        }
+        
+        .loader-logo-fill-container-small {
+            position: absolute;
+            width: 90px;
+            height: 90px;
+            top: 15px;
+            left: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 10 L60 25 L75 20 L70 35 L85 40 L70 45 L75 60 L60 55 L50 70 L40 55 L25 60 L30 45 L15 40 L30 35 L25 20 L40 25 Z' fill='white'/%3E%3C/svg%3E") no-repeat center;
+            mask-position: center;
+        }
+        
+        .loader-logo-fill-small {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: linear-gradient(45deg, #ffffff, #f0f0f0);
+            border-radius: 50%;
+            transition: height 2s ease-out;
+        }
+        
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        .success { background-color: #d4edda; color: #155724; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+        .warning { background-color: #fff3cd; color: #856404; }
+        
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover { background-color: #0056b3; }
+        button.success { background-color: #28a745; }
+        button.warning { background-color: #ffc107; color: #000; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Test du Loader - Section Commandes</h1>
+        
+        <div class="test-section">
+            <h3>🐛 Problème Identifié</h3>
+            <p>Le logo de chargement dans la section "Commandes" ne s'affichait pas correctement.</p>
+            <ul>
+                <li>❌ Le loader row n'était pas visible (display: none)</li>
+                <li>❌ Mauvais type d'affichage pour les table rows</li>
+                <li>❌ Animation ne démarrait pas correctement</li>
+            </ul>
+        </div>
+        
+        <div class="test-section">
+            <h3>✅ Solution Appliquée</h3>
+            <p>Correction complète du système de loader pour la section Commandes:</p>
+            <ul>
+                <li>✅ CSS: Ajout de classes .show/.hide pour les table rows</li>
+                <li>✅ JavaScript: Détection du type d'élément (TR vs autres)</li>
+                <li>✅ Animation: Reset et démarrage correct de l'animation</li>
+                <li>✅ Consistence: Même comportement que les autres sections</li>
+            </ul>
+        </div>
+        
+        <div class="test-section">
+            <h3>🧪 Test Interactif</h3>
+            <p>Tableau simulant la section "Commandes" avec le loader fonctionnel:</p>
+            
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Commande #</th>
+                        <th>Client</th>
+                        <th>Articles</th>
+                        <th>Total</th>
+                        <th>Statut</th>
+                        <th>Heure</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="ordersTableBody">
+                    <tr class="section-loader-row" id="ordersLoaderRow">
+                        <td colspan="7">
+                            <div class="loader-logo-container-small">
+                                <div class="loader-logo-wrapper-small">
+                                    <div class="loader-logo-fill-container-small">
+                                        <div class="loader-logo-fill-small" id="ordersLoaderFill"></div>
+                                    </div>
+                                    <img src="https://via.placeholder.com/90x90/581b1f/ffffff?text=ZINA" alt="ZINA Logo" class="loader-logo-small">
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <div class="status info" id="testStatus">
+                Cliquez sur les boutons pour tester le loader.
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <button onclick="showLoader()">Afficher le Loader</button>
+                <button onclick="hideLoader()" class="warning">Cacher le Loader</button>
+                <button onclick="simulateLoading()" class="success">Simuler Chargement (2s)</button>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>🔧 Modifications Techniques</h3>
+            <p><strong>Fichiers modifiés:</strong></p>
+            <ul>
+                <li><code>static/css/admin.css</code> - Classes .show/.hide pour les loader rows</li>
+                <li><code>static/js/admin.js</code> - Fonctions show/hideSectionDataLoader améliorées</li>
+            </ul>
+            
+            <p><strong>Changements clés:</strong></p>
+            <ol>
+                <li>Détection du type d'élément (TR vs autres conteneurs)</li>
+                <li>Utilisation de classes CSS au lieu de styles inline</li>
+                <li>Reset d'animation avant démarrage</li>
+                <li>Délai de 100ms pour démarrage fluide</li>
+            </ol>
+        </div>
+        
+        <div class="test-section">
+            <h3>🚀 Vérification en Production</h3>
+            <p>Pour vérifier que la correction fonctionne:</p>
+            <ol>
+                <li>Ouvrir l'interface admin</li>
+                <li>Naviguer vers "Commandes"</li>
+                <li>Le loader animé doit apparaître immédiatement</li>
+                <li>Après chargement, les données doivent s'afficher</li>
+                <li>Le loader doit disparaître proprement</li>
+            </ol>
+            
+            <button onclick="window.open('/admin', '_blank')">Tester en Production</button>
+        </div>
+    </div>
+
+    <script>
+        function showLoader() {
+            const loaderRow = document.getElementById('ordersLoaderRow');
+            const loaderFill = document.getElementById('ordersLoaderFill');
+            
+            loaderRow.classList.add('show');
+            loaderFill.style.height = '0%';
+            
+            setTimeout(() => {
+                animateLoader(loaderFill);
+            }, 100);
+            
+            document.getElementById('testStatus').className = 'status success';
+            document.getElementById('testStatus').textContent = '✅ Loader affiché avec animation!';
+        }
+        
+        function hideLoader() {
+            const loaderRow = document.getElementById('ordersLoaderRow');
+            const loaderFill = document.getElementById('ordersLoaderFill');
+            
+            loaderRow.classList.remove('show');
+            loaderFill.style.height = '0%';
+            
+            document.getElementById('testStatus').className = 'status info';
+            document.getElementById('testStatus').textContent = '🔄 Loader caché. Prêt pour le prochain test.';
+        }
+        
+        function simulateLoading() {
+            showLoader();
+            
+            document.getElementById('testStatus').className = 'status warning';
+            document.getElementById('testStatus').textContent = '⏳ Simulation de chargement en cours...';
+            
+            setTimeout(() => {
+                hideLoader();
+                
+                // Simulate loaded data
+                const tbody = document.getElementById('ordersTableBody');
+                tbody.innerHTML = `
+                    <tr>
+                        <td>#12345</td>
+                        <td>Jean Dupont</td>
+                        <td>3 articles</td>
+                        <td><strong>5,500 FCFA</strong></td>
+                        <td><span class="status-badge completed">Complété</span></td>
+                        <td>12:30</td>
+                        <td><button class="action-btn edit"><i class="fas fa-eye"></i></button></td>
+                    </tr>
+                    <tr>
+                        <td>#12346</td>
+                        <td>Marie Curie</td>
+                        <td>2 articles</td>
+                        <td><strong>3,000 FCFA</strong></td>
+                        <td><span class="status-badge processing">En cours</span></td>
+                        <td>12:45</td>
+                        <td><button class="action-btn edit"><i class="fas fa-eye"></i></button></td>
+                    </tr>
+                `;
+                
+                document.getElementById('testStatus').className = 'status success';
+                document.getElementById('testStatus').textContent = '✅ Chargement simulé terminé avec succès!';
+            }, 2000);
+        }
+        
+        function animateLoader(fillElement) {
+            let progress = 0;
+            const startTime = Date.now();
+            const duration = 2000;
+            
+            const animate = () => {
+                const elapsed = Date.now() - startTime;
+                
+                if (elapsed < duration) {
+                    progress = Math.min(100, (elapsed / duration) * 100);
+                    const easeProgress = progress - (progress / 100) * (progress / 100) * 0.3;
+                    fillElement.style.height = `${easeProgress}%`;
+                    requestAnimationFrame(animate);
+                } else {
+                    fillElement.style.height = '100%';
+                }
+            };
+            
+            animate();
+        }
+        
+        // Add basic status badge styling
+        const style = document.createElement('style');
+        style.textContent = `
+            .status-badge {
+                padding: 0.35rem 0.75rem;
+                border-radius: 20px;
+                font-size: 0.75rem;
+                font-weight: 600;
+                text-transform: uppercase;
+            }
+            .status-badge.completed {
+                background: rgba(0, 184, 148, 0.1);
+                color: #00b894;
+            }
+            .status-badge.processing {
+                background: rgba(253, 203, 110, 0.1);
+                color: #fdcb6e;
+            }
+            .action-btn.edit {
+                background: #0984e3;
+                color: white;
+                border: none;
+                padding: 0.5rem;
+                border-radius: 5px;
+                cursor: pointer;
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>
