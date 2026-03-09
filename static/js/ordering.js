@@ -20,6 +20,7 @@ let currentFilter = 'all';
 document.addEventListener('DOMContentLoaded', function() {
     initializeDate();
     updateMealPeriod();
+    checkSession(); // Check if user is logged in
     loadMenuFromAPI();
 });
 
@@ -334,6 +335,10 @@ function checkSession() {
         restoreCart();
         
         showToast('Session restaurée - Bienvenue ' + currentUser.name, 'info');
+    } else {
+        // Show login overlay if no user is logged in
+        document.getElementById('loginOverlay').style.display = 'flex';
+        document.getElementById('appContainer').style.display = 'none';
     }
 }
 
