@@ -14,6 +14,16 @@ let currentUser = null;
 let currentCategory = 'all';
 let currentFilter = 'all';
 
+// Meal Selection Modal State
+let currentMealSelection = null;
+let siderQuantities = {
+    fries: 0,
+    alloco: 0,
+    attieke: 0
+};
+let currentStep = 1;
+let selectedPickupTime = null;
+
 // ========================================
 // Initialize App
 // ========================================
@@ -122,9 +132,9 @@ function handleGuestAccess() {
     document.getElementById('userDept').textContent = 'Visiteur';
     
     showToast('Accès invité - Un compte invité sera créé lors de votre première commande', 'info');
-    
+
     // Load menu
-    loadMenu();
+    loadMenuFromAPI();
 }
 
 function handleLogin(event) {
@@ -405,9 +415,12 @@ function loadMenuFromAPI() {
     fetch('/api/menu')
         .then(response => response.json())
         .then(data => {
+            console.log('Menu data loaded:', data);
             if (data && Object.keys(data).length > 0) {
                 // Use API data
                 menuItems = convertAPIMenu(data);
+                console.log('Menu items converted:', menuItems.length, 'items');
+                console.log('Categories:', [...new Set(menuItems.map(i => i.category))]);
                 renderMenu(menuItems);
                 updateCategoryCounts(menuItems);
             } else {
@@ -432,15 +445,15 @@ function convertAPIMenu(apiData) {
     // Convert API format to our format
     const converted = [];
     let id = 1;
-    
-    for (const [category, items] of Object.entries(apiData)) {
+
+    for (const [categoryKey, items] of Object.entries(apiData)) {
         items.forEach(item => {
             converted.push({
                 id: id++,
                 name: item.name,
                 description: item.description || '',
                 price: item.price,
-                category: category,
+                category: item.category || categoryKey,  // Use item's category if available
                 image: item.image || '🍽️',
                 available: item.is_available !== undefined ? item.is_available : true,
                 popular: false,
@@ -448,7 +461,7 @@ function convertAPIMenu(apiData) {
             });
         });
     }
-    
+
     return converted;
 }
 
@@ -618,19 +631,41 @@ function addToCart(itemId) {
     const item = menuItems.find(i => i.id === itemId);
     if (!item || !item.available) return;
 
-    const existingItem = cart.find(i => i.id === itemId);
+    // For lunch/main meals categories, open the siders selection modal
+    // Category can be in French or English: 'plats complets', 'déjeuner', 'lunch', 'plats_complets', etc.
+    const mainMealCategories = [
+        'lunch', 'plats_complets', 'plats', 'main_courses', 'plat_complet', 'dejeuner',
+        'plats complets', 'déjeuner', 'plat du jour', 'menu'
+    ];
+    const itemCategory = (item.category || '').toLowerCase();
+    const isMainMeal = mainMealCategories.some(cat => itemCategory.includes(cat));
+
+    console.log('addToCart:', item.name, 'category:', item.category, 'isMainMeal:', isMainMeal);
+
+    if (isMainMeal) {
+        openMealSelectionModal(item);
+        return;
+    }
+
+    // For other categories, add directly to cart
+    addToCartDirectly(item, 1);
+}
+
+function addToCartDirectly(item, quantity) {
+    const existingItem = cart.find(i => i.id === item.id);
     if (existingItem) {
-        existingItem.quantity += 1;
+        existingItem.quantity += quantity;
     } else {
         cart.push({
             id: item.id,
             name: item.name,
             price: item.price,
-            quantity: 1,
+            quantity: quantity,
             image: item.image,
             category: item.category,
             prepTime: item.prepTime,
-            optionIds: []
+            optionIds: [],
+            siders: {}
         });
     }
 
@@ -661,6 +696,16 @@ function updateCartUI() {
                 <div class="cart-item-details">
                     <div class="cart-item-title">${item.name}</div>
                     <div class="cart-item-price">${formatPrice(item.price)}</div>
+                    ${item.siders && (item.siders.fries + item.siders.alloco + item.siders.attieke > 0) ? `
+                        <div class="cart-item-siders">
+                            <small><i class="fas fa-utensils"></i>
+                            ${Object.entries(item.siders).filter(([_, qty]) => qty > 0).map(([key, qty]) => {
+                                const names = { fries: 'Frites', alloco: 'Alloco', attieke: 'Attiéké' };
+                                const icons = { fries: '🍟', alloco: '🍌', attieke: '🍚' };
+                                return `${icons[key]} ${names[key]} x${qty}`;
+                            }).join(', ')}</small>
+                        </div>
+                    ` : ''}
                     <div class="quantity-controls">
                         <button class="qty-btn" onclick="updateQuantity(${item.id}, -1)">
                             <i class="fas fa-minus"></i>
@@ -713,6 +758,267 @@ function updateCartTotals() {
 function toggleCart() {
     document.getElementById('cartSidebar').classList.toggle('active');
     document.getElementById('cartOverlay').classList.toggle('active');
+}
+
+// ========================================
+// Meal Selection Modal (Siders Selection)
+// ========================================
+function openMealSelectionModal(meal) {
+    console.log('Opening meal selection modal for:', meal.name);
+    currentMealSelection = meal;
+    currentStep = 1;
+    siderQuantities = { fries: 0, alloco: 0, attieke: 0 };
+    selectedPickupTime = null;
+
+    // Update selected meal info
+    const mealInfoEl = document.getElementById('selectedMealInfo');
+    if (mealInfoEl) {
+        mealInfoEl.textContent = `${meal.name} - ${formatPrice(meal.price)}`;
+    }
+
+    // Reset sider quantities display
+    updateSiderDisplay();
+
+    // Show modal
+    const modal = document.getElementById('mealSelectionModal');
+    console.log('Modal element:', modal);
+    if (modal) {
+        modal.classList.add('active');
+        console.log('Modal classes:', modal.classList);
+    }
+
+    // Show step 1
+    showStep(1);
+}
+
+function closeMealSelectionModal() {
+    document.getElementById('mealSelectionModal').classList.remove('active');
+    currentMealSelection = null;
+    currentStep = 1;
+    siderQuantities = { fries: 0, alloco: 0, attieke: 0 };
+}
+
+function updateSiderQuantity(siderType, change) {
+    if (siderQuantities[siderType] === undefined) return;
+
+    const newValue = siderQuantities[siderType] + change;
+    if (newValue < 0) return;
+
+    siderQuantities[siderType] = newValue;
+    updateSiderDisplay();
+}
+
+function updateSiderDisplay() {
+    document.getElementById('friesQty').textContent = siderQuantities.fries;
+    document.getElementById('allocoQty').textContent = siderQuantities.alloco;
+    document.getElementById('attiekeQty').textContent = siderQuantities.attieke;
+
+    // Disable minus buttons if quantity is 0
+    document.querySelector('.qty-btn-minus[onclick*="fries"]').disabled = siderQuantities.fries === 0;
+    document.querySelector('.qty-btn-minus[onclick*="alloco"]').disabled = siderQuantities.alloco === 0;
+    document.querySelector('.qty-btn-minus[onclick*="attieke"]').disabled = siderQuantities.attieke === 0;
+}
+
+function nextStep() {
+    if (currentStep === 1) {
+        // Validate at least one sider is selected
+        const totalSiders = siderQuantities.fries + siderQuantities.alloco + siderQuantities.attieke;
+        if (totalSiders === 0) {
+            showToast('Veuillez sélectionner au moins un accompagnement', 'warning');
+            return;
+        }
+
+        // Show verification step
+        showVerificationStep();
+        showStep(2);
+    } else if (currentStep === 2) {
+        // Show pickup time step
+        showPickupTimeStep();
+        showStep(3);
+    }
+}
+
+function previousStep() {
+    if (currentStep === 2) {
+        showStep(1);
+    } else if (currentStep === 3) {
+        showStep(2);
+    }
+}
+
+function showStep(step) {
+    currentStep = step;
+
+    // Update step visibility
+    document.querySelectorAll('.modal-step').forEach(s => s.classList.remove('active'));
+    document.getElementById(`step${step}`).classList.add('active');
+
+    // Update progress indicator
+    document.querySelectorAll('.progress-step').forEach((s, index) => {
+        const stepNum = index + 1;
+        s.classList.remove('active', 'completed');
+        if (stepNum === step) {
+            s.classList.add('active');
+        } else if (stepNum < step) {
+            s.classList.add('completed');
+        }
+    });
+
+    // Update buttons
+    document.getElementById('backBtn').style.display = step === 1 ? 'none' : 'flex';
+    document.getElementById('nextBtn').style.display = step === 3 ? 'none' : 'flex';
+    document.getElementById('confirmBtn').style.display = step === 3 ? 'flex' : 'none';
+}
+
+function showVerificationStep() {
+    const meal = currentMealSelection;
+
+    // Update meal info
+    document.getElementById('verifyMealName').textContent = meal.name;
+    document.getElementById('verifyMealPrice').textContent = formatPrice(meal.price);
+    document.getElementById('verifyMealQty').textContent = `x1`;
+
+    // Set meal image
+    const imageContainer = document.getElementById('verifyMealImage');
+    if (meal.image && meal.image.startsWith('<')) {
+        imageContainer.innerHTML = meal.image;
+    } else {
+        imageContainer.innerHTML = `<img src="${meal.image}" alt="${meal.name}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2280%22>🍽️</text></svg>'">`;
+    }
+
+    // Update siders list
+    const sidersContainer = document.getElementById('verificationSiders');
+    const siderNames = {
+        fries: 'Frites',
+        alloco: 'Alloco',
+        attieke: 'Attiéké'
+    };
+    const siderIcons = {
+        fries: '🍟',
+        alloco: '🍌',
+        attieke: '🍚'
+    };
+
+    let sidersHtml = '';
+    for (const [key, qty] of Object.entries(siderQuantities)) {
+        if (qty > 0) {
+            sidersHtml += `
+                <div class="verification-sider-item">
+                    <div class="sider-info">
+                        <span class="sider-icon">${siderIcons[key]}</span>
+                        <span class="sider-name">${siderNames[key]}</span>
+                    </div>
+                    <span class="sider-qty-label">x${qty} portion${qty > 1 ? 's' : ''}</span>
+                </div>
+            `;
+        }
+    }
+    sidersContainer.innerHTML = sidersHtml;
+
+    // Update total
+    document.getElementById('verifyTotal').textContent = formatPrice(meal.price);
+}
+
+function showPickupTimeStep() {
+    const prepTime = currentMealSelection.prepTime || 15;
+    document.getElementById('prepTimeDisplay').textContent = prepTime;
+
+    // Calculate earliest pickup time
+    const earliestTime = new Date();
+    earliestTime.setMinutes(earliestTime.getMinutes() + prepTime + 5);
+    const earliestTimeStr = earliestTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    document.getElementById('earliestTime').textContent = `Prêt vers ${earliestTimeStr}`;
+
+    // Populate custom time options
+    populatePickupTimeOptions(prepTime);
+
+    // Reset to ASAP
+    document.querySelector('input[name="pickupTime"][value="asap"]').checked = true;
+    document.getElementById('customTimeInput').style.display = 'none';
+    selectedPickupTime = 'asap';
+}
+
+function populatePickupTimeOptions(prepTimeMinutes) {
+    const select = document.getElementById('pickupTimeSelect');
+    const now = new Date();
+    const minPickupMinutes = prepTimeMinutes + 5;
+
+    select.innerHTML = '';
+
+    // Create time options every 15 minutes for the next 3 hours
+    for (let i = minPickupMinutes; i <= minPickupMinutes + 180; i += 15) {
+        const time = new Date(now.getTime() + i * 60000);
+        const timeStr = time.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        const label = i < 60 ? `Dans ${i} min (${timeStr})` : `À ${timeStr}`;
+
+        const option = document.createElement('option');
+        option.value = i;
+        option.textContent = label;
+        select.appendChild(option);
+    }
+}
+
+function updateCustomTime() {
+    document.getElementById('customTimeInput').style.display = 'none';
+    selectedPickupTime = 'asap';
+}
+
+function enableCustomTime() {
+    document.getElementById('customTimeInput').style.display = 'block';
+    // Select first option by default
+    const select = document.getElementById('pickupTimeSelect');
+    if (select.options.length > 0) {
+        selectedPickupTime = parseInt(select.value);
+    }
+}
+
+function updatePickupTime() {
+    const select = document.getElementById('pickupTimeSelect');
+    selectedPickupTime = parseInt(select.value);
+}
+
+function confirmMealOrder() {
+    if (!currentMealSelection) return;
+
+    // Calculate pickup time
+    const prepTime = currentMealSelection.prepTime || 15;
+    let pickupTime;
+
+    if (selectedPickupTime === 'asap') {
+        pickupTime = new Date();
+        pickupTime.setMinutes(pickupTime.getMinutes() + prepTime + 5);
+    } else {
+        pickupTime = new Date();
+        pickupTime.setMinutes(pickupTime.getMinutes() + selectedPickupTime);
+    }
+
+    // Add meal to cart with siders
+    const mealWithSiders = {
+        id: currentMealSelection.id,
+        name: currentMealSelection.name,
+        price: currentMealSelection.price,
+        quantity: 1,
+        image: currentMealSelection.image,
+        category: currentMealSelection.category,
+        prepTime: prepTime,
+        optionIds: [],
+        siders: { ...siderQuantities }
+    };
+
+    cart.push(mealWithSiders);
+    updateCartUI();
+    saveCart();
+
+    // Close modal
+    closeMealSelectionModal();
+
+    // Show success
+    showToast('Commande ajoutée au panier', 'success');
+
+    // Optionally open cart
+    if (!document.getElementById('cartSidebar').classList.contains('active')) {
+        toggleCart();
+    }
 }
 
 // ========================================
@@ -930,6 +1236,7 @@ document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         closeOrderModal();
         closeSuccessModal();
+        closeMealSelectionModal();
         if (document.getElementById('cartSidebar').classList.contains('active')) {
             toggleCart();
         }
@@ -965,3 +1272,14 @@ window.fetchUserOrders = fetchUserOrders;
 window.startScanner = function() {
     showToast('Fonctionnalité de scan QR à implémenter', 'info');
 };
+
+// Meal Selection Modal functions
+window.openMealSelectionModal = openMealSelectionModal;
+window.closeMealSelectionModal = closeMealSelectionModal;
+window.updateSiderQuantity = updateSiderQuantity;
+window.nextStep = nextStep;
+window.previousStep = previousStep;
+window.confirmMealOrder = confirmMealOrder;
+window.updateCustomTime = updateCustomTime;
+window.enableCustomTime = enableCustomTime;
+window.updatePickupTime = updatePickupTime;

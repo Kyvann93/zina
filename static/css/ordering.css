@@ -1485,6 +1485,19 @@ body {
     margin-bottom: 0.5rem;
 }
 
+.cart-item-siders {
+    margin-bottom: 0.5rem;
+    color: var(--medium-gray);
+    font-size: 0.85rem;
+}
+
+.cart-item-siders small {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+}
+
 .quantity-controls {
     display: flex;
     align-items: center;
@@ -2193,10 +2206,545 @@ body {
     .category-nav {
         overflow-x: auto;
     }
-    
+
     .cat-btn {
         flex-direction: column;
         text-align: center;
         min-width: 100px;
+    }
+}
+
+/* ========================================
+   Meal Selection Modal (Siders Modal)
+   ======================================== */
+.meal-selection-modal .modal-content {
+    max-width: 700px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.meal-selection-content .modal-header {
+    display: flex;
+    justify-content: flex-end;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+
+.meal-selection-content .btn-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: var(--medium-gray);
+    cursor: pointer;
+    padding: 0.5rem;
+    transition: color 0.3s ease;
+}
+
+.meal-selection-content .btn-close:hover {
+    color: var(--danger);
+}
+
+/* Progress Indicator */
+.progress-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 2rem 3rem;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+}
+
+.progress-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    position: relative;
+    z-index: 1;
+}
+
+.step-number {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.3);
+    color: var(--white);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+}
+
+.progress-step.active .step-number {
+    background: var(--white);
+    color: var(--primary);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.progress-step.completed .step-number {
+    background: var(--success);
+    color: var(--white);
+}
+
+.step-label {
+    color: rgba(255,255,255,0.8);
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-align: center;
+}
+
+.progress-step.active .step-label {
+    color: var(--white);
+    font-weight: 600;
+}
+
+.progress-line {
+    flex: 1;
+    height: 2px;
+    background: rgba(255,255,255,0.3);
+    margin: 0 0.5rem;
+}
+
+/* Modal Steps */
+.modal-step {
+    display: none;
+    padding: 2rem 1.5rem;
+    animation: fadeIn 0.3s ease;
+}
+
+.modal-step.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.step-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.step-header h3 {
+    color: var(--primary);
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.selected-meal-info {
+    color: var(--medium-gray);
+    font-size: 0.95rem;
+}
+
+/* Siders Grid */
+.siders-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.sider-item {
+    background: var(--off-white);
+    border-radius: 12px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.sider-item:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--primary-light);
+}
+
+.sider-image {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: var(--white);
+    box-shadow: var(--shadow-md);
+}
+
+.sider-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.sider-details {
+    text-align: center;
+}
+
+.sider-details h4 {
+    color: var(--primary);
+    font-size: 1.1rem;
+    margin-bottom: 0.25rem;
+}
+
+.sider-price {
+    color: var(--success);
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.sider-quantity {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.qty-btn-minus,
+.qty-btn-plus {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 2px solid var(--primary);
+    background: var(--white);
+    color: var(--primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}
+
+.qty-btn-minus:hover,
+.qty-btn-plus:hover {
+    background: var(--primary);
+    color: var(--white);
+}
+
+.qty-btn-minus:disabled,
+.qty-btn-plus:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.qty-value {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--primary);
+    min-width: 30px;
+    text-align: center;
+}
+
+.sider-note {
+    text-align: center;
+    color: var(--medium-gray);
+    font-size: 0.9rem;
+    padding: 1rem;
+    background: var(--off-white);
+    border-radius: 8px;
+}
+
+/* Verification Step */
+.order-verification {
+    background: var(--off-white);
+    border-radius: 12px;
+    padding: 1.5rem;
+}
+
+.verification-meal {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--light-gray);
+}
+
+.verification-image {
+    width: 60px;
+    height: 60px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--white);
+}
+
+.verification-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.verification-details {
+    flex: 1;
+}
+
+.verification-details h4 {
+    color: var(--primary);
+    font-size: 1.1rem;
+    margin-bottom: 0.25rem;
+}
+
+.verification-price {
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.qty-badge {
+    background: var(--primary);
+    color: var(--white);
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.verification-siders {
+    padding: 1rem 0;
+}
+
+.verification-sider-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--light-gray);
+}
+
+.verification-sider-item:last-child {
+    border-bottom: none;
+}
+
+.sider-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.sider-icon {
+    font-size: 1.5rem;
+}
+
+.sider-name {
+    font-weight: 500;
+    color: var(--dark-gray);
+}
+
+.sider-qty-label {
+    color: var(--medium-gray);
+    font-size: 0.9rem;
+}
+
+.verification-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 1rem;
+    border-top: 2px solid var(--primary);
+    font-size: 1.2rem;
+}
+
+.verification-total strong {
+    color: var(--primary);
+    font-size: 1.4rem;
+}
+
+/* Pickup Time Selection */
+.pickup-time-selection {
+    padding: 1rem 0;
+}
+
+.prep-time-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: #fff3cd;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    color: #856404;
+}
+
+.prep-time-info i {
+    font-size: 1.2rem;
+}
+
+.time-options {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.time-option {
+    cursor: pointer;
+}
+
+.time-option input[type="radio"] {
+    display: none;
+}
+
+.time-option-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1.5rem;
+    background: var(--off-white);
+    border: 2px solid var(--light-gray);
+    border-radius: 12px;
+    transition: all 0.3s ease;
+    text-align: center;
+}
+
+.time-option-card i {
+    font-size: 2rem;
+    color: var(--primary);
+}
+
+.time-option-card span {
+    font-weight: 600;
+    color: var(--dark-gray);
+}
+
+.time-option-card small {
+    color: var(--medium-gray);
+    font-size: 0.85rem;
+}
+
+.time-option input[type="radio"]:checked + .time-option-card {
+    border-color: var(--primary);
+    background: rgba(88, 27, 31, 0.05);
+}
+
+.time-option input[type="radio"]:checked + .time-option-card i {
+    color: var(--primary);
+}
+
+.custom-time-input {
+    background: var(--off-white);
+    padding: 1.5rem;
+    border-radius: 12px;
+}
+
+.custom-time-input label {
+    display: block;
+    margin-bottom: 0.75rem;
+    font-weight: 600;
+    color: var(--dark-gray);
+}
+
+.custom-time-input select {
+    width: 100%;
+    padding: 1rem;
+    border: 2px solid var(--light-gray);
+    border-radius: 8px;
+    font-size: 1rem;
+    background: var(--white);
+    cursor: pointer;
+}
+
+.custom-time-input select:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+/* Modal Footer Buttons */
+.meal-selection-content .modal-footer {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.5rem;
+    border-top: 1px solid rgba(0,0,0,0.05);
+}
+
+.meal-selection-content .btn-cancel,
+.meal-selection-content .btn-confirm {
+    flex: 1;
+    padding: 1rem 2rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: all 0.3s ease;
+}
+
+.meal-selection-content .btn-cancel {
+    background: var(--light-gray);
+    color: var(--dark-gray);
+}
+
+.meal-selection-content .btn-cancel:hover {
+    background: var(--medium-gray);
+    color: var(--white);
+}
+
+.meal-selection-content .btn-confirm {
+    background: var(--primary);
+    color: var(--white);
+}
+
+.meal-selection-content .btn-confirm:hover {
+    background: var(--primary-dark);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .progress-indicator {
+        padding: 1.5rem 1rem;
+    }
+
+    .step-label {
+        font-size: 0.75rem;
+    }
+
+    .step-number {
+        width: 32px;
+        height: 32px;
+        font-size: 0.9rem;
+    }
+
+    .siders-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .sider-item {
+        flex-direction: row;
+        justify-content: space-between;
+        padding: 1rem;
+    }
+
+    .sider-image {
+        width: 60px;
+        height: 60px;
+    }
+
+    .sider-details {
+        text-align: left;
+        flex: 1;
+        margin-left: 1rem;
+    }
+
+    .sider-quantity {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .verification-meal {
+        flex-wrap: wrap;
+    }
+
+    .meal-selection-content .modal-footer {
+        flex-direction: column;
+    }
+
+    .meal-selection-content .btn-cancel,
+    .meal-selection-content .btn-confirm {
+        width: 100%;
     }
 }

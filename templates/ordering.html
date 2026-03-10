@@ -241,7 +241,179 @@
         <!-- Cart Overlay -->
         <div class="cart-overlay" id="cartOverlay" onclick="toggleCart()"></div>
 
-        <!-- Order Confirmation Modal -->
+        <!-- Meal Selection Modal (Siders Modal) -->
+        <div class="modal meal-selection-modal" id="mealSelectionModal">
+            <div class="modal-content meal-selection-content">
+                <div class="modal-header">
+                    <button class="btn-close" onclick="closeMealSelectionModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <!-- Progress Indicator -->
+                    <div class="progress-indicator">
+                        <div class="progress-step active" data-step="1">
+                            <div class="step-number">1</div>
+                            <span class="step-label">Accompagnements</span>
+                        </div>
+                        <div class="progress-line"></div>
+                        <div class="progress-step" data-step="2">
+                            <div class="step-number">2</div>
+                            <span class="step-label">Vérification</span>
+                        </div>
+                        <div class="progress-line"></div>
+                        <div class="progress-step" data-step="3">
+                            <div class="step-number">3</div>
+                            <span class="step-label">Récupération</span>
+                        </div>
+                    </div>
+
+                    <!-- Step 1: Siders Selection -->
+                    <div class="modal-step active" id="step1">
+                        <div class="step-header">
+                            <h3>Choisissez vos accompagnements</h3>
+                            <p class="selected-meal-info" id="selectedMealInfo"></p>
+                        </div>
+                        <div class="siders-grid">
+                            <div class="sider-item">
+                                <div class="sider-image">
+                                    <img src="{{ url_for('static', filename='images/food/frites.jpg') }}" alt="Frites" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2280%22>🍟</text></svg>'">
+                                </div>
+                                <div class="sider-details">
+                                    <h4>Frites</h4>
+                                    <p class="sider-price">Inclus</p>
+                                </div>
+                                <div class="sider-quantity">
+                                    <button class="qty-btn-minus" onclick="updateSiderQuantity('fries', -1)">
+                                        <i class="fas fa-minus"></i>
+                                    </button>
+                                    <span class="qty-value" id="friesQty">0</span>
+                                    <button class="qty-btn-plus" onclick="updateSiderQuantity('fries', 1)">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="sider-item">
+                                <div class="sider-image">
+                                    <img src="{{ url_for('static', filename='images/food/alloco.jpg') }}" alt="Alloco" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2280%22>🍌</text></svg>'">
+                                </div>
+                                <div class="sider-details">
+                                    <h4>Alloco</h4>
+                                    <p class="sider-price">Inclus</p>
+                                </div>
+                                <div class="sider-quantity">
+                                    <button class="qty-btn-minus" onclick="updateSiderQuantity('alloco', -1)">
+                                        <i class="fas fa-minus"></i>
+                                    </button>
+                                    <span class="qty-value" id="allocoQty">0</span>
+                                    <button class="qty-btn-plus" onclick="updateSiderQuantity('alloco', 1)">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="sider-item">
+                                <div class="sider-image">
+                                    <img src="{{ url_for('static', filename='images/food/attieke.jpg') }}" alt="Attiéké" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2280%22>🍚</text></svg>'">
+                                </div>
+                                <div class="sider-details">
+                                    <h4>Attiéké</h4>
+                                    <p class="sider-price">Inclus</p>
+                                </div>
+                                <div class="sider-quantity">
+                                    <button class="qty-btn-minus" onclick="updateSiderQuantity('attieke', -1)">
+                                        <i class="fas fa-minus"></i>
+                                    </button>
+                                    <span class="qty-value" id="attiekeQty">0</span>
+                                    <button class="qty-btn-plus" onclick="updateSiderQuantity('attieke', 1)">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="sider-note"><i class="fas fa-info-circle"></i> Sélectionnez le nombre de portions pour chaque accompagnement</p>
+                    </div>
+
+                    <!-- Step 2: Verification -->
+                    <div class="modal-step" id="step2">
+                        <div class="step-header">
+                            <h3>Vérifiez votre commande</h3>
+                        </div>
+                        <div class="order-verification">
+                            <div class="verification-meal">
+                                <div class="verification-image" id="verifyMealImage"></div>
+                                <div class="verification-details">
+                                    <h4 id="verifyMealName"></h4>
+                                    <p class="verification-price" id="verifyMealPrice"></p>
+                                </div>
+                                <div class="verification-quantity">
+                                    <span class="qty-badge" id="verifyMealQty"></span>
+                                </div>
+                            </div>
+                            <div class="verification-siders" id="verificationSiders">
+                                <!-- Siders will be listed here -->
+                            </div>
+                            <div class="verification-total">
+                                <span>Total</span>
+                                <strong id="verifyTotal"></strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Pickup Time -->
+                    <div class="modal-step" id="step3">
+                        <div class="step-header">
+                            <h3>Choisissez l'heure de récupération</h3>
+                        </div>
+                        <div class="pickup-time-selection">
+                            <div class="prep-time-info">
+                                <i class="fas fa-clock"></i>
+                                <span>Temps de préparation estimé: <strong id="prepTimeDisplay">15</strong> minutes</span>
+                            </div>
+                            <div class="time-options">
+                                <label class="time-option">
+                                    <input type="radio" name="pickupTime" value="asap" checked onchange="updateCustomTime()">
+                                    <div class="time-option-card">
+                                        <i class="fas fa-bolt"></i>
+                                        <span>Dès que possible</span>
+                                        <small id="earliestTime"></small>
+                                    </div>
+                                </label>
+                                <label class="time-option">
+                                    <input type="radio" name="pickupTime" value="custom" onchange="enableCustomTime()">
+                                    <div class="time-option-card">
+                                        <i class="fas fa-calendar"></i>
+                                        <span>Choisir l'heure</span>
+                                        <small>Sélectionnez votre heure</small>
+                                    </div>
+                                </label>
+                            </div>
+                            <div class="custom-time-input" id="customTimeInput" style="display: none;">
+                                <label for="pickupTimeSelect">Heure de récupération</label>
+                                <select id="pickupTimeSelect" onchange="updatePickupTime()">
+                                    <!-- Options will be populated dynamically -->
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-cancel" id="backBtn" onclick="previousStep()" style="display: none;">
+                        <i class="fas fa-arrow-left"></i>
+                        <span>Retour</span>
+                    </button>
+                    <button class="btn-confirm" id="nextBtn" onclick="nextStep()">
+                        <span>Suivant</span>
+                        <i class="fas fa-arrow-right"></i>
+                    </button>
+                    <button class="btn-confirm" id="confirmBtn" onclick="confirmMealOrder()" style="display: none;">
+                        <i class="fas fa-check"></i>
+                        <span>Confirmer la Commande</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Order Confirmation Modal (for cart checkout) -->
         <div class="modal" id="orderModal">
             <div class="modal-content">
                 <div class="modal-header">
