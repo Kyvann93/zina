@@ -25,6 +25,58 @@ let currentStep = 1;
 let selectedPickupTime = null;
 
 // ========================================
+// Test Functions (for debugging)
+// ========================================
+function testCategoryCounting() {
+    // Create test menu data with French categories
+    const testMenu = [
+        { category: 'petit déjeuner', name: 'Croissant' },
+        { category: 'petit déjeuner', name: 'Café' },
+        { category: 'déjeuner', name: 'Riz Sauce' },
+        { category: 'déjeuner', name: 'Poulet Braisé' },
+        { category: 'déjeuner', name: 'Attiéké' },
+        { category: 'boissons', name: 'Jus Orange' },
+        { category: 'boissons', name: 'Eau' },
+        { category: 'desserts', name: 'Gâteau' }
+    ];
+    
+    console.log('Testing category counting with:', testMenu);
+    updateCategoryCounts(testMenu);
+    
+    // Check if counts are correct
+    const expectedCounts = {
+        'countAll': 8,
+        'countBreakfast': 2,
+        'countLunch': 3,
+        'countDrinks': 2,
+        'countDesserts': 1
+    };
+    
+    let allCorrect = true;
+    for (const [id, expected] of Object.entries(expectedCounts)) {
+        const el = document.getElementById(id);
+        const actual = el ? parseInt(el.textContent) : 0;
+        if (actual !== expected) {
+            console.error(`❌ ${id}: expected ${expected}, got ${actual}`);
+            allCorrect = false;
+        } else {
+            console.log(`✅ ${id}: ${actual}`);
+        }
+    }
+    
+    if (allCorrect) {
+        console.log('🎉 All category counts are correct!');
+    } else {
+        console.log('❌ Some category counts are incorrect.');
+    }
+    
+    return allCorrect;
+}
+
+// Make test function available globally
+window.testCategoryCounting = testCategoryCounting;
+
+// ========================================
 // Initialize App
 // ========================================
 document.addEventListener('DOMContentLoaded', function() {
@@ -473,7 +525,12 @@ function renderMenu(menu) {
     
     // Apply category filter
     if (currentCategory !== 'all') {
-        filteredMenu = filteredMenu.filter(item => item.category === currentCategory);
+        const actualNames = mapCategoryToActualNames(currentCategory);
+        filteredMenu = filteredMenu.filter(item => 
+            actualNames.some(name => 
+                item.category && item.category.toLowerCase() === name.toLowerCase()
+            )
+        );
     }
     
     // Apply item filter
@@ -541,21 +598,51 @@ function getCategoryName(category) {
 }
 
 function updateCategoryCounts(menu) {
-    const counts = {
-        all: menu.length,
-        breakfast: menu.filter(i => i.category === 'breakfast').length,
-        lunch: menu.filter(i => i.category === 'lunch').length,
-        snacks: menu.filter(i => i.category === 'snacks').length,
-        salads: menu.filter(i => i.category === 'salads').length,
-        drinks: menu.filter(i => i.category === 'drinks').length,
-        desserts: menu.filter(i => i.category === 'desserts').length,
-        specials: menu.filter(i => i.category === 'specials').length
+    // Count items by actual category names (no safe key conversion)
+    const categoryCounts = {};
+    menu.forEach(item => {
+        const category = item.category;
+        if (category) {
+            categoryCounts[category] = (categoryCounts[category] || 0) + 1;
+        }
+    });
+    
+    // Update "All" count
+    const allEl = document.getElementById('countAll');
+    if (allEl) {
+        allEl.textContent = menu.length;
+    }
+    
+    // Define mapping from data-category values to actual category names
+    const categoryMappings = {
+        'breakfast': ['petit déjeuner', 'petit-déjeuner', 'breakfast', 'petit_dejeuner'],
+        'lunch': ['déjeuner', 'dejeuner', 'plats complets', 'lunch', 'plats_complets'],
+        'snacks': ['snacks'],
+        'salads': ['salades', 'salade', 'salads'],
+        'drinks': ['boissons', 'drinks'],
+        'desserts': ['desserts', 'dessert'],
+        'specials': ['spécialités', 'specialites', 'specials']
     };
     
-    for (const [cat, count] of Object.entries(counts)) {
-        const el = document.getElementById(`count${capitalize(cat)}`);
-        if (el) el.textContent = count;
-    }
+    // Update specific category counts
+    document.querySelectorAll('.cat-btn[data-category]').forEach(btn => {
+        const category = btn.dataset.category;
+        if (category === 'all') return; // Already handled
+        
+        // Calculate count by summing all matching actual categories
+        let count = 0;
+        const actualCategories = categoryMappings[category] || [category];
+        
+        actualCategories.forEach(actualCat => {
+            count += categoryCounts[actualCat] || 0;
+        });
+        
+        // Find the count element for this category
+        const countEl = btn.querySelector('.cat-count');
+        if (countEl) {
+            countEl.textContent = count;
+        }
+    });
 }
 
 function capitalize(str) {
@@ -573,6 +660,23 @@ function filterCategory(category) {
     });
 
     renderMenu(menuItems);
+}
+
+// Helper function to map English category to actual French category names
+function mapCategoryToActualNames(category) {
+    if (category === 'all') return null; // No filtering for 'all'
+    
+    const mappings = {
+        'breakfast': ['petit déjeuner', 'petit-déjeuner', 'breakfast', 'petit_dejeuner'],
+        'lunch': ['déjeuner', 'dejeuner', 'plats complets', 'lunch', 'plats_complets'],
+        'snacks': ['snacks'],
+        'salads': ['salades', 'salade', 'salads'],
+        'drinks': ['boissons', 'drinks'],
+        'desserts': ['desserts', 'dessert'],
+        'specials': ['spécialités', 'specialites', 'specials']
+    };
+    
+    return mappings[category] || [category];
 }
 
 function filterItems(filter) {
