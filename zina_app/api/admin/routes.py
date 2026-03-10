@@ -239,6 +239,32 @@ def get_admin_orders():
         return jsonify([{'error': str(e)}])
 
 
+@admin_bp.route('/users', methods=['GET'])
+def get_admin_users():
+    """Get all users for admin"""
+    try:
+        supabase = get_supabase()
+        response = supabase.table('users').select('*').execute()
+        
+        if response.data:
+            users = []
+            for user in response.data:
+                users.append({
+                    'id': user.get('id'),
+                    'full_name': user.get('full_name'),
+                    'email': user.get('email'),
+                    'phone': user.get('phone'),
+                    'department': user.get('department'),
+                    'employee_id': user.get('employee_id'),
+                    'created_at': user.get('created_at')
+                })
+            return jsonify(users)
+        else:
+            return jsonify([])
+    except Exception as e:
+        return jsonify([{'error': str(e)}])
+
+
 @admin_bp.route('/orders/<int:order_id>/status', methods=['PUT'])
 def update_order_status(order_id):
     """Update order status"""

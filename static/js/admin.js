@@ -340,19 +340,43 @@ function loadDashboardData() {
     // Load categories from API
     loadCategoriesFromBackend();
 
-    // Load orders from API (placeholder - implement when orders API is ready)
+    // Load orders from API
     fetch('/api/admin/orders')
         .then(response => response.json())
         .then(data => {
-            orders = data.length > 0 ? data : [];
+            orders = data && data.length > 0 ? data : [];
+            updateDashboardStats();
+            updateRecentOrdersTable();
         })
         .catch(error => {
             console.error('Error loading orders:', error);
             orders = [];
+            updateDashboardStats();
+            updateRecentOrdersTable();
         });
 
-    // Users will be loaded when the users API is implemented
-    users = [];
+    // Load users from API (if endpoint exists)
+    fetch('/api/admin/users')
+        .then(response => {
+            if (response.ok) {
+                return response.json();
+            } else {
+                // Users endpoint might not exist, set empty array
+                return [];
+            }
+        })
+        .then(data => {
+            users = data && data.length > 0 ? data : [];
+            updateDashboardStats();
+        })
+        .catch(error => {
+            console.error('Error loading users:', error);
+            users = [];
+            updateDashboardStats();
+        });
+
+    // Load popular items from orders data
+    updatePopularItems();
 }
 
 function convertAPIMenu(apiData) {
@@ -378,15 +402,222 @@ function convertAPIMenu(apiData) {
 
 function updateDashboardStats() {
     document.getElementById('totalMenus').textContent = menus.length;
-    document.getElementById('todayOrders').textContent = orders.length;
     document.getElementById('totalUsers').textContent = users.length;
     
-    const revenue = orders.reduce((sum, order) => sum + order.total, 0);
-    document.getElementById('todayRevenue').textContent = revenue.toLocaleString('fr-FR');
+    // Get today's date at midnight for filtering
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStart = today.getTime();
+    
+    // Filter orders for today only
+    const todayOrders = orders.filter(order => {
+        if (!order.created_at) return false;
+        const orderDate = new Date(order.created_at);
+        return orderDate.getTime() >= todayStart;
+    });
+    
+    // Calculate today's revenue
+    const todayRevenue = todayOrders.reduce((sum, order) => sum + (order.total_amount || 0), 0);
+    
+    // Update UI with today's data
+    document.getElementById('todayOrders').textContent = todayOrders.length;
+    document.getElementById('todayRevenue').textContent = todayRevenue.toLocaleString('fr-FR') + ' FCFA';
+    
+    console.log(`Today's orders: ${todayOrders.length}, Revenue: ${todayRevenue}`);
+}
+
+function updateRecentOrdersTable() {
+    const tbody = document.getElementById('ordersTableBody');
+    if (!tbody) return;
+    
+    if (orders.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" style="text-align: center; padding: 2rem;">
+                    <i class="fas fa-receipt" style="font-size: 2rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+                    <p style="color: #666;">Aucune commande trouvée</p>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    // Sort orders by date (most recent first)
+    const sortedOrders = orders.sort((a, b) => {
+        const dateA = new Date(a.created_at || 0);
+        const dateB = new Date(b.created_at || 0);
+        return dateB - dateA;
+    });
+    
+    // Display all existing orders (not limited to 5)
+    tbody.innerHTML = sortedOrders.map(order => {
+        const createdDate = order.created_at ? new Date(order.created_at) : new Date();
+        const dateStr = createdDate.toLocaleDateString('fr-FR');
+        const timeStr = createdDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        const statusClass = getStatusClass(order.order_status);
+        const statusText = getStatusText(order.order_status);
+        
+        return `
+            <tr>
+                <td>#${order.order_id}</td>
+                <td>${order.user_name || (order.user_email || 'Client')}</td>
+                <td>${formatPrice(order.total_amount)}</td>
+                <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                <td>${dateStr} ${timeStr}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function updatePopularItems() {
+    // Calculate popular items from orders
+    const itemCounts = {};
+    
+    orders.forEach(order => {
+        if (order.items && order.items.length > 0) {
+            order.items.forEach(item => {
+                const itemName = item.product_name || item.name;
+                if (itemName) {
+                    itemCounts[itemName] = (itemCounts[itemName] || 0) + item.quantity;
+                }
+            });
+        }
+    });
+    
+    // Sort items by popularity
+    const popularItems = Object.entries(itemCounts)
+        .sort(([,a], [,b]) => b - a)
+        .slice(0, 5); // Top 5 items
+    
+    // Update popular items display
+    const popularList = document.getElementById('popularItemsList');
+    if (!popularList) return;
+    
+    if (popularItems.length === 0) {
+        popularList.innerHTML = `
+            <div style="text-align: center; padding: 2rem; color: #666;">
+                <i class="fas fa-utensils" style="font-size: 2rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+                <p>Aucune donnée disponible</p>
+            </div>
+        `;
+        return;
+    }
+    
+    popularList.innerHTML = popularItems.map((item, index) => `
+        <div class="popular-item">
+            <span class="popular-rank">${index + 1}</span>
+            <span class="popular-name">${item[0]}</span>
+            <span class="popular-count">${item[1]} commandes</span>
+        </div>
+    `).join('');
+}
+
+function getStatusClass(status) {
+    const statusMap = {
+        'pending': 'info',
+        'confirmed': 'warning', 
+        'preparing': 'warning',
+        'ready': 'success',
+        'completed': 'success',
+        'cancelled': 'danger'
+    };
+    return statusMap[status] || 'info';
+}
+
+function getStatusText(status) {
+    const statusMap = {
+        'pending': 'En attente',
+        'confirmed': 'Confirmée',
+        'preparing': 'En cours',
+        'ready': 'Prête',
+        'completed': 'Complétée',
+        'cancelled': 'Annulée'
+    };
+    return statusMap[status] || status;
+}
+
+function formatPrice(amount) {
+    return new Intl.NumberFormat('fr-FR', {
+        style: 'currency',
+        currency: 'XOF'
+    }).format(amount || 0);
 }
 
 // ========================================
-// Menu Management
+// Test Functions
+// ========================================
+function testDashboardData() {
+    console.log('=== Testing Dashboard Data Display (No Hardcoded Values) ===');
+    
+    // Create test orders data with different dates
+    const now = new Date();
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60000);
+    const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 60 * 60000);
+    
+    const testOrders = [
+        {
+            order_id: 4827,
+            user_name: 'Jean Kouamé',
+            total_amount: 14300,
+            order_status: 'completed',
+            created_at: now.toISOString(),
+            items: [
+                { product_name: 'Riz Gras au Poulet', quantity: 2 },
+                { product_name: 'Jus Orange', quantity: 1 }
+            ]
+        },
+        {
+            order_id: 4826,
+            user_name: 'Marie Diallo',
+            total_amount: 8500,
+            order_status: 'preparing',
+            created_at: yesterday.toISOString(),
+            items: [
+                { product_name: 'Alloco & Poisson', quantity: 1 }
+            ]
+        },
+        {
+            order_id: 4825,
+            user_name: 'Patrick Aka',
+            total_amount: 12000,
+            order_status: 'pending',
+            created_at: twoDaysAgo.toISOString(),
+            items: [
+                { product_name: 'Attiéké', quantity: 3 }
+            ]
+        }
+    ];
+    
+    // Test with sample data
+    const originalOrders = orders;
+    orders = testOrders;
+    
+    console.log('Test orders:', testOrders);
+    console.log('Today should show:', testOrders.filter(o => new Date(o.created_at).toDateString() === now.toDateString()).length, 'orders');
+    
+    // Update dashboard displays
+    updateDashboardStats();
+    updateRecentOrdersTable();
+    updatePopularItems();
+    
+    // Restore original data after 5 seconds
+    setTimeout(() => {
+        orders = originalOrders;
+        updateDashboardStats();
+        updateRecentOrdersTable();
+        updatePopularItems();
+        console.log('Restored original orders data');
+    }, 5000);
+    
+    console.log('✅ Dashboard test completed!');
+    console.log('- Recent orders table should show real data from API');
+    console.log('- Popular items should be calculated from order data');
+    console.log('- No hardcoded values should be visible');
+    console.log('- Check HTML: ordersTableBody and popularItemsList should be populated');
+}
+
+// Make test function available globally
+window.testDashboardData = testDashboardData;
 // ========================================
 function loadMenus() {
     loadMenusFromBackend();

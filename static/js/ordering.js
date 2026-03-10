@@ -76,6 +76,37 @@ function testCategoryCounting() {
 // Make test function available globally
 window.testCategoryCounting = testCategoryCounting;
 
+// Test function for guest user order history
+function testGuestOrderHistory() {
+    console.log('=== Testing Guest User Order History ===');
+    
+    // Simulate a guest user with an ID (after placing first order)
+    const testGuestUser = {
+        id: '123e4567-e89b-12d3-a456-426614174000',
+        name: 'Invité',
+        department: 'Visiteur',
+        isGuest: true
+    };
+    
+    // Temporarily set current user to test guest
+    const originalUser = currentUser;
+    currentUser = testGuestUser;
+    
+    console.log('Test guest user:', testGuestUser);
+    
+    // Test order history display
+    showOrderHistory();
+    
+    // Restore original user after 5 seconds
+    setTimeout(() => {
+        currentUser = originalUser;
+        console.log('Restored original user:', originalUser);
+    }, 5000);
+}
+
+// Make test function available globally
+window.testGuestOrderHistory = testGuestOrderHistory;
+
 // ========================================
 // Initialize App
 // ========================================
@@ -183,7 +214,7 @@ function handleGuestAccess() {
     document.getElementById('userName').textContent = 'Invité';
     document.getElementById('userDept').textContent = 'Visiteur';
     
-    showToast('Accès invité - Un compte invité sera créé lors de votre première commande', 'info');
+    showToast('Accès invité - Votre historique de commandes sera disponible après votre première commande', 'info');
 
     // Load menu
     loadMenuFromAPI();
@@ -229,6 +260,7 @@ function handleLogout() {
 
 // Order History Functions
 function showOrderHistory() {
+    // Allow all users (including guests) to see order history
     if (!currentUser) {
         showToast('Veuillez vous connecter pour voir vos commandes', 'warning');
         return;
@@ -248,7 +280,7 @@ async function fetchUserOrders() {
         if (currentUser.isGuest) {
             // Guest users use guest orders endpoint with their assigned user_id
             if (!currentUser.id || currentUser.id === 'null' || currentUser.id === 'None') {
-                showToast('Veuillez d\'abord passer une commande pour activer l\'historique', 'info');
+                displayOrderHistoryError('Aucune commande trouvée. Passez votre première commande pour voir l\'historique.');
                 return;
             }
             url = `/api/guest/orders?user_id=${currentUser.id}`;
@@ -1247,6 +1279,11 @@ function confirmOrder() {
                 localStorage.setItem('zina_user', JSON.stringify(currentUser));
                 sessionStorage.setItem('zina_user', JSON.stringify(currentUser));
                 console.log('Guest user updated with ID:', data.user_id);
+                
+                // Show additional success message for guest users
+                setTimeout(() => {
+                    showToast('Vous pouvez maintenant consulter votre historique de commandes !', 'success');
+                }, 2000);
             }
             
             closeOrderModal();
