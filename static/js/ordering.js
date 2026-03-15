@@ -120,7 +120,59 @@ document.addEventListener('DOMContentLoaded', function() {
     loadLanguagePreference(); // Load language preference
     loadThemePreference(); // Load theme preference
     loadMenuFromAPI();
+
+    // Handle category sidebar sticky behavior
+    handleStickySidebar();
 });
+
+// ========================================
+// Sticky Category Sidebar
+// ========================================
+function handleStickySidebar() {
+    const header = document.querySelector('.order-header');
+    const categorySidebar = document.querySelector('.category-sidebar');
+    const mainContent = document.querySelector('.order-main');
+
+    if (!header || !categorySidebar) return;
+
+    const headerHeight = header.offsetHeight;
+
+    // Set initial padding on main content
+    mainContent.style.paddingTop = (headerHeight + 20) + 'px';
+
+    window.addEventListener('scroll', function() {
+        const scrollTop = window.scrollY;
+
+        // When scrolled past header, hide header and make sidebar fixed at top
+        if (scrollTop >= headerHeight) {
+            header.style.transform = 'translateY(-100%)';
+            categorySidebar.style.position = 'fixed';
+            categorySidebar.style.top = '0';
+            categorySidebar.style.left = '0';
+            categorySidebar.style.right = '0';
+            categorySidebar.style.width = '100%';
+            categorySidebar.style.borderRadius = '0';
+            categorySidebar.style.zIndex = '1000';
+            categorySidebar.style.boxShadow = 'var(--shadow-lg)';
+
+            // Adjust padding to match fixed sidebar height
+            mainContent.style.paddingTop = (categorySidebar.offsetHeight + 20) + 'px';
+        } else {
+            header.style.transform = 'translateY(0)';
+            categorySidebar.style.position = '';
+            categorySidebar.style.top = '';
+            categorySidebar.style.left = '';
+            categorySidebar.style.right = '';
+            categorySidebar.style.width = '';
+            categorySidebar.style.borderRadius = '';
+            categorySidebar.style.zIndex = '';
+            categorySidebar.style.boxShadow = '';
+
+            // Reset main content padding to initial value
+            mainContent.style.paddingTop = (headerHeight + 20) + 'px';
+        }
+    });
+}
 
 // ========================================
 // Login System
@@ -1617,6 +1669,8 @@ function confirmMealOrder() {
 // Checkout
 // ========================================
 function proceedToCheckout() {
+    console.log('proceedToCheckout called, cart length:', cart.length);
+
     if (cart.length === 0) {
         showToast(currentLanguage === 'fr' ? 'Votre panier est vide' : 'Your cart is empty', 'error');
         return;
@@ -1628,6 +1682,14 @@ function proceedToCheckout() {
     const totalPrepTime = Math.max(...cart.map(item => item.prepTime || 15));
 
     const orderSummary = document.getElementById('orderSummary');
+    console.log('orderSummary element:', orderSummary);
+
+    if (!orderSummary) {
+        console.error('orderSummary element not found!');
+        showToast('Error: Order summary not found', 'error');
+        return;
+    }
+
     orderSummary.innerHTML = `
         <h4 style="margin-bottom: 1rem;">${currentLanguage === 'fr' ? 'Récapitulatif de la commande' : 'Order Summary'}</h4>
         <div class="order-items-detail" style="margin-bottom: 1rem; max-height: 200px; overflow-y: auto;">
@@ -1650,8 +1712,23 @@ function proceedToCheckout() {
     // Update pickup time options based on prep time
     updatePickupTimeOptions(totalPrepTime);
 
-    document.getElementById('orderModal').classList.add('active');
-    toggleCart();
+    const orderModal = document.getElementById('orderModal');
+    console.log('orderModal element:', orderModal);
+
+    if (orderModal) {
+        orderModal.classList.add('active');
+        console.log('orderModal active class added');
+    }
+
+    // Close cart sidebar
+    const cartSidebar = document.getElementById('cartSidebar');
+    const cartOverlay = document.getElementById('cartOverlay');
+    if (cartSidebar && cartSidebar.classList.contains('active')) {
+        cartSidebar.classList.remove('active');
+    }
+    if (cartOverlay && cartOverlay.classList.contains('active')) {
+        cartOverlay.classList.remove('active');
+    }
 }
 
 function updatePickupTimeOptions(prepTimeMinutes) {
