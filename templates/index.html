@@ -458,16 +458,11 @@
             <div class="logo">
                 <img src="{{ url_for('static', filename='images/logo.PNG') }}" alt="ZINA Cantine BAD">
             </div>
-            <h1>ZINA Cantine BAD</h1>
-            <p class="subtitle">Banque Africaine de Développement</p>
-            <p class="description">
-                Service de restauration moderne pour les employés de la BAD. 
-                Commandez vos repas en ligne avec facilité et rapidité.
-            </p>
+            <h1>ZINA Traiteur</h1>
         </div>
         
         <div class="actions">
-            <a href="/login" class="btn btn-primary">
+            <a href="/login" class="btn btn-primary" >
                 <i class="fas fa-sign-in-alt"></i>
                 <span>Se Connecter</span>
             </a>
@@ -479,30 +474,69 @@
                 <i class="fas fa-utensils"></i>
                 <span>Voir le Menu</span>
             </a>
-        </div>
-        
-        <div class="info-section">
-            <h3>Pourquoi choisir ZINA Cantine ?</h3>
-            <p>Une expérience de restauration conçue pour les employés de la BAD</p>
-            <div class="features">
-                <div class="feature">
-                    <i class="fas fa-clock"></i>
-                    <span>Commande Rapide</span>
-                </div>
-                <div class="feature">
-                    <i class="fas fa-utensils"></i>
-                    <span>Menu Varié</span>
-                </div>
-                <div class="feature">
-                    <i class="fas fa-mobile-alt"></i>
-                    <span>Interface Mobile</span>
-                </div>
-                <div class="feature">
-                    <i class="fas fa-shield-alt"></i>
-                    <span>Sécurisé</span>
-                </div>
-            </div>
+            
+                <a class="guest-btn" onclick="handleGuestAccess()">
+                    <i class="fas fa-user-secret"></i>
+                    <span>Continuer en tant qu'Invité</span>
+                </a>
+            
         </div>
     </div>
+    
 </body>
+<script src="{{ url_for('static', filename='js/ordering.js') }}"></script>
+    <script>
+        // Override handleLogin to redirect after successful login
+        function handleLogin(event) {
+            event.preventDefault();
+            
+            const employeeId = document.getElementById('employeeId').value;
+            const employeeName = document.getElementById('employeeName').value;
+            const department = document.getElementById('department').value;
+            
+            if (!employeeId || !employeeName || !department) {
+                showToast('Veuillez remplir tous les champs', 'error');
+                return;
+            }
+            
+            // Create user object
+            currentUser = {
+                id: employeeId,
+                name: employeeName,
+                department: department,
+                isGuest: false
+            };
+            
+            // Save to storage
+            localStorage.setItem('zina_user', JSON.stringify(currentUser));
+            sessionStorage.setItem('zina_user', JSON.stringify(currentUser));
+            
+            // Show success message
+            showToast('Connexion réussie! Redirection...', 'success');
+            
+            // Redirect to ordering page
+            setTimeout(() => {
+                window.location.href = '/ordering';
+            }, 1500);
+        }
+        
+        // Handle guest access
+        function handleGuestAccess() {
+            currentUser = {
+                id: null,
+                name: 'Invité',
+                department: 'Visiteur',
+                isGuest: true
+            };
+            
+            localStorage.setItem('zina_user', JSON.stringify(currentUser));
+            sessionStorage.setItem('zina_user', JSON.stringify(currentUser));
+            
+            showToast('Accès invité activé! Redirection...', 'info');
+            
+            setTimeout(() => {
+                window.location.href = '/ordering';
+            }, 1500);
+        }
+    </script>
 </html>

@@ -152,60 +152,6 @@
     </div>
 
     <!-- Scripts -->
-    <script src="{{ url_for('static', filename='js/ordering.js') }}"></script>
-    <script>
-        // Override handleLogin to redirect after successful login
-        function handleLogin(event) {
-            event.preventDefault();
-            
-            const employeeId = document.getElementById('employeeId').value;
-            const employeeName = document.getElementById('employeeName').value;
-            const department = document.getElementById('department').value;
-            
-            if (!employeeId || !employeeName || !department) {
-                showToast('Veuillez remplir tous les champs', 'error');
-                return;
-            }
-            
-            // Create user object
-            currentUser = {
-                id: employeeId,
-                name: employeeName,
-                department: department,
-                isGuest: false
-            };
-            
-            // Save to storage
-            localStorage.setItem('zina_user', JSON.stringify(currentUser));
-            sessionStorage.setItem('zina_user', JSON.stringify(currentUser));
-            
-            // Show success message
-            showToast('Connexion réussie! Redirection...', 'success');
-            
-            // Redirect to ordering page
-            setTimeout(() => {
-                window.location.href = '/ordering';
-            }, 1500);
-        }
-        
-        // Handle guest access
-        function handleGuestAccess() {
-            currentUser = {
-                id: null,
-                name: 'Invité',
-                department: 'Visiteur',
-                isGuest: true
-            };
-            
-            localStorage.setItem('zina_user', JSON.stringify(currentUser));
-            sessionStorage.setItem('zina_user', JSON.stringify(currentUser));
-            
-            showToast('Accès invité activé! Redirection...', 'info');
-            
-            setTimeout(() => {
-                window.location.href = '/ordering';
-            }, 1500);
-        }
-    </script>
+    
 </body>
 </html>
