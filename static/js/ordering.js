@@ -1068,11 +1068,11 @@ function renderMenu(menu) {
                 </button>
             </div>
             <div class="menu-item-content">
-                <h3 class="menu-item-title">${item.name}</h3>
-                <p class="menu-item-description">${item.description}</p>
-                <div class="menu-item-footer">
+                <div class="menu-item-header">
+                    <h3 class="menu-item-title">${item.name}</h3>
                     <span class="menu-item-price">${item.price} FCFA</span>
                 </div>
+                <p class="menu-item-description">${item.description}</p>
             </div>
         </div>
     `).join('');

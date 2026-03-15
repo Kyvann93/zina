@@ -1584,7 +1584,7 @@ input:not(:checked) + .slider .slider-text.en {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: var(--space-3);
+    margin-bottom: var(--space-2);
     gap: var(--space-3);
 }
 
@@ -1595,6 +1595,7 @@ input:not(:checked) + .slider .slider-text.en {
     color: var(--dark-gray);
     flex: 1;
     line-height: 1.3;
+    margin: 0;
 }
 
 .menu-item-price {
@@ -1613,10 +1614,9 @@ input:not(:checked) + .slider .slider-text.en {
     line-height: 1.5;
     display: -webkit-box;
     -webkit-line-clamp: 2;
-    line-clamp: 2; /* Standard property for compatibility */
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
-    flex-grow: 1;
 }
 
 .menu-item-footer {
@@ -1625,7 +1625,6 @@ input:not(:checked) + .slider .slider-text.en {
     align-items: center;
     gap: var(--space-3);
     border-top: 1px solid var(--light-gray);
-    padding-top: var(--space-4);
 }
 
 .menu-item-meta {
