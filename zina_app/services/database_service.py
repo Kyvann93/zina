@@ -5,8 +5,9 @@ Handles all database operations via Supabase
 
 from typing import List, Optional
 from decimal import Decimal
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import uuid
+import hashlib
 import logging
 from supabase import Client
 
@@ -25,354 +26,206 @@ class DatabaseService:
         self.supabase = supabase_client
         self.image_service = CategoryImageService()
 
-    # Product operations
-    async def get_products(self, category_id: Optional[int] = None, available_only: bool = True) -> List[ProductResponse]:
-        try:
-            query = self.supabase.table('products').select('*')
+    # ------------------------------------------------------------------ #
+    # Product operations                                                   #
+    # ------------------------------------------------------------------ #
 
+    def get_products(self, category_id: Optional[int] = None, available_only: bool = True) -> List[ProductResponse]:
+        try:
+            query = self.supabase.table('products').select(
+                '*, categories(category_name), product_options(*)'
+            )
             if category_id:
                 query = query.eq('category_id', category_id)
-
             if available_only:
                 query = query.eq('is_available', True)
 
             response = query.execute()
+            logger.debug("get_products: found %d products (available_only=%s)", len(response.data), available_only)
 
-            print(f"[DEBUG] get_products: found {len(response.data)} products (available_only={available_only})")
-
-            products = []
-            for item in response.data:
-                # Get category info
-                category_response = self.supabase.table('categories').select('category_name').eq('category_id', item['category_id']).execute()
-                category_name = category_response.data[0]['category_name'] if category_response.data else None
-
-                # Get product options
-                options_response = self.supabase.table('product_options').select('*').eq('product_id', item['product_id']).execute()
-                options = [ProductOption(**opt) for opt in options_response.data] if options_response.data else []
-
-                product = ProductResponse(
-                    product_id=item['product_id'],
-                    category_id=item['category_id'],
-                    product_name=item['product_name'],
-                    description=item.get('description'),
-                    price=Decimal(str(item['price'])),
-                    image_url=item.get('image_url'),
-                    is_available=item.get('is_available', True),
-                    category_name=category_name,
-                    options=options
-                )
-                products.append(product)
-
-            return products
+            return [self._build_product(item) for item in response.data]
         except Exception as e:
-            print(f"Error fetching products: {e}")
+            logger.error("Error fetching products: %s", e)
             return []
 
-    async def get_product_by_id(self, product_id: int) -> Optional[ProductResponse]:
-        products = await self.get_products()
-        for product in products:
-            if product.product_id == product_id:
-                return product
-        return None
-
-    # Category operations
-    async def get_categories(self) -> List[CategoryResponse]:
+    def get_product_by_id(self, product_id: int) -> Optional[ProductResponse]:
         try:
-            response = self.supabase.table('categories').select('*').execute()
+            response = self.supabase.table('products').select(
+                '*, categories(category_name), product_options(*)'
+            ).eq('product_id', product_id).execute()
+
+            if not response.data:
+                return None
+            return self._build_product(response.data[0])
+        except Exception as e:
+            logger.error("Error fetching product %d: %s", product_id, e)
+            return None
+
+    def _build_product(self, item: dict) -> ProductResponse:
+        category_name = item['categories'].get('category_name') if item.get('categories') else None
+        options = [ProductOption(**opt) for opt in (item.get('product_options') or [])]
+        return ProductResponse(
+            product_id=item['product_id'],
+            category_id=item['category_id'],
+            product_name=item['product_name'],
+            description=item.get('description'),
+            price=Decimal(str(item['price'])),
+            image_url=item.get('image_url'),
+            is_available=item.get('is_available', True),
+            category_name=category_name,
+            options=options
+        )
+
+    # ------------------------------------------------------------------ #
+    # Category operations                                                  #
+    # ------------------------------------------------------------------ #
+
+    def get_categories(self) -> List[CategoryResponse]:
+        try:
+            response = self.supabase.table('categories').select(
+                '*, products(*, product_options(*))'
+            ).execute()
 
             categories = []
             for item in response.data:
-                # Get products for this category
-                products = await self.get_products(category_id=item['category_id'])
-                
-                # Get image for this category - prioritize local images
                 category_name = item['category_name']
-                try:
-                    # Try to find local image first (most reliable)
-                    image_url = item['image_url']
-                    print("Image",image_url)
-                    # If no local image, try API fallback but don't block on failure
-                    if not image_url:
-                        try:
-                            image_url = self.image_service.get_fallback_image_url(category_name, use_api='unsplash')
-                        except Exception as api_err:
-                            # Log but don't crash - it's OK to have no image
-                            logger.warning(f"Fallback API error for {category_name}: {api_err}")
-                            image_url = None
-                except Exception as img_err:
-                    print(f"Warning: Could not get image for {category_name}: {img_err}")
-                    image_url = None
 
-                category = CategoryResponse(
+                products = []
+                for prod in (item.get('products') or []):
+                    if not prod.get('is_available', True):
+                        continue
+                    options = [ProductOption(**opt) for opt in (prod.get('product_options') or [])]
+                    products.append(ProductResponse(
+                        product_id=prod['product_id'],
+                        category_id=prod['category_id'],
+                        product_name=prod['product_name'],
+                        description=prod.get('description'),
+                        price=Decimal(str(prod['price'])),
+                        image_url=prod.get('image_url'),
+                        is_available=prod.get('is_available', True),
+                        category_name=category_name,
+                        options=options
+                    ))
+
+                image_url = item.get('image_url')
+                if not image_url:
+                    try:
+                        image_url = self.image_service.get_fallback_image_url(category_name, use_api='unsplash')
+                    except Exception as api_err:
+                        logger.warning("Fallback image API error for %s: %s", category_name, api_err)
+                        image_url = None
+
+                categories.append(CategoryResponse(
                     category_id=item['category_id'],
                     category_name=category_name,
                     description=item.get('description'),
                     image_url=image_url,
                     products=products
-                )
-                categories.append(category)
+                ))
 
             return categories
         except Exception as e:
-            print(f"Error fetching categories: {e}")
+            logger.error("Error fetching categories: %s", e)
             return []
 
-    # Order operations
-    async def create_order(self, order_request: CreateOrderRequest) -> Optional[OrderResponse]:
+    # ------------------------------------------------------------------ #
+    # Order operations                                                     #
+    # ------------------------------------------------------------------ #
+
+    def create_order(self, order_request: CreateOrderRequest) -> Optional[OrderResponse]:
         try:
-            # Calculate total amount and build order items
             total_amount = Decimal('0')
             order_items_data = []
 
-            print(f"[DEBUG] Creating order with {len(order_request.items)} items")
+            logger.debug("Creating order with %d items", len(order_request.items))
 
             for item_request in order_request.items:
-                print(f"[DEBUG] Processing item: product_id={item_request.product_id}, quantity={item_request.quantity}")
-                product = await self.get_product_by_id(item_request.product_id)
-
+                product = self.get_product_by_id(item_request.product_id)
                 if not product:
-                    print(f"[WARNING] Product {item_request.product_id} not found in database")
-                    # Use hardcoded prices as fallback even if product not found
-                    hardcoded_prices = {
-                        1: 3500,  # Café Complet
-                        2: 3000,  # Thé & Viennoiseries
-                        3: 2000,  # Jus Naturel
-                        4: 2500,  # Omelette Matinale
-                    }
-                    unit_price = Decimal(str(hardcoded_prices.get(item_request.product_id, 0)))
-                    product_name = f"Product {item_request.product_id}"
-                    print(f"[DEBUG] Using hardcoded price: {unit_price}")
-                else:
-                    print(f"[DEBUG] Product found: {product.product_name}, price: {product.price}")
-                    unit_price = product.price
-                    product_name = product.product_name
+                    logger.warning("Product %d not found, skipping", item_request.product_id)
+                    continue
 
-                    # Fallback to hardcoded prices if database price is 0 or None
-                    if not unit_price or unit_price == 0:
-                        hardcoded_prices = {
-                            1: 3500,  # Café Complet
-                            2: 3000,  # Thé & Viennoiseries
-                            3: 2000,  # Jus Naturel
-                            4: 2500,  # Omelette Matinale
-                        }
-                        unit_price = Decimal(str(hardcoded_prices.get(item_request.product_id, 0)))
-                        print(f"[DEBUG] Database price was 0, using hardcoded price: {unit_price}")
+                unit_price = product.price
+                if item_request.option_ids and product.options:
+                    for option in product.options:
+                        if option.option_id in item_request.option_ids:
+                            unit_price += option.additional_price
 
-                    # Add option prices if any
-                    if item_request.option_ids and product.options:
-                        for option in product.options:
-                            if option.option_id in item_request.option_ids:
-                                unit_price += option.additional_price
-                                print(f"[DEBUG] Added option {option.option_name}: +{option.additional_price}")
-
-                item_total = unit_price * item_request.quantity
-                total_amount += item_total
-                print(f"[DEBUG] Item total: {item_total}, Running total: {total_amount}")
-
+                total_amount += unit_price * item_request.quantity
                 order_items_data.append({
                     'product_id': item_request.product_id,
-                    'product_name': product_name,
+                    'product_name': product.product_name,
                     'quantity': item_request.quantity,
                     'unit_price': float(unit_price)
                 })
 
-            print(f"[DEBUG] Final total_amount: {total_amount}")
-            print(f"[DEBUG] Order items data: {order_items_data}")
-
-            # Get pickup_time and prep_time_minutes (handle both old and new models)
-            from datetime import timedelta, timezone
-            pickup_time = getattr(order_request, 'pickup_time', None)
-            prep_time_minutes = getattr(order_request, 'prep_time_minutes', 15)
-
-            # Calculate pickup time: ensure it's greater than prep time
-            # Use timezone-aware datetime for comparison
             now = datetime.now(timezone.utc)
+            prep_time_minutes = order_request.prep_time_minutes
+            pickup_time = order_request.pickup_time
 
             if pickup_time:
-                # Make pickup_time timezone-aware if it isn't already
                 if pickup_time.tzinfo is None:
                     pickup_time = pickup_time.replace(tzinfo=timezone.utc)
-
-                # Ensure pickup time is at least prep_time_minutes from now
-                min_pickup_time = now + timedelta(minutes=prep_time_minutes)
-                if pickup_time < min_pickup_time:
-                    pickup_time = min_pickup_time
+                min_pickup = now + timedelta(minutes=prep_time_minutes)
+                if pickup_time < min_pickup:
+                    pickup_time = min_pickup
             else:
-                # Default: pickup after prep time
                 pickup_time = now + timedelta(minutes=prep_time_minutes)
 
-            # Generate a unique order ID
-            order_id = int(datetime.now().timestamp())  # Use timestamp as order ID
+            order_id = int(datetime.now().timestamp())
 
-            # Handle user ID - create a guest user if no user_id provided
-            user_id_str = None
-            if order_request.user_id:
-                user_id_str = str(order_request.user_id)
-                # Check if user exists, create if not
-                user_response = self.supabase.table('users').select('*').eq('user_id', user_id_str).execute()
-                
-                if not user_response.data:
-                    # Create user with minimal info including required password_hash
-                    import hashlib
-                    # Generate a default password hash (empty password for auto-created users)
-                    default_password = f"temp-{user_id_str[:8]}"
-                    password_hash = hashlib.sha256(default_password.encode()).hexdigest()
-                    
-                    user_data = {
-                        'user_id': user_id_str,
-                        'full_name': f'Employee {user_id_str[:8]}',
-                        'email': f'employee-{user_id_str[:8]}@zina-cantine.ci',
-                        'password_hash': password_hash,  # Required field
-                        'created_at': datetime.now().isoformat()
-                    }
-                    try:
-                        user_create_response = self.supabase.table('users').insert(user_data).execute()
-                        if user_create_response.data:
-                            print(f"Created new user: {user_id_str}")
-                        else:
-                            print(f"Failed to create user: {user_create_response}")
-                            user_id_str = None  # Fall back to guest mode
-                    except Exception as user_error:
-                        print(f"Error: Could not create user {user_id_str}: {user_error}")
-                        user_id_str = None  # Fall back to guest mode
-            else:
-                # Create a guest user for orders without user_id
-                print("Creating guest user for order")
-                import hashlib
-                import uuid
-                
-                # Generate a unique guest user ID
-                guest_id = str(uuid.uuid4())
-                guest_email = f"guest-{guest_id[:8]}@zina-cantine.ci"
-                
-                # Generate password hash
-                default_password = f"guest-{guest_id[:8]}"
-                password_hash = hashlib.sha256(default_password.encode()).hexdigest()
-                
-                guest_user_data = {
-                    'user_id': guest_id,
-                    'full_name': 'Guest User',
-                    'email': guest_email,
-                    'password_hash': password_hash,
-                    'created_at': datetime.now().isoformat()
-                }
-                
-                try:
-                    guest_create_response = self.supabase.table('users').insert(guest_user_data).execute()
-                    if guest_create_response.data:
-                        user_id_str = guest_id
-                        print(f"Created guest user: {guest_id}")
-                    else:
-                        print(f"Failed to create guest user: {guest_create_response}")
-                        return None
-                except Exception as guest_error:
-                    print(f"Error: Could not create guest user: {guest_error}")
-                    return None
+            # Resolve or create user
+            user_id_str = self._resolve_user(order_request.user_id)
+            if user_id_str is None:
+                return None
 
-            # Create order
             order_data = {
                 'order_id': order_id,
-                'user_id': user_id_str,  # Always has a value (real user or guest user)
-                'total_amount': int(total_amount),  # Convert to int for BIGINT column
+                'user_id': user_id_str,
+                'total_amount': int(total_amount),
                 'order_status': 'pending',
                 'pickup_time': pickup_time.isoformat(),
                 'prep_time_minutes': prep_time_minutes
             }
 
-            print(f"[DEBUG] Creating order with data: {order_data}")
             order_response = self.supabase.table('orders').insert(order_data).execute()
-            print(f"[DEBUG] Order creation result: {order_response.data}")
             if not order_response.data:
-                print("[ERROR] Order creation returned no data")
+                logger.error("Order creation returned no data")
                 return None
 
-            # Create order items if order_items table exists
-            print(f"[DEBUG] Inserting {len(order_items_data)} order items")
+            # Insert order items (check table exists once)
             try:
+                self.supabase.table('order_items').select('order_id').limit(1).execute()
                 for item in order_items_data:
-                    # First, check if order_items table has the right schema
-                    try:
-                        # Try to get the table schema
-                        schema_check = self.supabase.table('order_items').select('*').limit(1).execute()
-                        print(f"[DEBUG] order_items table exists, columns: {schema_check.data[0].keys() if schema_check.data else 'empty table'}")
-                    except Exception as schema_error:
-                        print(f"[WARNING] order_items table may not exist: {schema_error}")
-                        continue
-
-                    item_data = {
+                    self.supabase.table('order_items').insert({
                         'order_id': order_id,
                         'product_id': item['product_id'],
                         'product_name': item['product_name'],
                         'quantity': item['quantity'],
-                        'unit_price': int(item['unit_price'])  # Convert to int for DB compatibility
-                    }
-                    print(f"[DEBUG] Inserting order item: {item_data}")
-                    result = self.supabase.table('order_items').insert(item_data).execute()
-                    print(f"[DEBUG] Order item insert result: {result.data}")
-            except Exception as items_error:
-                # Log but don't fail - order_items table might not exist
-                print(f"[ERROR] Could not create order items: {items_error}")
-                import traceback
-                traceback.print_exc()
+                        'unit_price': int(item['unit_price'])
+                    }).execute()
+            except Exception as e:
+                logger.warning("Could not insert order items: %s", e)
 
-            # Payment will be handled separately at the counter
-            # No payment record created during order placement
-
-            # Build order items response with product details
+            # Build response items
             items_response = []
             for item_request in order_request.items:
-                product = await self.get_product_by_id(item_request.product_id)
+                product = self.get_product_by_id(item_request.product_id)
+                if not product:
+                    continue
+                unit_price = product.price
+                if item_request.option_ids and product.options:
+                    for option in product.options:
+                        if option.option_id in item_request.option_ids:
+                            unit_price += option.additional_price
+                items_response.append({
+                    'product_id': product.product_id,
+                    'product_name': product.product_name,
+                    'quantity': item_request.quantity,
+                    'unit_price': unit_price,
+                    'options': product.options if item_request.option_ids else []
+                })
 
-                if product:
-                    # Calculate final unit_price with options
-                    unit_price = product.price
-                    if not unit_price or unit_price == 0:
-                        hardcoded_prices = {
-                            1: 3500,
-                            2: 3000,
-                            3: 2000,
-                            4: 2500,
-                        }
-                        unit_price = Decimal(str(hardcoded_prices.get(item_request.product_id, 0)))
-
-                    if item_request.option_ids and product.options:
-                        for option in product.options:
-                            if option.option_id in item_request.option_ids:
-                                unit_price += option.additional_price
-
-                    items_response.append({
-                        'product_id': product.product_id,
-                        'product_name': product.product_name,
-                        'quantity': item_request.quantity,
-                        'unit_price': unit_price,
-                        'options': product.options if item_request.option_ids else []
-                    })
-                else:
-                    # Product not found - use hardcoded data
-                    hardcoded_prices = {
-                        1: 3500,
-                        2: 3000,
-                        3: 2000,
-                        4: 2500,
-                    }
-                    unit_price = Decimal(str(hardcoded_prices.get(item_request.product_id, 0)))
-                    hardcoded_names = {
-                        1: 'Café Complet',
-                        2: 'Thé & Viennoiseries',
-                        3: 'Jus Naturel',
-                        4: 'Omelette Matinale',
-                    }
-                    items_response.append({
-                        'product_id': item_request.product_id,
-                        'product_name': hardcoded_names.get(item_request.product_id, f'Product {item_request.product_id}'),
-                        'quantity': item_request.quantity,
-                        'unit_price': unit_price,
-                        'options': []
-                    })
-
-            print(f"[DEBUG] Building OrderResponse with {len(items_response)} items")
-
-            # Return order response
             return OrderResponse(
                 order_id=order_id,
                 user_id=order_request.user_id if order_request.user_id else uuid.uuid4(),
@@ -383,14 +236,51 @@ class DatabaseService:
                 prep_time_minutes=prep_time_minutes,
                 items=items_response
             )
-
         except Exception as e:
-            print(f"Error creating order: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.error("Error creating order: %s", e, exc_info=True)
             return None
 
-    async def get_order_by_id(self, order_id: int) -> Optional[OrderResponse]:
+    def _resolve_user(self, user_id: Optional[uuid.UUID]) -> Optional[str]:
+        """Return a valid user_id string, creating the user if needed."""
+        if user_id:
+            user_id_str = str(user_id)
+            exists = self.supabase.table('users').select('user_id').eq('user_id', user_id_str).execute()
+            if not exists.data:
+                default_password = f"temp-{user_id_str[:8]}"
+                user_data = {
+                    'user_id': user_id_str,
+                    'full_name': f'Employee {user_id_str[:8]}',
+                    'email': f'employee-{user_id_str[:8]}@zina-cantine.ci',
+                    'password_hash': hashlib.sha256(default_password.encode()).hexdigest(),
+                    'created_at': datetime.now().isoformat()
+                }
+                try:
+                    self.supabase.table('users').insert(user_data).execute()
+                except Exception as e:
+                    logger.error("Could not create user %s: %s", user_id_str, e)
+                    return None
+            return user_id_str
+        else:
+            guest_id = str(uuid.uuid4())
+            default_password = f"guest-{guest_id[:8]}"
+            guest_data = {
+                'user_id': guest_id,
+                'full_name': 'Guest User',
+                'email': f'guest-{guest_id[:8]}@zina-cantine.ci',
+                'password_hash': hashlib.sha256(default_password.encode()).hexdigest(),
+                'created_at': datetime.now().isoformat()
+            }
+            try:
+                result = self.supabase.table('users').insert(guest_data).execute()
+                if result.data:
+                    return guest_id
+                logger.error("Failed to create guest user")
+                return None
+            except Exception as e:
+                logger.error("Could not create guest user: %s", e)
+                return None
+
+    def get_order_by_id(self, order_id: int) -> Optional[OrderResponse]:
         try:
             response = self.supabase.table('orders').select('*').eq('order_id', order_id).execute()
             if not response.data:
@@ -398,35 +288,29 @@ class DatabaseService:
 
             order_data = response.data[0]
 
-            # Payment handled separately at counter - no payment record during order creation
-            
-
-            # Parse user_id safely
             try:
                 user_id = uuid.UUID(order_data['user_id'])
-            except (ValueError, TypeError) as uuid_error:
-                print(f"Invalid UUID format for user_id: {order_data.get('user_id')}, error: {uuid_error}")
+            except (ValueError, TypeError) as e:
+                logger.error("Invalid UUID for user_id %s: %s", order_data.get('user_id'), e)
                 return None
 
-            # Get order items if table exists
             items = []
             try:
-                items_response = self.supabase.table('order_items').select('*').eq('order_id', order_id).execute()
-                if items_response.data:
-                    for item in items_response.data:
-                        product = await self.get_product_by_id(item['product_id'])
-                        if product:
-                            items.append({
-                                'product_id': product.product_id,
-                                'product_name': product.product_name,
-                                'quantity': item['quantity'],
-                                'unit_price': Decimal(str(item['unit_price'])),
-                                'options': product.options
-                            })
-            except Exception as items_error:
-                print(f"Warning: Could not fetch order items: {items_error}")
+                items_resp = self.supabase.table('order_items').select(
+                    '*, products(product_name, price)'
+                ).eq('order_id', order_id).execute()
+                for item in (items_resp.data or []):
+                    product_name = item['products']['product_name'] if item.get('products') else f"Product {item['product_id']}"
+                    items.append({
+                        'product_id': item['product_id'],
+                        'product_name': product_name,
+                        'quantity': item['quantity'],
+                        'unit_price': Decimal(str(item['unit_price'])),
+                        'options': []
+                    })
+            except Exception as e:
+                logger.warning("Could not fetch items for order %d: %s", order_id, e)
 
-            # Parse pickup_time
             pickup_time = None
             if order_data.get('pickup_time'):
                 try:
@@ -445,98 +329,39 @@ class DatabaseService:
                 items=items
             )
         except Exception as e:
-            print(f"Error fetching order: {e}")
+            logger.error("Error fetching order %d: %s", order_id, e)
             return None
 
-    # User operations
-    async def get_user_by_id(self, user_id: uuid.UUID) -> Optional[User]:
+    def get_orders_by_user_id(self, user_id: uuid.UUID) -> List[OrderResponse]:
         try:
-            response = self.supabase.table('users').select('*').eq('user_id', str(user_id)).execute()
-            if not response.data:
-                return None
+            response = self.supabase.table('orders').select(
+                '*, order_items(*, products(product_name, price))'
+            ).eq('user_id', str(user_id)).order('created_at', desc=True).execute()
 
-            user_data = response.data[0]
-            
-            # Parse user_id safely
-            try:
-                user_id = uuid.UUID(user_data['user_id'])
-            except (ValueError, TypeError) as uuid_error:
-                print(f"Invalid UUID format for user_id: {user_data.get('user_id')}, error: {uuid_error}")
-                return None
-            
-            return User(
-                user_id=user_id,
-                full_name=user_data['full_name'],
-                email=user_data['email'],
-                phone=user_data.get('phone'),
-                password_hash=user_data.get('password_hash', ''),
-                created_at=datetime.fromisoformat(user_data['created_at']) if user_data.get('created_at') else None
-            )
-        except Exception as e:
-            print(f"Error fetching user: {e}")
-            return None
-
-    async def create_user(self, user: User) -> Optional[User]:
-        try:
-            user_data = {
-                'user_id': str(user.user_id),
-                'full_name': user.full_name,
-                'email': user.email,
-                'phone': user.phone,
-                'password_hash': user.password_hash
-            }
-
-            response = self.supabase.table('users').insert(user_data).execute()
-            if not response.data:
-                return None
-
-            return user
-        except Exception as e:
-            print(f"Error creating user: {e}")
-            return None
-
-    async def get_orders_by_user_id(self, user_id: uuid.UUID) -> List[OrderResponse]:
-        """Get all orders for a specific user"""
-        try:
-            user_id_str = str(user_id)
-            response = self.supabase.table('orders').select('*').eq('user_id', user_id_str).order('created_at', desc=True).execute()
-            
             orders = []
             for order_data in response.data:
-                # Payment handled at counter - no payment record during order creation
-                payment = None
-
-                # Get order items if table exists
-                items = []
-                try:
-                    items_response = self.supabase.table('order_items').select('*').eq('order_id', order_data['order_id']).execute()
-                    if items_response.data:
-                        for item in items_response.data:
-                            product = await self.get_product_by_id(item['product_id'])
-                            if product:
-                                items.append({
-                                    'product_id': product.product_id,
-                                    'product_name': product.product_name,
-                                    'quantity': item['quantity'],
-                                    'unit_price': float(item['unit_price'])
-                                })
-                except Exception:
-                    pass  # order_items table might not exist
-
-                # Parse user_id safely
                 try:
                     user_obj_id = uuid.UUID(order_data['user_id'])
-                except (ValueError, TypeError) as uuid_error:
-                    print(f"Invalid UUID format for user_id: {order_data.get('user_id')}, error: {uuid_error}")
+                except (ValueError, TypeError) as e:
+                    logger.warning("Invalid UUID for user_id %s: %s", order_data.get('user_id'), e)
                     continue
 
-                # Parse pickup_time
+                items = []
+                for item in (order_data.get('order_items') or []):
+                    product_name = item['products']['product_name'] if item.get('products') else f"Product {item['product_id']}"
+                    items.append({
+                        'product_id': item['product_id'],
+                        'product_name': product_name,
+                        'quantity': item['quantity'],
+                        'unit_price': float(item['unit_price'])
+                    })
+
                 pickup_time = None
                 if order_data.get('pickup_time'):
                     try:
                         pickup_time = datetime.fromisoformat(order_data['pickup_time'])
                     except (ValueError, TypeError):
-                        pickup_time = None
+                        pass
 
                 orders.append(OrderResponse(
                     order_id=order_data['order_id'],
@@ -547,29 +372,71 @@ class DatabaseService:
                     pickup_time=pickup_time,
                     prep_time_minutes=order_data.get('prep_time_minutes', 15),
                     items=items,
-                
                 ))
 
             return orders
         except Exception as e:
-            print(f"Error getting orders by user ID: {e}")
+            logger.error("Error getting orders for user %s: %s", user_id, e)
             return []
 
-    # Payment operations - handled at counter
-    # This function may be used when implementing counter payment processing
-    async def update_payment_status(self, payment_id: int, status: str, transaction_reference: Optional[str] = None) -> bool:
+    # ------------------------------------------------------------------ #
+    # User operations                                                      #
+    # ------------------------------------------------------------------ #
+
+    def get_user_by_id(self, user_id: uuid.UUID) -> Optional[User]:
+        try:
+            response = self.supabase.table('users').select('*').eq('user_id', str(user_id)).execute()
+            if not response.data:
+                return None
+
+            user_data = response.data[0]
+            try:
+                uid = uuid.UUID(user_data['user_id'])
+            except (ValueError, TypeError) as e:
+                logger.error("Invalid UUID for user_id %s: %s", user_data.get('user_id'), e)
+                return None
+
+            return User(
+                user_id=uid,
+                full_name=user_data['full_name'],
+                email=user_data['email'],
+                phone=user_data.get('phone'),
+                password_hash=user_data.get('password_hash', ''),
+                created_at=datetime.fromisoformat(user_data['created_at']) if user_data.get('created_at') else None
+            )
+        except Exception as e:
+            logger.error("Error fetching user: %s", e)
+            return None
+
+    def create_user(self, user: User) -> Optional[User]:
+        try:
+            user_data = {
+                'user_id': str(user.user_id),
+                'full_name': user.full_name,
+                'email': user.email,
+                'phone': user.phone,
+                'password_hash': user.password_hash
+            }
+            response = self.supabase.table('users').insert(user_data).execute()
+            return user if response.data else None
+        except Exception as e:
+            logger.error("Error creating user: %s", e)
+            return None
+
+    # ------------------------------------------------------------------ #
+    # Payment operations                                                   #
+    # ------------------------------------------------------------------ #
+
+    def update_payment_status(self, payment_id: int, status: str, transaction_reference: Optional[str] = None) -> bool:
         try:
             update_data = {
                 'payment_status': status,
                 'paid_at': datetime.now().isoformat() if status == 'completed' else None
             }
-
             if transaction_reference:
                 update_data['transaction_reference'] = transaction_reference
-
-            # Note: This will only work when payments table exists and payment records are created
             response = self.supabase.table('payments').update(update_data).eq('payment_id', payment_id).execute()
             return len(response.data) > 0
         except Exception as e:
-            print(f"Error updating payment status: {e}")
+            logger.error("Error updating payment status: %s", e)
             return False

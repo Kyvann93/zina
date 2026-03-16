@@ -85,7 +85,8 @@ class OrderItem:
 class CreateOrderRequest:
     user_id: Optional[uuid.UUID]
     items: List['OrderItemRequest']
-    # Optional - handled at counter
+    pickup_time: Optional[datetime] = None
+    prep_time_minutes: int = 15
 
 
 @dataclass
