@@ -2491,6 +2491,10 @@ input:not(:checked) + .slider .slider-text.en {
 }
 
 /* Success Modal */
+/* Ensure success modal is always on top */
+.success-modal {
+    z-index: 12000 !important;
+}
 .success-modal .modal-content {
     text-align: center;
 }

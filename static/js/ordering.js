@@ -1645,6 +1645,17 @@ function updatePickupTime() {
 }
 
 function confirmMealOrder() {
+            alert('clicked');
+        console.log('confirmMealOrder called');
+        // Loader/modal debug logs
+        console.log('Attempting to show loader/modal...');
+        console.log('successModal:', successModal);
+        console.log('orderLoading:', orderLoading);
+        console.log('orderReceipt:', orderReceipt);
+        // After showing modal/loader
+        setTimeout(() => {
+            console.log('Loader should now be hidden, receipt shown.');
+        }, 1200);
     if (!currentMealSelection) return;
 
     // Calculate pickup time
@@ -1679,13 +1690,35 @@ function confirmMealOrder() {
     // Close modal
     closeMealSelectionModal();
 
-    // Show success
-    showToast(currentLanguage === 'fr' ? 'Commande ajoutée au panier' : 'Order added to cart', 'success');
+    // Show loader and success modal instantly
+    const successModal = document.getElementById('successModal');
+    const orderLoading = document.getElementById('orderLoading');
+    const orderReceipt = document.getElementById('orderReceipt');
 
-    // Optionally open cart
-    if (!document.getElementById('cartSidebar').classList.contains('active')) {
-        toggleCart();
+    if (successModal) {
+        successModal.style.transition = 'none';
+        successModal.style.display = 'flex';
+        successModal.offsetHeight; // Force reflow
+        successModal.style.opacity = '1';
+        successModal.style.visibility = 'visible';
+        successModal.classList.add('active');
     }
+    if (orderLoading) {
+        orderLoading.style.display = 'block';
+    }
+    if (orderReceipt) {
+        orderReceipt.style.display = 'none';
+    }
+
+    // Show success after a short delay (simulate processing)
+    setTimeout(() => {
+        if (orderLoading) orderLoading.style.display = 'none';
+        if (orderReceipt) orderReceipt.style.display = 'block';
+        // Optionally set order number, etc.
+    }, 1200);
+
+    // Show success toast
+    showToast(currentLanguage === 'fr' ? 'Commande ajoutée au panier' : 'Order added to cart', 'success');
 }
 
 // ========================================
@@ -1798,6 +1831,12 @@ function closeOrderModal() {
 }
 
 function confirmOrder() {
+        // Hide orderModal if visible
+        const orderModal = document.getElementById('orderModal');
+        if (orderModal) {
+            orderModal.style.display = 'none';
+            orderModal.classList.remove('active');
+        }
     console.log('confirmOrder called');
 
     // Show the success modal with loader immediately
@@ -1829,8 +1868,8 @@ function confirmOrder() {
 
     console.log('Modal and loader shown');
 
-    // Use requestAnimationFrame to ensure UI updates before fetch
-    requestAnimationFrame(() => {
+    // Use setTimeout to ensure UI updates before fetch (guarantees loader is painted)
+    setTimeout(() => {
         const pickupMinutes = parseInt(document.getElementById('pickupTime').value);
 
         // Calculate pickup time
@@ -1878,7 +1917,7 @@ function confirmOrder() {
 
                     // Show additional success message for guest users
                     setTimeout(() => {
-                        showToast(currentLanguage === 'fr' ? 'Vous pouvez maintenant consulter votre historique de commandes !' : 'You can now view your order history!', 'success');
+                        showToast(currentLanguage === 'fr' ? 'Commande confirmée !' : 'Order confirmed!', 'success');
                     }, 2000);
                 }
 
@@ -1894,7 +1933,7 @@ function confirmOrder() {
     .catch(error => {
         console.error('Order error:', error);
         showToast(currentLanguage === 'fr' ? 'Erreur lors de la commande: ' + error.message : 'Order error: ' + error.message, 'error');
-    });
+    }, 50); // 50ms delay to allow browser to paint loader
     });
 }
 

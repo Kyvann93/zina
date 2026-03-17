@@ -455,7 +455,7 @@
 <body>
     <div class="container">
         <div class="logo-section">
-            <div class="logo">
+            <div class="logo" style="background:white;">
                 <img src="{{ url_for('static', filename='images/logo.PNG') }}" alt="ZINA Cantine BAD">
             </div>
             <h1>ZINA Traiteur</h1>
@@ -472,13 +472,8 @@
             </a>
             <a href="/commander" class="btn btn-outline">
                 <i class="fas fa-utensils"></i>
-                <span>Voir le Menu</span>
+                <span>Invité</span>
             </a>
-            
-                <a class="guest-btn" onclick="handleGuestAccess()">
-                    <i class="fas fa-user-secret"></i>
-                    <span>Continuer en tant qu'Invité</span>
-                </a>
             
         </div>
     </div>
