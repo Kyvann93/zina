@@ -429,84 +429,158 @@
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Order Confirmation Modal (for cart checkout) -->
-        <div class="modal" id="orderModal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <i class="fas fa-check-circle"></i>
-                    <h2 data-translate="orderConfirmation">Confirmation de Commande</h2>
-                </div>
-                <div class="modal-body">
-                    <div class="order-summary" id="orderSummary">
-                        <!-- Order details will be shown here -->
+    <!-- Order History Modal - Outside app container -->
+    <div class="modal order-history-modal" id="orderHistoryModal" style="display: none; position: fixed !important; z-index: 9999 !important;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-history"></i> <span data-translate="orderHistoryTitle">Mes Commandes</span></h2>
+                <button class="btn-close" onclick="closeOrderHistoryModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="orderHistoryContent">
+                    <div class="loading-spinner">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p data-translate="loadingOrders">Chargement de vos commandes...</p>
                     </div>
-                    <div class="pickup-time">
-                        <h4 data-translate="pickupTime">Heure de Récupération</h4>
-                        <select id="pickupTime">
-                            <option value="now" data-translate="immediately">Immédiatement</option>
-                            <option value="15" data-translate="in15min">Dans 15 minutes</option>
-                            <option value="30" data-translate="in30min">Dans 30 minutes</option>
-                            <option value="45" data-translate="in45min">Dans 45 minutes</option>
-                            <option value="60" data-translate="in60min">Dans 1 heure</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn-cancel" onclick="closeOrderModal()" data-translate="cancel">Annuler</button>
-                    <button class="btn-confirm" onclick="confirmOrder()">
-                        <i class="fas fa-check"></i>
-                        <span data-translate="confirmOrder">Confirmer la Commande</span>
-                    </button>
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Order History Modal -->
-        <div class="modal order-history-modal" id="orderHistoryModal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2><i class="fas fa-history"></i> <span data-translate="orderHistoryTitle">Mes Commandes</span></h2>
-                    <button class="btn-close" onclick="closeOrderHistoryModal()">
-                        <i class="fas fa-times"></i>
-                    </button>
+    <!-- Order Success Modal - Outside app container -->
+    <div class="modal success-modal" id="successModal" style="display: none; position: fixed !important; z-index: 9999 !important;">
+        <div class="modal-content">
+            <!-- Loading Spinner -->
+            <div class="order-loading" id="orderLoading">
+                <div class="loading-spinner-large">
+                    <i class="fas fa-circle-notch fa-spin"></i>
+                    <p data-translate="processingOrder">Traitement de votre commande...</p>
                 </div>
-                <div class="modal-body">
-                    <div id="orderHistoryContent">
-                        <div class="loading-spinner">
-                            <i class="fas fa-spinner fa-spin"></i>
-                            <p data-translate="loadingOrders">Chargement de vos commandes...</p>
+            </div>
+
+            <!-- Order Receipt (hidden initially) -->
+            <div class="order-receipt" id="orderReceipt" style="display: none;">
+                <div class="receipt-header">
+                    <div class="success-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <h2 data-translate="orderConfirmed">Commande Confirmée !</h2>
+                    <p class="order-number-text">
+                        <span data-translate="orderNumberLabel">N° de commande</span>:
+                        <strong id="orderNumber">---</strong>
+                    </p>
+                </div>
+
+                <div class="receipt-body">
+                    <div class="receipt-section">
+                        <h3 class="receipt-section-title">
+                            <i class="fas fa-shopping-bag"></i>
+                            <span data-translate="orderedItems">Articles Commandés</span>
+                        </h3>
+                        <div class="receipt-items-list" id="receiptItemsList">
+                            <!-- Items will be inserted here -->
+                        </div>
+                    </div>
+
+                    <div class="receipt-section receipt-totals">
+                        <div class="receipt-row">
+                            <span data-translate="subtotal">Sous-total</span>
+                            <span class="receipt-value" id="receiptSubtotal">0 FCFA</span>
+                        </div>
+                        <div class="receipt-row receipt-total">
+                            <span data-translate="total">Total</span>
+                            <span class="receipt-value receipt-total-amount" id="receiptTotal">0 FCFA</span>
+                        </div>
+                    </div>
+
+                    <div class="receipt-section receipt-info">
+                        <div class="info-row">
+                            <i class="fas fa-clock"></i>
+                            <div class="info-details">
+                                <span class="info-label" data-translate="pickupTime">Heure de récupération</span>
+                                <span class="info-value" id="receiptPickupTime">--:--</span>
+                            </div>
+                        </div>
+                        <div class="info-row">
+                            <i class="fas fa-utensils"></i>
+                            <div class="info-details">
+                                <span class="info-label" data-translate="prepTime">Temps de préparation</span>
+                                <span class="info-value" id="receiptPrepTime">-- min</span>
+                            </div>
+                        </div>
+                        <div class="info-row">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <div class="info-details">
+                                <span class="info-label" data-translate="pickupLocation">Lieu de récupération</span>
+                                <span class="info-value">Cantine BAD - Comptoir 1</span>
+                            </div>
                         </div>
                     </div>
                 </div>
+
+                <div class="receipt-footer">
+                    <p class="thank-you" data-translate="thankYou">Merci pour votre commande !</p>
+                    <button class="btn-close" onclick="closeSuccessModal()" data-translate="close">Fermer</button>
+                </div>
             </div>
         </div>
+    </div>
 
-        <!-- Order Success Modal -->
-        <div class="modal success-modal" id="successModal">
-            <div class="modal-content">
-                <div class="success-icon">
-                    <i class="fas fa-check-circle"></i>
+    <!-- Order Confirmation Modal (for cart checkout) - Outside app container -->
+    <div class="modal" id="orderModal" style="display: none; position: fixed !important; z-index: 9999 !important;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <i class="fas fa-check-circle"></i>
+                <h2 data-translate="orderConfirmation">Confirmation de Commande</h2>
+            </div>
+            <div class="modal-body">
+                <div class="order-summary" id="orderSummary">
+                    <!-- Order details will be shown here -->
                 </div>
-                <h2 data-translate="orderConfirmed">Commande Confirmée !</h2>
-                <p data-translate="orderSaved">Votre commande #<span id="orderNumber"></span> a été enregistrée</p>
-                <div class="order-details">
-                    <div class="detail-row">
-                        <span data-translate="estimatedWait">Temps d'attente estimé:</span>
-                        <strong id="waitTime">15-20 min</strong>
-                    </div>
-                    <div class="detail-row">
-                        <span data-translate="pickupLocation">Lieu de récupération:</span>
-                        <strong data-translate="pickupLocationValue">Cantine BAD - Comptoir 1</strong>
-                    </div>
+                <div class="pickup-time">
+                    <h4 data-translate="pickupTime">Heure de Récupération</h4>
+                    <select id="pickupTime" style="color: black;">
+                        <option value="now" data-translate="immediately">Immédiatement</option>
+                        <option value="15" data-translate="in15min">Dans 15 minutes</option>
+                        <option value="30" data-translate="in30min">Dans 30 minutes</option>
+                        <option value="45" data-translate="in45min">Dans 45 minutes</option>
+                        <option value="60" data-translate="in60min">Dans 1 heure</option>
+                    </select>
                 </div>
-                <button class="btn-close" onclick="closeSuccessModal()" data-translate="close">Fermer</button>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="closeOrderModal()" data-translate="cancel">Annuler</button>
+                <button class="btn-confirm" onclick="confirmOrder()">
+                    <i class="fas fa-check"></i>
+                    <span data-translate="confirmOrder">Confirmer la Commande</span>
+                </button>
             </div>
         </div>
     </div>
 
     <!-- Toast Notifications (outside app container so it's always visible) -->
     <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Fixed Bottom Navigation Footer -->
+    <nav class="bottom-nav">
+        <a href="#" class="nav-item" onclick="openSearchPage(); return false;">
+            <i class="fas fa-search"></i>
+            <span data-translate="search">Rechercher</span>
+        </a>
+        <a href="#" class="nav-item" onclick="showOrderHistory(); return false;">
+            <i class="fas fa-history"></i>
+            <span data-translate="orders">Commandes</span>
+        </a>
+        <a href="#" class="nav-item" onclick="toggleCart(); return false;">
+            <i class="fas fa-shopping-cart"></i>
+            <span class="nav-badge" id="navCartCount">0</span>
+            <span data-translate="cart">Panier</span>
+        </a>
+    </nav>
 
     <!-- JavaScript -->
     <script src="{{ url_for('static', filename='js/ordering.js') }}"></script>

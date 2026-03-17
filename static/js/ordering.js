@@ -326,12 +326,21 @@ function showOrderHistory() {
         return;
     }
 
-    document.getElementById('orderHistoryModal').classList.add('active');
+    const orderHistoryModal = document.getElementById('orderHistoryModal');
+    if (orderHistoryModal) {
+        orderHistoryModal.style.display = 'flex';
+        orderHistoryModal.offsetHeight; // Force reflow
+        orderHistoryModal.classList.add('active');
+    }
     fetchUserOrders();
 }
 
 function closeOrderHistoryModal() {
-    document.getElementById('orderHistoryModal').classList.remove('active');
+    const modal = document.getElementById('orderHistoryModal');
+    if (modal) {
+        modal.classList.remove('active');
+        modal.style.display = 'none';
+    }
 }
 
 async function fetchUserOrders() {
@@ -1328,9 +1337,23 @@ function addToCartDirectly(item, quantity) {
 function updateCartUI() {
     const cartItems = document.getElementById('cartItems');
     const cartCount = document.getElementById('cartCount');
+    const navCartCount = document.getElementById('navCartCount');
 
     const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
-    cartCount.textContent = totalItems;
+
+    // Update both cart count badges
+    if (cartCount) {
+        cartCount.textContent = totalItems;
+    }
+    if (navCartCount) {
+        navCartCount.textContent = totalItems;
+        // Hide badge if cart is empty
+        if (totalItems === 0) {
+            navCartCount.style.display = 'none';
+        } else {
+            navCartCount.style.display = 'flex';
+        }
+    }
 
     if (cart.length === 0) {
         cartItems.innerHTML = `
@@ -1700,7 +1723,7 @@ function proceedToCheckout() {
                 </div>
             `).join('')}
         </div>
-        <div class="order-prep-time" style="margin-bottom: 1rem; padding: 0.5rem; background: #fff3cd; border-radius: 4px; font-size: 0.9rem;">
+        <div class="order-prep-time" style="margin-bottom: 1rem; color:white; padding: 0.5rem; background: #581b1f; border-radius: 4px; font-size: 0.9rem;">
             <i class="fas fa-clock"></i> ${currentLanguage === 'fr' ? 'Temps de préparation estimé' : 'Estimated prep time'}: <strong>${totalPrepTime} ${currentLanguage === 'fr' ? 'minutes' : 'minutes'}</strong>
         </div>
         <div class="order-item" style="margin-top: 1rem; padding-top: 1rem; border-top: 2px solid #ddd;">
@@ -1716,6 +1739,9 @@ function proceedToCheckout() {
     console.log('orderModal element:', orderModal);
 
     if (orderModal) {
+        orderModal.style.display = 'flex';
+        // Force reflow
+        orderModal.offsetHeight;
         orderModal.classList.add('active');
         console.log('orderModal active class added');
     }
@@ -1764,67 +1790,104 @@ function updatePickupTimeOptions(prepTimeMinutes) {
 }
 
 function closeOrderModal() {
-    document.getElementById('orderModal').classList.remove('active');
+    const orderModal = document.getElementById('orderModal');
+    if (orderModal) {
+        orderModal.classList.remove('active');
+        orderModal.style.display = 'none';
+    }
 }
 
 function confirmOrder() {
-    const pickupMinutes = parseInt(document.getElementById('pickupTime').value);
+    console.log('confirmOrder called');
 
-    // Calculate pickup time
-    const pickupTime = new Date();
-    pickupTime.setMinutes(pickupTime.getMinutes() + pickupMinutes);
+    // Show the success modal with loader immediately
+    const successModal = document.getElementById('successModal');
+    const orderLoading = document.getElementById('orderLoading');
+    const orderReceipt = document.getElementById('orderReceipt');
 
-    // Calculate total prep time
-    const totalPrepTime = Math.max(...cart.map(item => item.prepTime || 15));
+    console.log('Elements found:', { successModal, orderLoading, orderReceipt });
 
-    // Format items for backend API
-    const orderItems = cart.map(item => ({
-        product_id: item.id,
-        quantity: item.quantity,
-        option_ids: item.optionIds || []
-    }));
+    // Show the modal instantly (skip transition)
+    if (successModal) {
+        successModal.style.transition = 'none';
+        successModal.style.display = 'flex';
+        successModal.offsetHeight; // Force reflow
+        successModal.style.opacity = '1';
+        successModal.style.visibility = 'visible';
+        successModal.classList.add('active');
+        console.log('Modal shown');
+    }
 
-    const orderData = {
-        // Only include user_id if it exists (guest users have null ID)
-        ...(currentUser.id && { user_id: currentUser.id }),
-        items: orderItems,
-        payment_method: null,  // Handled at counter
-        pickup_time: pickupTime.toISOString(),
-        prep_time_minutes: totalPrepTime
-    };
+    // Show loading spinner, hide receipt
+    if (orderLoading) {
+        orderLoading.style.display = 'block';
+        console.log('Loader shown');
+    }
+    if (orderReceipt) {
+        orderReceipt.style.display = 'none';
+    }
 
-    // Send to API
-    fetch('/api/order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(orderData)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.status === 'success' || data.order_id) {
-            // Calculate total amount from order items
-            const totalAmount = data.items ? data.items.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0) : 0;
+    console.log('Modal and loader shown');
 
-            // Update guest user with the assigned user_id from backend
-            if (currentUser && currentUser.isGuest && data.user_id) {
-                currentUser.id = data.user_id;
-                // Save updated user info to localStorage
-                localStorage.setItem('zina_user', JSON.stringify(currentUser));
-                sessionStorage.setItem('zina_user', JSON.stringify(currentUser));
-                console.log('Guest user updated with ID:', data.user_id);
+    // Use requestAnimationFrame to ensure UI updates before fetch
+    requestAnimationFrame(() => {
+        const pickupMinutes = parseInt(document.getElementById('pickupTime').value);
 
-                // Show additional success message for guest users
-                setTimeout(() => {
-                    showToast(currentLanguage === 'fr' ? 'Vous pouvez maintenant consulter votre historique de commandes !' : 'You can now view your order history!', 'success');
-                }, 2000);
-            }
+        // Calculate pickup time
+        const pickupTime = new Date();
+        pickupTime.setMinutes(pickupTime.getMinutes() + pickupMinutes);
 
-            closeOrderModal();
-            showSuccess(data.order_id || Math.floor(Math.random() * 10000), pickupTime, totalPrepTime, data.items || [], totalAmount);
-            cart = [];
-            saveCart();  // Clear cart from localStorage
-            updateCartUI();
-        } else {
+        // Calculate total prep time
+        const totalPrepTime = Math.max(...cart.map(item => item.prepTime || 15));
+
+        // Format items for backend API
+        const orderItems = cart.map(item => ({
+            product_id: item.id,
+            quantity: item.quantity,
+            option_ids: item.optionIds || []
+        }));
+
+        const orderData = {
+            // Only include user_id if it exists (guest users have null ID)
+            ...(currentUser.id && { user_id: currentUser.id }),
+            items: orderItems,
+            payment_method: null,  // Handled at counter
+            pickup_time: pickupTime.toISOString(),
+            prep_time_minutes: totalPrepTime
+        };
+
+        // Send to API
+        fetch('/api/order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(orderData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success' || data.order_id) {
+                // Calculate total amount from order items
+                const totalAmount = data.items ? data.items.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0) : 0;
+
+                // Update guest user with the assigned user_id from backend
+                if (currentUser && currentUser.isGuest && data.user_id) {
+                    currentUser.id = data.user_id;
+                    // Save updated user info to localStorage
+                    localStorage.setItem('zina_user', JSON.stringify(currentUser));
+                    sessionStorage.setItem('zina_user', JSON.stringify(currentUser));
+                    console.log('Guest user updated with ID:', data.user_id);
+
+                    // Show additional success message for guest users
+                    setTimeout(() => {
+                        showToast(currentLanguage === 'fr' ? 'Vous pouvez maintenant consulter votre historique de commandes !' : 'You can now view your order history!', 'success');
+                    }, 2000);
+                }
+
+                closeOrderModal();
+                showSuccess(data.order_id || Math.floor(Math.random() * 10000), pickupTime, totalPrepTime, data.items || [], totalAmount);
+                cart = [];
+                saveCart();  // Clear cart from localStorage
+                updateCartUI();
+            } else {
             showToast(currentLanguage === 'fr' ? 'Erreur: ' + (data.error || '��chec de la commande') : 'Error: ' + (data.error || 'Order failed'), 'error');
         }
     })
@@ -1832,55 +1895,89 @@ function confirmOrder() {
         console.error('Order error:', error);
         showToast(currentLanguage === 'fr' ? 'Erreur lors de la commande: ' + error.message : 'Order error: ' + error.message, 'error');
     });
+    });
 }
 
 function showSuccess(orderId, pickupTime, prepTimeMinutes, orderItems, totalAmount) {
-    document.getElementById('orderNumber').textContent = orderId;
+    console.log('showSuccess called with orderId:', orderId);
+
+    // Hide loading, show receipt
+    const orderLoading = document.getElementById('orderLoading');
+    const orderReceipt = document.getElementById('orderReceipt');
+
+    if (orderLoading) {
+        orderLoading.style.display = 'none';
+    }
+    if (orderReceipt) {
+        orderReceipt.style.display = 'block';
+    }
+
+    // Set order number
+    const orderNumberEl = document.getElementById('orderNumber');
+    console.log('orderNumberEl:', orderNumberEl);
+
+    if (orderNumberEl) {
+        orderNumberEl.textContent = orderId;
+        console.log('Order number set to:', orderId);
+    } else {
+        console.error('orderNumber element not found!');
+    }
 
     // Format pickup time
     const locale = currentLanguage === 'fr' ? 'fr-FR' : 'en-US';
     const pickupTimeStr = pickupTime.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
-    const pickupDateStr = pickupTime.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' });
 
-    document.getElementById('successModal').querySelector('.order-details').innerHTML = `
-        <div class="detail-row">
-            <span>${currentLanguage === 'fr' ? 'Heure de récupération:' : 'Pickup time:'}</span>
-            <strong style="color: var(--primary); font-size: 1.1rem;">${pickupTimeStr}</strong>
-        </div>
-        <div class="detail-row">
-            <span>${currentLanguage === 'fr' ? 'Date de récupération:' : 'Pickup date:'}</span>
-            <strong>${pickupDateStr}</strong>
-        </div>
-        <div class="detail-row">
-            <span>${currentLanguage === 'fr' ? 'Temps de préparation:' : 'Prep time:'}</span>
-            <strong>${prepTimeMinutes} ${currentLanguage === 'fr' ? 'minutes' : 'minutes'}</strong>
-        </div>
-        <div class="detail-row">
-            <span>${currentLanguage === 'fr' ? 'Montant total:' : 'Total amount:'}</span>
-            <strong style="color: var(--accent); font-size: 1.1rem;">${formatPrice(totalAmount)}</strong>
-        </div>
-        <div class="detail-row">
-            <span>${currentLanguage === 'fr' ? 'Lieu de récupération:' : 'Pickup location:'}</span>
-            <strong>${currentLanguage === 'fr' ? 'Cantine BAD - Comptoir 1' : 'BAD Canteen - Counter 1'}</strong>
-        </div>
-        ${orderItems.length > 0 ? `
-        <div style="margin-top: 1rem; padding-top: 1rem; border-top: 2px solid #ddd;">
-            <h5 style="margin-bottom: 0.5rem; font-size: 0.95rem;">${currentLanguage === 'fr' ? 'Articles commandés:' : 'Ordered items:'}</h5>
-            ${orderItems.map(item => `
-                <div style="display: flex; justify-content: space-between; padding: 0.25rem 0; font-size: 0.9rem;">
-                    <span>${item.quantity}x ${item.product_name}</span>
-                    <span>${formatPrice(item.unit_price * item.quantity)}</span>
+    // Update receipt fields
+    const receiptPickupTime = document.getElementById('receiptPickupTime');
+    if (receiptPickupTime) {
+        receiptPickupTime.textContent = pickupTimeStr;
+    }
+
+    const receiptPrepTime = document.getElementById('receiptPrepTime');
+    if (receiptPrepTime) {
+        receiptPrepTime.textContent = prepTimeMinutes + ' ' + (currentLanguage === 'fr' ? 'min' : 'min');
+    }
+
+    // Calculate subtotal
+    const subtotal = orderItems.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0);
+
+    // Update totals
+    const receiptSubtotal = document.getElementById('receiptSubtotal');
+    if (receiptSubtotal) {
+        receiptSubtotal.textContent = formatPrice(subtotal);
+    }
+
+    const receiptTotal = document.getElementById('receiptTotal');
+    if (receiptTotal) {
+        receiptTotal.textContent = formatPrice(totalAmount);
+    }
+
+    // Render items list
+    const receiptItemsList = document.getElementById('receiptItemsList');
+    if (receiptItemsList && orderItems.length > 0) {
+        receiptItemsList.innerHTML = orderItems.map(item => `
+            <div class="receipt-item">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <span class="receipt-item-qty">${item.quantity}</span>
+                    <div class="receipt-item-details">
+                        <div class="receipt-item-name">${item.product_name}</div>
+                        <div class="receipt-item-price">${formatPrice(item.unit_price)}</div>
+                    </div>
                 </div>
-            `).join('')}
-        </div>
-        ` : ''}
-    `;
-
-    document.getElementById('successModal').classList.add('active');
+                <span class="receipt-item-total">${formatPrice(item.unit_price * item.quantity)}</span>
+            </div>
+        `).join('');
+    } else if (receiptItemsList) {
+        receiptItemsList.innerHTML = '<p style="text-align: center; color: var(--medium-gray); padding: 1rem;">Aucun article</p>';
+    }
 }
 
 function closeSuccessModal() {
-    document.getElementById('successModal').classList.remove('active');
+    const modal = document.getElementById('successModal');
+    if (modal) {
+        modal.classList.remove('active');
+        modal.style.display = 'none';
+    }
 }
 
 // ========================================
@@ -1934,6 +2031,23 @@ document.addEventListener('keydown', function(e) {
 
 // Export functions
 window.addToCart = addToCart;
+// ========================================
+// Bottom Navigation Functions
+// ========================================
+function openSearchPage() {
+    // Focus on the search bar in the category sidebar
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.focus();
+        searchInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else {
+        showToast(currentLanguage === 'fr' ? 'Utilisez la barre de recherche en haut' : 'Use the search bar at the top', 'info');
+    }
+}
+
+// ========================================
+// Exports
+// ========================================
 window.updateQuantity = updateQuantity;
 window.removeFromCart = removeFromCart;
 window.toggleCart = toggleCart;
@@ -1965,6 +2079,7 @@ window.restoreCart = restoreCart;
 window.checkSession = checkSession;
 window.showOrderHistory = showOrderHistory;
 window.closeOrderHistoryModal = closeOrderHistoryModal;
+window.openSearchPage = openSearchPage;
 window.fetchUserOrders = fetchUserOrders;
 window.startScanner = function() {
     showToast('Fonctionnalité de scan QR à implémenter', 'info');

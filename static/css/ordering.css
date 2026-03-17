@@ -436,6 +436,7 @@ body {
     color: var(--dark-gray);
     background: var(--off-white);
     overflow-x: hidden;
+    padding-bottom: 70px; /* Space for bottom navigation */
 }
 
 /* ========================================
@@ -2088,6 +2089,268 @@ input:not(:checked) + .slider .slider-text.en {
     animation: slideUp 0.3s ease;
 }
 
+/* Order Loading Spinner */
+.order-loading {
+    padding: 3rem 2rem;
+    text-align: center;
+    display: block;
+    width: 100%;
+}
+
+.loading-spinner-large {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+    min-height: 200px;
+}
+
+.loading-spinner-large i {
+    font-size: 4rem;
+    color: var(--primary);
+    animation: spin 1s linear infinite;
+}
+
+.loading-spinner-large p {
+    font-size: 1.1rem;
+    color: var(--medium-gray);
+    font-weight: 500;
+    display: block;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Order Receipt Styling */
+.order-receipt {
+    background: var(--white);
+    display: none;
+}
+
+.order-receipt[style*="display: block"] {
+    display: block;
+}
+
+.order-loading[style*="display: block"] {
+    display: block;
+}
+
+.receipt-header {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+    color: var(--white);
+    padding: 2rem;
+    text-align: center;
+    border-radius: 20px 20px 0 0;
+}
+
+.receipt-header .success-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+}
+
+.receipt-header h2 {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+    font-family: var(--font-secondary);
+}
+
+.order-number-text {
+    font-size: 1rem;
+    opacity: 0.9;
+}
+
+.order-number-text strong {
+    font-size: 1.4rem;
+    display: block;
+    margin-top: 0.25rem;
+}
+
+.receipt-body {
+    padding: 1.5rem;
+}
+
+.receipt-section {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 2px dashed var(--light-gray);
+}
+
+.receipt-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.receipt-section-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--primary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.receipt-section-title i {
+    font-size: 1.1rem;
+}
+
+.receipt-items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.receipt-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: var(--off-white);
+    border-radius: 8px;
+}
+
+.receipt-item-qty {
+    background: var(--primary);
+    color: var(--white);
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-right: 0.75rem;
+}
+
+.receipt-item-details {
+    flex: 1;
+}
+
+.receipt-item-name {
+    font-weight: 600;
+    color: var(--dark-gray);
+    font-size: 0.9rem;
+    margin-bottom: 0.25rem;
+}
+
+.receipt-item-price {
+    font-size: 0.8rem;
+    color: var(--medium-gray);
+}
+
+.receipt-item-total {
+    font-weight: 700;
+    color: var(--accent);
+    font-size: 0.95rem;
+    flex-shrink: 0;
+    margin-left: 0.75rem;
+}
+
+.receipt-totals {
+    border-bottom: none;
+}
+
+.receipt-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+}
+
+.receipt-value {
+    font-weight: 600;
+    color: var(--dark-gray);
+}
+
+.receipt-total {
+    border-top: 2px solid var(--dark-gray);
+    margin-top: 0.5rem;
+    padding-top: 0.75rem;
+}
+
+.receipt-total .receipt-value {
+    font-size: 1.3rem;
+    color: var(--primary);
+}
+
+.receipt-info {
+    border-bottom: none;
+}
+
+.info-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 0.75rem 0;
+}
+
+.info-row i {
+    font-size: 1.25rem;
+    color: var(--primary);
+    width: 24px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.info-details {
+    flex: 1;
+}
+
+.info-label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--medium-gray);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.25rem;
+}
+
+.info-value {
+    display: block;
+    font-weight: 600;
+    color: var(--dark-gray);
+    font-size: 0.95rem;
+}
+
+.receipt-footer {
+    background: var(--off-white);
+    padding: 1.5rem;
+    text-align: center;
+    border-radius: 0 0 20px 20px;
+}
+
+.thank-you {
+    font-size: 1rem;
+    color: var(--medium-gray);
+    margin-bottom: 1rem;
+    font-style: italic;
+}
+
+.receipt-footer .btn-close {
+    width: 100%;
+    background: var(--primary-gradient);
+    color: var(--white);
+    border: none;
+    padding: 1rem;
+    border-radius: 50px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.receipt-footer .btn-close:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
 .modal-header {
     background: var(--primary-gradient);
     color: var(--white);
@@ -2102,6 +2365,8 @@ input:not(:checked) + .slider .slider-text.en {
 
 .modal-header h2 {
     font-family: var(--font-secondary);
+    font-size: 1.5rem;
+    margin: 0;
 }
 
 .modal-body {
@@ -2112,7 +2377,6 @@ input:not(:checked) + .slider .slider-text.en {
     background: var(--off-white);
     border-radius: 10px;
     padding: 1.5rem;
-    margin-bottom: 1.5rem;
 }
 
 .order-item {
@@ -2245,6 +2509,17 @@ input:not(:checked) + .slider .slider-text.en {
 .success-modal p {
     color: var(--medium-gray);
     margin-bottom: 1.5rem;
+    font-size: 1rem;
+}
+
+.success-modal #orderNumber {
+    font-weight: 700;
+    color: var(--primary);
+    font-size: 1.2rem;
+    background: black;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 .order-details {
@@ -2290,6 +2565,88 @@ input:not(:checked) + .slider .slider-text.en {
     gap: 0.5rem;
 }
 
+/* ========================================
+   Bottom Navigation Footer
+   ======================================== */
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--white);
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 0.5rem 0;
+    z-index: var(--z-header);
+    border-top: 1px solid var(--light-gray);
+}
+
+.nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    padding: 0.5rem 1rem;
+    color: var(--medium-gray);
+    text-decoration: none;
+    transition: all 0.3s ease;
+    position: relative;
+    min-width: 80px;
+}
+
+.nav-item i {
+    font-size: 1.25rem;
+    transition: all 0.3s ease;
+}
+
+.nav-item span {
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.3s ease;
+}
+
+.nav-item:hover,
+.nav-item.active {
+    color: var(--primary);
+}
+
+.nav-item:hover i,
+.nav-item.active i {
+    transform: translateY(-2px);
+}
+
+.nav-item.active span {
+    font-weight: 600;
+}
+
+.nav-badge {
+    position: absolute;
+    top: 0.25rem;
+    right: 50%;
+    transform: translateX(12px);
+    background: var(--danger);
+    color: var(--white);
+    font-size: 0.65rem;
+    font-weight: 700;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.nav-badge:empty {
+    display: none;
+}
+
 .toast {
     background: var(--dark-gray);
     color: var(--white);
@@ -2330,6 +2687,7 @@ input:not(:checked) + .slider .slider-text.en {
 [data-theme="dark"] .toast {
     background: rgba(255, 255, 255, 0.15);
     backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     color: var(--white);
     border: 1px solid rgba(255, 255, 255, 0.2);
 }
@@ -2587,6 +2945,8 @@ input:not(:checked) + .slider .slider-text.en {
         width: 100%;
         max-width: 100%;
         right: -100%;
+        bottom: 60px; /* Account for bottom nav */
+        height: calc(100vh - 60px);
     }
 
     .cart-header {
@@ -2722,6 +3082,90 @@ input:not(:checked) + .slider .slider-text.en {
     .search-bar input {
         font-size: 1rem;
         padding: 0.8rem 0.8rem 0.8rem 2.5rem;
+    }
+
+    /* Bottom navigation - Tablet */
+    .bottom-nav {
+        padding: 0.4rem 0;
+    }
+
+    .nav-item {
+        min-width: 70px;
+        padding: 0.4rem 0.75rem;
+    }
+
+    .nav-item i {
+        font-size: 1.1rem;
+    }
+
+    .nav-item span {
+        font-size: 0.7rem;
+    }
+
+    .nav-badge {
+        min-width: 16px;
+        height: 16px;
+        font-size: 0.6rem;
+    }
+
+    /* Modal responsive styles - Tablet (768px) */
+    .modal-content {
+        width: 90%;
+        max-width: 450px;
+    }
+
+    .modal-header {
+        padding: 1.5rem;
+    }
+
+    .modal-header i {
+        font-size: 2.5rem;
+    }
+
+    .modal-header h2 {
+        font-size: 1.25rem;
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+    }
+
+    .modal-footer {
+        padding: 1rem 1.5rem;
+        flex-direction: row;
+    }
+
+    .btn-cancel,
+    .btn-confirm {
+        padding: 0.875rem 1.5rem;
+        font-size: 0.9rem;
+    }
+
+    /* Order summary in modal */
+    .order-summary {
+        padding: 1rem;
+    }
+
+    .order-item-detail {
+        font-size: 0.9rem;
+    }
+
+    .pickup-time select {
+        font-size: 0.9rem;
+        padding: 0.75rem;
+    }
+
+    /* Success modal order details */
+    .success-modal .order-details {
+        padding: 1rem;
+    }
+
+    .detail-row {
+        font-size: 0.9rem;
+    }
+
+    .detail-row strong {
+        font-size: 0.95rem;
     }
 }
 
@@ -2860,6 +3304,325 @@ input:not(:checked) + .slider .slider-text.en {
 
     .toast span {
         white-space: nowrap;
+    }
+
+    /* Bottom navigation - Mobile */
+    .bottom-nav {
+        padding: 0.35rem 0;
+        box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .nav-item {
+        min-width: 60px;
+        padding: 0.35rem 0.5rem;
+        gap: 0.2rem;
+    }
+
+    .nav-item i {
+        font-size: 1rem;
+    }
+
+    .nav-item span {
+        font-size: 0.65rem;
+    }
+
+    .nav-badge {
+        min-width: 14px;
+        height: 14px;
+        font-size: 0.55rem;
+        transform: translateX(10px);
+    }
+
+    /* Modal responsive styles - Mobile (480px) */
+    .modal-content {
+        width: 95%;
+        max-width: 95%;
+        border-radius: 16px;
+    }
+
+    .modal-header {
+        padding: 1.25rem;
+    }
+
+    .modal-header i {
+        font-size: 2rem;
+    }
+
+    .modal-header h2 {
+        font-size: 1.1rem;
+    }
+
+    .modal-body {
+        padding: 1.25rem;
+    }
+
+    .modal-footer {
+        padding: 1rem;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .btn-cancel,
+    .btn-confirm {
+        width: 100%;
+        padding: 0.875rem 1rem;
+        font-size: 0.85rem;
+    }
+
+    /* Order summary in modal */
+    .order-summary {
+        padding: 0.875rem;
+        font-size: 0.85rem;
+    }
+
+    .order-item-detail {
+        font-size: 0.8rem;
+        padding: 0.4rem 0;
+    }
+
+    .pickup-time {
+        font-size: 0.85rem;
+    }
+
+    .pickup-time h4 {
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .pickup-time select {
+        font-size: 0.85rem;
+        padding: 0.65rem;
+    }
+
+    /* Success modal */
+    .success-modal .success-icon {
+        font-size: 3rem;
+        margin: 1rem 0 0.5rem;
+    }
+
+    .success-modal h2 {
+        font-size: 1.25rem;
+        margin: 0.5rem 0;
+    }
+
+    .success-modal p {
+        font-size: 0.85rem;
+        margin-bottom: 1rem;
+    }
+
+    .success-modal #orderNumber {
+        font-size: 1rem;
+        display: inline-block;
+    }
+
+    .success-modal .order-details {
+        padding: 0.875rem;
+        margin: 0.75rem 0;
+    }
+
+    .success-modal .detail-row {
+        font-size: 0.75rem;
+        padding: 0.4rem 0;
+    }
+
+    .success-modal .detail-row strong {
+        font-size: 0.85rem;
+    }
+
+    /* Order history modal */
+    .order-history-modal .modal-header h2 {
+        font-size: 1.1rem;
+    }
+
+    .order-history-modal .modal-body {
+        padding: 1rem;
+    }
+
+    /* Meal selection modal */
+    .meal-selection-modal .modal-content {
+        max-width: 95%;
+        max-height: 95vh;
+    }
+
+    .meal-selection-content .modal-header {
+        padding: 1rem;
+    }
+
+    .meal-selection-content .btn-close {
+        font-size: 1.25rem;
+    }
+
+    .progress-indicator {
+        padding: 0.75rem 0.5rem;
+    }
+
+    .step-number {
+        width: 28px;
+        height: 28px;
+        font-size: 0.8rem;
+    }
+
+    .step-label {
+        font-size: 0.65rem;
+    }
+
+    .progress-line {
+        margin: 0 0.2rem;
+    }
+
+    .modal-step {
+        padding: 0.875rem 0.5rem;
+    }
+
+    .step-header h3 {
+        font-size: 1rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .siders-grid {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+
+    .sider-item {
+        padding: 0.75rem;
+        gap: 0.75rem;
+    }
+
+    .sider-image {
+        width: 50px;
+        height: 50px;
+    }
+
+    .sider-details h4 {
+        font-size: 0.9rem;
+    }
+
+    .sider-price {
+        font-size: 0.8rem;
+    }
+
+    .qty-btn-minus,
+    .qty-btn-plus {
+        width: 28px;
+        height: 28px;
+        font-size: 0.8rem;
+    }
+
+    .verification-meal {
+        gap: 0.5rem;
+    }
+
+    .verification-image {
+        width: 40px;
+        height: 40px;
+    }
+
+    .verification-details h4 {
+        font-size: 0.85rem;
+    }
+
+    .verification-price {
+        font-size: 0.8rem;
+    }
+
+    .time-option-card {
+        padding: 0.75rem;
+    }
+
+    .time-option-card span {
+        font-size: 0.85rem;
+    }
+
+    .time-option-card small {
+        font-size: 0.7rem;
+    }
+
+    .meal-selection-content .modal-footer {
+        padding: 0.75rem;
+        gap: 0.5rem;
+    }
+
+    .meal-selection-content .btn-cancel,
+    .meal-selection-content .btn-confirm {
+        padding: 0.75rem 1rem;
+        font-size: 0.8rem;
+    }
+
+    /* Receipt mobile styles */
+    .receipt-header {
+        padding: 1.5rem;
+    }
+
+    .receipt-header .success-icon {
+        font-size: 3rem;
+    }
+
+    .receipt-header h2 {
+        font-size: 1.25rem;
+    }
+
+    .order-number-text strong {
+        font-size: 1.1rem;
+    }
+
+    .receipt-body {
+        padding: 1rem;
+    }
+
+    .receipt-section {
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+    }
+
+    .receipt-item {
+        padding: 0.5rem;
+    }
+
+    .receipt-item-qty {
+        width: 24px;
+        height: 24px;
+        font-size: 0.7rem;
+    }
+
+    .receipt-item-name {
+        font-size: 0.85rem;
+    }
+
+    .receipt-item-price {
+        font-size: 0.75rem;
+    }
+
+    .receipt-item-total {
+        font-size: 0.85rem;
+    }
+
+    .receipt-row {
+        padding: 0.4rem 0;
+    }
+
+    .receipt-total .receipt-value {
+        font-size: 1.1rem;
+    }
+
+    .info-row i {
+        font-size: 1rem;
+    }
+
+    .info-label {
+        font-size: 0.7rem;
+    }
+
+    .info-value {
+        font-size: 0.85rem;
+    }
+
+    .receipt-footer {
+        padding: 1rem;
+    }
+
+    .thank-you {
+        font-size: 0.9rem;
     }
 }
 
@@ -3513,6 +4276,57 @@ input:not(:checked) + .slider .slider-text.en {
     color: var(--dark-gray);
 }
 
+[data-theme="dark"] .bottom-nav {
+    background: var(--white);
+    border-top-color: var(--light-gray);
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .nav-item {
+    color: var(--medium-gray);
+}
+
+[data-theme="dark"] .nav-item:hover,
+[data-theme="dark"] .nav-item.active {
+    color: var(--primary-light);
+}
+
+[data-theme="dark"] .receipt-header {
+    background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
+}
+
+[data-theme="dark"] .receipt-item {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .receipt-item-name {
+    color: var(--dark-gray);
+}
+
+[data-theme="dark"] .receipt-item-price {
+    color: var(--medium-gray);
+}
+
+[data-theme="dark"] .receipt-value {
+    color: var(--dark-gray);
+}
+
+[data-theme="dark"] .info-label {
+    color: var(--medium-gray);
+}
+
+[data-theme="dark"] .info-value {
+    color: var(--dark-gray);
+}
+
+[data-theme="dark"] .receipt-footer {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .thank-you {
+    color: var(--medium-gray);
+}
+
 [data-theme="dark"] .category-sidebar {
     background: var(--white);
     border: 1px solid var(--light-gray);
@@ -3624,7 +4438,7 @@ input:not(:checked) + .slider .slider-text.en {
 [data-theme="dark"] input,
 [data-theme="dark"] textarea,
 [data-theme="dark"] select {
-    color: var(--dark-gray);
+    color: white;
 }
 
 /* Keep accent colors properly displayed */
