@@ -3,23 +3,34 @@ ZINA Cantine BAD - Main Routes
 Handles page rendering routes (non-API)
 """
 
-from flask import Blueprint, render_template, redirect, url_for
+from flask import Blueprint, render_template
 from zina_app.api.routes import get_db_service
-from flask import jsonify
 
 
 main_bp = Blueprint('main', __name__)
 
 @main_bp.route('/')
 def index():
-    """Redirect home page to ordering interface"""
-    return redirect(url_for('main.ordering'))
+    """Home page - Welcome and navigation"""
+    return render_template('index.html')
 
 
 @main_bp.route('/commander')
 def ordering():
     """Ordering page for employees"""
     return render_template('ordering.html')
+
+
+@main_bp.route('/login')
+def login():
+    """Dedicated login page"""
+    return render_template('login.html')
+
+
+@main_bp.route('/register')
+def register():
+    """Dedicated registration page"""
+    return render_template('register.html')
 
 
 @main_bp.route('/admin')

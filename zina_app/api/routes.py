@@ -560,6 +560,32 @@ async def get_admin_orders():
         return jsonify({"error": str(e)}), 500
 
 
+@api_bp.route('/admin/users')
+async def get_admin_users():
+    """Get all users for admin dashboard"""
+    try:
+        db = get_db_service()
+        # Get all users from the database
+        response = db.supabase.table('users').select('*').order('created_at', desc=True).execute()
+
+        users = []
+        for user_data in response.data:
+            users.append({
+                'id': user_data.get('id'),
+                'full_name': user_data.get('full_name'),
+                'email': user_data.get('email'),
+                'phone': user_data.get('phone'),
+                'department': user_data.get('department'),
+                'employee_id': user_data.get('employee_id'),
+                'created_at': user_data.get('created_at')
+            })
+        print("utilisateur",users)
+        return jsonify(users)
+    except Exception as e:
+        print(f"Error in get_admin_users: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
 @api_bp.route('/info')
 def get_company_info():
     """Get ZINA company information"""

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - ZINA Cantine BAD</title>
     <meta name="description" content="Interface d'administration - Gestion du site ZINA Cantine BAD">
-    <link rel="icon"  href="images/logo.PNG">
+    <link rel="icon"  href="{{ url_for('static', filename='images/logo.PNG') }}">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -236,35 +236,8 @@
                                         <th>Heure</th>
                                     </tr>
                                 </thead>
-                                <tbody>
-                                    <tr>
-                                        <td>#4827</td>
-                                        <td>Jean Kouamé</td>
-                                        <td>14300 FCFA</td>
-                                        <td><span class="status-badge success">Complété</span></td>
-                                        <td>10:45</td>
-                                    </tr>
-                                    <tr>
-                                        <td>#4826</td>
-                                        <td>Marie Diallo</td>
-                                        <td>8500 FCFA</td>
-                                        <td><span class="status-badge warning">En cours</span></td>
-                                        <td>10:30</td>
-                                    </tr>
-                                    <tr>
-                                        <td>#4825</td>
-                                        <td>Patrick Aka</td>
-                                        <td>12000 FCFA</td>
-                                        <td><span class="status-badge success">Complété</span></td>
-                                        <td>10:15</td>
-                                    </tr>
-                                    <tr>
-                                        <td>#4824</td>
-                                        <td>Fatou Traoré</td>
-                                        <td>6500 FCFA</td>
-                                        <td><span class="status-badge info">En attente</span></td>
-                                        <td>10:00</td>
-                                    </tr>
+                                <tbody id="ordersTableBody">
+                                    <!-- Orders will be populated by JavaScript -->
                                 </tbody>
                             </table>
                         </div>
@@ -276,32 +249,8 @@
                             <a href="#menu" onclick="showSection('menu')" class="view-all">Gérer</a>
                         </div>
                         <div class="card-body">
-                            <div class="popular-list">
-                                <div class="popular-item">
-                                    <span class="popular-rank">1</span>
-                                    <span class="popular-name">Riz Gras au Poulet</span>
-                                    <span class="popular-count">45 commandes</span>
-                                </div>
-                                <div class="popular-item">
-                                    <span class="popular-rank">2</span>
-                                    <span class="popular-name">Alloco & Poisson</span>
-                                    <span class="popular-count">38 commandes</span>
-                                </div>
-                                <div class="popular-item">
-                                    <span class="popular-rank">3</span>
-                                    <span class="popular-name">Burger ZINA</span>
-                                    <span class="popular-count">32 commandes</span>
-                                </div>
-                                <div class="popular-item">
-                                    <span class="popular-rank">4</span>
-                                    <span class="popular-name">Attiéké Poisson</span>
-                                    <span class="popular-count">28 commandes</span>
-                                </div>
-                                <div class="popular-item">
-                                    <span class="popular-rank">5</span>
-                                    <span class="popular-name">Café Complet</span>
-                                    <span class="popular-count">25 commandes</span>
-                                </div>
+                            <div class="popular-list" id="popularItemsList">
+                                <!-- Popular items will be populated by JavaScript -->
                             </div>
                         </div>
                     </div>

@@ -113,7 +113,6 @@ instance/
 migrations/
 
 # Flask-Admin
-admin/
 
 # Database
 *.db

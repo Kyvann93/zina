@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Login Display Fix</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+        
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover { background-color: #0056b3; }
+        button.success { background-color: #28a745; }
+        button.danger { background-color: #dc3545; }
+        
+        .code-block {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Test de Correction - Affichage Login</h1>
+        
+        <div class="test-section">
+            <h3>🐛 Problème Identifié</h3>
+            <p>L'interface de connexion était complètement cachée lors de l'accès à la page.</p>
+            <ul>
+                <li>❌ <code>checkSession()</code> n'était pas appelé au chargement</li>
+                <li>❌ Pas de condition "else" pour afficher le login si aucun utilisateur</li>
+                <li>❌ <code>loginOverlay</code> restait caché par défaut</li>
+                <li>❌ <code>appContainer</code> restait visible même sans connexion</li>
+            </ul>
+        </div>
+        
+        <div class="test-section">
+            <h3>✅ Solution Appliquée</h3>
+            <p>Correction complète du système d'affichage du login:</p>
+            <ul>
+                <li>✅ Ajout de <code>checkSession()</code> dans <code>DOMContentLoaded</code></li>
+                <li>✅ Condition "else" pour afficher le login si nécessaire</li>
+                <li>✅ <code>loginOverlay</code> affiché en <code>display: flex</code></li>
+                <li>✅ <code>appContainer</code> caché par défaut</li>
+                <li>✅ CSS corrigé pour le panneau manuel</li>
+            </ul>
+        </div>
+        
+        <div class="test-section">
+            <h3>🔧 Modifications Techniques</h3>
+            <p><strong>Fichiers modifiés:</strong></p>
+            <ul>
+                <li><code>static/js/ordering.js</code> - Initialisation et gestion de session</li>
+                <li><code>static/css/ordering.css</code> - Affichage des panneaux de login</li>
+                <li><code>templates/ordering.html</code> - Indicateurs de champs requis</li>
+            </ul>
+            
+            <p><strong>Changements clés dans ordering.js:</strong></p>
+            <div class="code-block">
+// DOMContentLoaded - Ajout de checkSession()
+document.addEventListener('DOMContentLoaded', function() {
+    initializeDate();
+    updateMealPeriod();
+    checkSession(); // ✅ Ajouté
+    loadMenuFromAPI();
+});
+
+// checkSession - Ajout de condition else
+function checkSession() {
+    const savedUser = localStorage.getItem('zina_user') || sessionStorage.getItem('zina_user');
+    if (savedUser) {
+        // Afficher l'app
+        document.getElementById('loginOverlay').style.display = 'none';
+        document.getElementById('appContainer').style.display = 'block';
+        // ...
+    } else {
+        // ✅ Afficher le login si aucun utilisateur
+        document.getElementById('loginOverlay').style.display = 'flex';
+        document.getElementById('appContainer').style.display = 'none';
+    }
+}
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>🧪 Test de Vérification</h3>
+            <p>Pour vérifier que la correction fonctionne:</p>
+            <ol>
+                <li>Ouvrir la page d'accueil dans un navigateur privé</li>
+                <li>Vérifier que le formulaire de login est visible</li>
+                <li>Remplir les champs et se connecter</li>
+                <li>Vérifier que l'application s'affiche après connexion</li>
+                <li>Se déconnecter et vérifier le retour au login</li>
+            </ol>
+            
+            <div style="margin-top: 20px;">
+                <button onclick="window.open('/ordering', '_blank')" class="success">Tester la Page de Connexion</button>
+                <button onclick="clearStorage()" class="danger">Effacer Session</button>
+            </div>
+            
+            <div id="testResult" class="status info" style="margin-top: 15px;">
+                Cliquez sur "Tester la Page de Connexion" pour vérifier la correction.
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>📋 Comportement Attendu</h3>
+            <ul>
+                <li><strong>Page charge:</strong> Login visible, app cachée</li>
+                <li><strong>Connexion réussie:</strong> Login caché, app visible</li>
+                <li><strong>Déconnexion:</strong> Login visible, app cachée</li>
+                <li><strong>Session persistante:</strong> App visible si utilisateur enregistré</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        function clearStorage() {
+            localStorage.removeItem('zina_user');
+            sessionStorage.removeItem('zina_user');
+            localStorage.removeItem('zina_cart');
+            
+            document.getElementById('testResult').className = 'status success';
+            document.getElementById('testResult').textContent = '✅ Session effacée! Rechargez la page pour tester le login.';
+        }
+        
+        // Vérifier si la page actuelle montre les bons éléments
+        window.addEventListener('load', function() {
+            const hasLoginOverlay = document.getElementById('loginOverlay');
+            const hasAppContainer = document.getElementById('appContainer');
+            
+            if (hasLoginOverlay && hasAppContainer) {
+                document.getElementById('testResult').className = 'status success';
+                document.getElementById('testResult').textContent = '✅ Structure HTML correcte. La page devrait maintenant fonctionner.';
+            } else {
+                document.getElementById('testResult').className = 'status error';
+                document.getElementById('testResult').textContent = '❌ Erreur: Éléments manquants dans la structure HTML.';
+            }
+        });
+    </script>
+</body>
+</html>
