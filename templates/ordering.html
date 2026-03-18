@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZINA Cantine BAD </title>
+    <title>ZINA </title>
     <meta name="description" content="Commandez votre repas en ligne - ZINA Cantine de la BAD Abidjan">
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo.PNG') }}">
     <!-- Google Fonts -->
@@ -23,7 +23,7 @@
                 <div class="login-logo">
                     <img src="{{ url_for('static', filename='images/logo.PNG') }}" style="width:40px;" alt="ZINA Cantine BAD">
                 </div>
-                <h1>ZINA Cantine BAD</h1>
+                <h1>ZINA</h1>
                 <p>Accès Employés - Banque Africaine de Développement</p>
             </div>
             
@@ -89,21 +89,12 @@
                     </div>
                 </div>
                 
-                <div class="header-center">
-                    <div class="date-display">
-                        <i class="fas fa-calendar-alt"></i>
-                        <span id="currentDate"></span>
-                    </div>
-                    <div class="meal-period">
-                        <span class="period-badge" id="mealPeriod">Petit-Déjeuner</span>
-                    </div>
-                </div>
+                
                 
                 <div class="header-right">
-                    <button class="cart-button" onclick="toggleCart()">
-                        <i class="fas fa-shopping-cart"></i>
-                        <span class="cart-count" id="cartCount">0</span>
-                    </button>
+                    <a class="logout-btn" href="/logout" title="Déconnexion">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </a>
                 </div>
             </div>
             
@@ -470,7 +461,7 @@
                     </div>
                     <h2 data-translate="orderConfirmed">Commande Confirmée !</h2>
                     <p class="order-number-text">
-                        <span data-translate="orderNumberLabel">N° de commande</span>:
+                        <span data-translate="orderNumberLabel" style="color:white;">#</span>
                         <strong id="orderNumber">---</strong>
                     </p>
                 </div>
@@ -503,20 +494,6 @@
                             <div class="info-details">
                                 <span class="info-label" data-translate="pickupTime">Heure de récupération</span>
                                 <span class="info-value" id="receiptPickupTime">--:--</span>
-                            </div>
-                        </div>
-                        <div class="info-row">
-                            <i class="fas fa-utensils"></i>
-                            <div class="info-details">
-                                <span class="info-label" data-translate="prepTime">Temps de préparation</span>
-                                <span class="info-value" id="receiptPrepTime">-- min</span>
-                            </div>
-                        </div>
-                        <div class="info-row">
-                            <i class="fas fa-map-marker-alt"></i>
-                            <div class="info-details">
-                                <span class="info-label" data-translate="pickupLocation">Lieu de récupération</span>
-                                <span class="info-value">Cantine BAD - Comptoir 1</span>
                             </div>
                         </div>
                     </div>

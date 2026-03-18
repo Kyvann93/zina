@@ -25,7 +25,10 @@ def ordering():
 def login():
     """Dedicated login page"""
     return render_template('login.html')
-
+@main_bp.route('/logout')
+def logout():
+    """Handle user logout"""
+    return render_template('index.html')
 
 @main_bp.route('/register')
 def register():

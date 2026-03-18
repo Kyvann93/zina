@@ -2000,7 +2000,6 @@ function showSuccess(orderId, pickupTime, prepTimeMinutes, orderItems, totalAmou
                     <span class="receipt-item-qty">${item.quantity}</span>
                     <div class="receipt-item-details">
                         <div class="receipt-item-name">${item.product_name}</div>
-                        <div class="receipt-item-price">${formatPrice(item.unit_price)}</div>
                     </div>
                 </div>
                 <span class="receipt-item-total">${formatPrice(item.unit_price * item.quantity)}</span>

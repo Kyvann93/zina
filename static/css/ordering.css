@@ -2248,7 +2248,7 @@ input:not(:checked) + .slider .slider-text.en {
 
 .receipt-item-total {
     font-weight: 700;
-    color: var(--accent);
+    color: black;
     font-size: 0.95rem;
     flex-shrink: 0;
     margin-left: 0.75rem;
@@ -2518,9 +2518,9 @@ input:not(:checked) + .slider .slider-text.en {
 
 .success-modal #orderNumber {
     font-weight: 700;
-    color: var(--primary);
+    color: white;
     font-size: 1.2rem;
-    background: black;
+    background: rgb(255, 255, 255);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;

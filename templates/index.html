@@ -470,7 +470,7 @@
                 <i class="fas fa-user-plus"></i>
                 <span>S'inscrire</span>
             </a>
-            <a href="/commander" class="btn btn-outline">
+            <a href="#" class="btn btn-outline" onclick="handleGuestAccess(); return false;">
                 <i class="fas fa-utensils"></i>
                 <span>Invité</span>
             </a>
@@ -511,7 +511,7 @@
             
             // Redirect to ordering page
             setTimeout(() => {
-                window.location.href = '/ordering';
+                window.location.href = '/commander';
             }, 1500);
         }
         
@@ -530,7 +530,7 @@
             showToast('Accès invité activé! Redirection...', 'info');
             
             setTimeout(() => {
-                window.location.href = '/ordering';
+                window.location.href = '/commander';
             }, 1500);
         }
     </script>
