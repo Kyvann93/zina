@@ -280,18 +280,76 @@ function handleGuestAccess() {
     loadMenuFromAPI();
 }
 
-function handleLogin(event) {
+async function handleLogin(event) {
     event.preventDefault();
 
     const employeeId = document.getElementById('employeeId').value;
     const employeeName = document.getElementById('employeeName').value;
     const department = document.getElementById('department').value;
 
-    currentUser = {
-        id: employeeId,
-        name: employeeName,
-        department: department
-    };
+    try {
+        // First, try to authenticate user and get complete data from database
+        const response = await fetch('/api/login_user', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({
+                'full_name': employeeName,
+                'phone': employeeId, // Using employeeId as phone for now
+            })
+        });
+
+        if (response.ok) {
+            // If backend authentication succeeds, fetch complete user data
+            const profileResponse = await fetch('/api/admin/users');
+            const usersData = await profileResponse.json();
+            
+            // Find the user in the users list
+            const userData = usersData.find(user => 
+                user.full_name === employeeName || user.employee_id === employeeId
+            );
+
+            if (userData) {
+                currentUser = {
+                    id: userData.user_id,
+                    name: userData.full_name,
+                    email: userData.email,
+                    phone: userData.phone,
+                    department: userData.department || department,
+                    employee_id: userData.employee_id || employeeId
+                };
+            } else {
+                // Fallback to form data if not found in database
+                currentUser = {
+                    id: employeeId,
+                    name: employeeName,
+                    email: '',
+                    phone: '',
+                    department: department
+                };
+            }
+        } else {
+            // Fallback to form data if authentication fails
+            currentUser = {
+                id: employeeId,
+                name: employeeName,
+                email: '',
+                phone: '',
+                department: department
+            };
+        }
+    } catch (error) {
+        console.error('Login error:', error);
+        // Fallback to form data on network error
+        currentUser = {
+            id: employeeId,
+            name: employeeName,
+            email: '',
+            phone: '',
+            department: department
+        };
+    }
 
     // Save to localStorage for persistence across page reloads
     localStorage.setItem('zina_user', JSON.stringify(currentUser));
@@ -302,10 +360,10 @@ function handleLogin(event) {
     document.getElementById('appContainer').style.display = 'block';
 
     // Initialize user info
-    document.getElementById('userName').textContent = employeeName;
-    document.getElementById('userDept').textContent = department;
+    document.getElementById('userName').textContent = currentUser.name;
+    document.getElementById('userDept').textContent = currentUser.department;
 
-    showToast(currentLanguage === 'fr' ? 'Connexion réussie ! Bienvenue ' + employeeName : 'Login successful! Welcome ' + employeeName, 'success');
+    showToast(currentLanguage === 'fr' ? 'Connexion réussie ! Bienvenue ' + currentUser.name : 'Login successful! Welcome ' + currentUser.name, 'success');
 }
 
 function handleLogout() {
@@ -345,6 +403,12 @@ function closeOrderHistoryModal() {
 
 async function fetchUserOrders() {
     try {
+        // Show loading indicator
+        const contentDiv = document.getElementById('orderHistoryContent');
+        if (contentDiv) {
+            contentDiv.innerHTML = '<div class=\"loading-spinner\"><i class=\"fas fa-circle-notch fa-spin\"></i><p>' + (currentLanguage === 'fr' ? 'Chargement de vos commandes...' : 'Loading your orders...') + '</p></div>';
+        }
+        
         let url;
         if (currentUser.isGuest) {
             // Guest users use guest orders endpoint with their assigned user_id
@@ -411,8 +475,14 @@ function displayOrderHistory(orders) {
                         <span class="order-item-status ${statusClass}">${statusText}</span>
                     </div>
                     <div class="order-detail-row">
-                        <span class="order-detail-label">${currentLanguage === 'fr' ? 'Montant:' : 'Amount:'}</span>
-                        <span class="order-detail-value">${formatPrice(order.total_amount)}</span>
+                        <div>
+                         ${order.items && order.items.length > 0 ? `
+                         ${order.items.map(item => `
+                            <span class="order-item-product">${item.quantity} x ${item.product_name}</span>
+                         `).join('')}
+                        ` : ''}
+                        <span class="order-detail-label">${currentLanguage === 'fr' ? 'Montant:' : 'Amount:'}${formatPrice(order.total_amount)}</span>
+                        </div>
                     </div>
                     <div class="order-detail-row">
                         <span class="order-detail-label">${currentLanguage === 'fr' ? 'Préparation:' : 'Prep Time:'}</span>
@@ -423,17 +493,6 @@ function displayOrderHistory(orders) {
                         <span class="order-detail-value">${pickupDate ? formatTime(pickupDate) : (currentLanguage === 'fr' ? 'Non défini' : 'Not set')}</span>
                     </div>
                 </div>
-                ${order.items && order.items.length > 0 ? `
-                    <div class="order-items-list">
-                        <h4>${currentLanguage === 'fr' ? 'Articles commandés:' : 'Ordered items:'}</h4>
-                        ${order.items.map(item => `
-                            <div class="order-item-product">
-                                <span>${item.quantity}x ${item.product_name}</span>
-                                <span>${formatPrice(item.unit_price * item.quantity)}</span>
-                            </div>
-                        `).join('')}
-                    </div>
-                ` : ''}
             </div>
         `;
     }).join('');
@@ -500,6 +559,9 @@ function formatTime(date) {
 
 // Check if user is already logged in and restore session
 function checkSession() {
+    // Check if user just logged in
+    const justLoggedIn = localStorage.getItem('login_success_flag') === 'true';
+    
     // Try localStorage first (persistent), then sessionStorage (session-based)
     const savedUser = localStorage.getItem('zina_user') || sessionStorage.getItem('zina_user');
     if (savedUser) {
@@ -518,8 +580,12 @@ function checkSession() {
         
         // Restore cart if exists
         restoreCart();
-
-        showToast(currentLanguage === 'fr' ? 'Session restaurée - Bienvenue ' + currentUser.name : 'Session restored - Welcome ' + currentUser.name, 'info');
+        
+        // Show success toast if user just logged in (not guest)
+        if (justLoggedIn && !currentUser.isGuest) {
+            showToast(currentLanguage === 'fr' ? 'Connexion réussie ! Bienvenue ' + currentUser.name : 'Login successful! Welcome ' + currentUser.name, 'success');
+            localStorage.removeItem('login_success_flag');
+        }
     } else {
         // Show login overlay if no user is logged in
         const loginOverlay = document.getElementById('loginOverlay');
@@ -740,6 +806,15 @@ function updateTranslations() {
             signUp: 'S\'inscrire',
             guestAccess: 'Continuer en tant qu\'Invité',
 
+            // Profile
+            userProfile: 'Mon Profil',
+            profile: 'Profil',
+            fullName: 'Nom Complet',
+            email: 'Email',
+            phone: 'Téléphone',
+            edit: 'Modifier',
+            save: 'Enregistrer',
+
             // Toast messages
             error: 'Erreur',
             success: 'Succès',
@@ -846,6 +921,15 @@ function updateTranslations() {
             signUp: 'Sign Up',
             guestAccess: 'Continue as Guest',
 
+            // Profile
+            userProfile: 'My Profile',
+            profile: 'Profile',
+            fullName: 'Full Name',
+            email: 'Email',
+            phone: 'Phone',
+            edit: 'Edit',
+            save: 'Save',
+
             // Toast messages
             error: 'Error',
             success: 'Success',
@@ -916,7 +1000,7 @@ function toggleTheme() {
     setTheme(newTheme);
 }
 
-function setTheme(theme) {
+function setTheme(theme, showNotification = true) {
     currentTheme = theme;
     
     // Update HTML data attribute
@@ -931,14 +1015,16 @@ function setTheme(theme) {
     // Save theme preference
     localStorage.setItem('zina_theme', theme);
     
-    // Show toast notification
-    const message = theme === 'light' ? 'Mode clair activé' : 'Mode sombre activé';
-    showToast(message, 'info');
+    // Show toast notification only if requested
+    if (showNotification) {
+        const message = theme === 'light' ? 'Mode clair activé' : 'Mode sombre activé';
+        showToast(message, 'info');
+    }
 }
 
 function loadThemePreference() {
     const savedTheme = localStorage.getItem('zina_theme') || 'light';
-    setTheme(savedTheme);
+    setTheme(savedTheme, false);  // Don't show notification on page load
 }
 
 // Close burger menu when clicking outside
@@ -1278,23 +1364,34 @@ function searchMenu() {
     const grid = document.getElementById('menuGrid');
     if (!grid) return;
     
+    if (filtered.length === 0) {
+        grid.innerHTML = `
+            <div class="no-results">
+                <i class="fas fa-search"></i>
+                <h3>${currentLanguage === 'fr' ? 'Aucun plat trouvé' : 'No items found'}</h3>
+                <p>${currentLanguage === 'fr' ? 'Essayez une autre recherche' : 'Try another search'}</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Use the same HTML structure as renderMenu() for consistent styling
     grid.innerHTML = filtered.map(item => `
-        <div class="menu-item">
-            <div class="menu-item-image"><img src=${item.image}/></div>
+        <div class="menu-item ${!item.available ? 'unavailable' : ''}" data-id="${item.id}">
+            <div class="menu-item-image">
+                <img src="${item.image}" alt="${item.name}" onerror="this.src='https://via.placeholder.com/300x200?text=${encodeURIComponent(item.name)}'">
+                ${item.popular ? '<span class="popular-badge"><i class="fas fa-star"></i> Populaire</span>' : ''}
+                ${!item.available ? '<span class="unavailable-badge">Indisponible</span>' : ''}
+                <button class="add-btn-overlay" onclick="addToCart(${item.id})">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </div>
             <div class="menu-item-content">
                 <div class="menu-item-header">
-                    <h4 class="menu-item-title">${item.name}</h4>
-                    <span class="menu-item-price">${formatPrice(item.price)}</span>
+                    <h3 class="menu-item-title">${item.name}</h3>
+                    <span class="menu-item-price">${item.price} FCFA</span>
                 </div>
                 <p class="menu-item-description">${item.description}</p>
-                <div class="menu-item-footer">
-                    <div class="menu-item-meta">
-                        <span><i class="fas fa-clock"></i> ${item.prepTime} min</span>
-                    </div>
-                    <button class="add-to-cart" onclick="addToCart(${item.id})">
-                        <i class="fas fa-plus"></i>
-                    </button>
-                </div>
             </div>
         </div>
     `).join('');
@@ -2084,6 +2181,135 @@ function openSearchPage() {
 }
 
 // ========================================
+// User Profile Functions
+// ========================================
+async function showProfileModal() {
+    if (!currentUser) {
+        showToast(currentLanguage === 'fr' ? 'Veuillez vous connecter' : 'Please log in', 'error');
+        return;
+    }
+
+    // Check if user is a guest - guests don't have profile
+    if (currentUser.isGuest) {
+        showToast(currentLanguage === 'fr' ? 'Les invités n\'ont pas de profil. Connectez-vous pour accéder à votre profil.' : 'Guests do not have a profile. Please log in to access your profile.', 'info');
+        return;
+    }
+
+    try {
+        // Fetch complete user data from API
+        const response = await fetch(`/api/user/profile?user_id=${currentUser.id}`);
+        const data = await response.json();
+
+        if (response.ok && data.status === 'success') {
+            const user = data.user;
+            
+            // Display profile information from database
+            document.getElementById('profileName').textContent = user.full_name || '-';
+            document.getElementById('profileEmail').textContent = user.email || '-';
+            document.getElementById('profilePhone').textContent = user.phone || '-';
+
+            // Update currentUser object with complete data
+            currentUser.name = user.full_name;
+            currentUser.email = user.email;
+            currentUser.phone = user.phone;
+            currentUser.department = user.department;
+            currentUser.employee_id = user.employee_id;
+
+            // Save updated user data to localStorage
+            localStorage.setItem('zina_user', JSON.stringify(currentUser));
+        } else {
+            // Fallback to existing currentUser data if API fails
+            document.getElementById('profileName').textContent = currentUser.name || '-';
+            document.getElementById('profileEmail').textContent = currentUser.email || '-';
+            document.getElementById('profilePhone').textContent = currentUser.phone || '-';
+            
+            if (data.error) {
+                showToast(data.error, 'warning');
+            }
+        }
+    } catch (error) {
+        console.error('Error fetching profile data:', error);
+        // Fallback to existing currentUser data on network error
+        document.getElementById('profileName').textContent = currentUser.name || '-';
+        document.getElementById('profileEmail').textContent = currentUser.email || '-';
+        document.getElementById('profilePhone').textContent = currentUser.phone || '-';
+        showToast(currentLanguage === 'fr' ? 'Erreur lors du chargement du profil' : 'Error loading profile', 'warning');
+    }
+
+    // Show modal
+    const modal = document.getElementById('profileModal');
+    if (modal) {
+        modal.style.display = 'flex';
+        modal.classList.add('active');
+        // Make sure profile view is visible, edit form is hidden
+        document.querySelector('.profile-view').style.display = 'block';
+        document.getElementById('profileEditForm').style.display = 'none';
+    }
+}
+
+function closeProfileModal() {
+    const modal = document.getElementById('profileModal');
+    if (modal) {
+        modal.style.display = 'none';
+        modal.classList.remove('active');
+    }
+    // Reset to view mode
+    document.querySelector('.profile-view').style.display = 'block';
+    document.getElementById('profileEditForm').style.display = 'none';
+}
+
+function editProfile() {
+    // Populate edit form with current values
+    document.getElementById('editName').value = currentUser.name || '';
+    document.getElementById('editEmail').value = currentUser.email || '';
+    document.getElementById('editPhone').value = currentUser.phone || '';
+
+    // Switch to edit mode
+    document.querySelector('.profile-view').style.display = 'none';
+    document.getElementById('profileEditForm').style.display = 'block';
+}
+
+function cancelEdit() {
+    // Switch back to view mode
+    document.querySelector('.profile-view').style.display = 'block';
+    document.getElementById('profileEditForm').style.display = 'none';
+}
+
+function saveProfile(event) {
+    event.preventDefault();
+
+    const name = document.getElementById('editName').value;
+    const email = document.getElementById('editEmail').value;
+    const phone = document.getElementById('editPhone').value;
+
+    // Update currentUser object
+    currentUser.name = name;
+    currentUser.email = email;
+    currentUser.phone = phone;
+
+    // Update localStorage
+    localStorage.setItem('zina_user', JSON.stringify(currentUser));
+    sessionStorage.setItem('zina_user', JSON.stringify(currentUser));
+
+    // Update header/burger menu if displayed
+    const userNameEl = document.getElementById('userName');
+    if (userNameEl) {
+        userNameEl.textContent = name;
+    }
+
+    // Update profile display
+    document.getElementById('profileName').textContent = name;
+    document.getElementById('profileEmail').textContent = email;
+    document.getElementById('profilePhone').textContent = phone;
+
+    // Switch back to view mode
+    document.querySelector('.profile-view').style.display = 'block';
+    document.getElementById('profileEditForm').style.display = 'none';
+
+    showToast(currentLanguage === 'fr' ? 'Profil mis à jour avec succès' : 'Profile updated successfully', 'success');
+}
+
+// ========================================
 // Exports
 // ========================================
 window.updateQuantity = updateQuantity;
@@ -2133,3 +2359,8 @@ window.confirmMealOrder = confirmMealOrder;
 window.updateCustomTime = updateCustomTime;
 window.enableCustomTime = enableCustomTime;
 window.updatePickupTime = updatePickupTime;
+window.showProfileModal = showProfileModal;
+window.closeProfileModal = closeProfileModal;
+window.editProfile = editProfile;
+window.cancelEdit = cancelEdit;
+window.saveProfile = saveProfile;

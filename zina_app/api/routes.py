@@ -6,8 +6,8 @@ Handles menu, categories, products, orders, and company info endpoints
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from flask import jsonify, request, current_app
-
+from flask import jsonify, request, current_app, redirect, url_for, flash, session
+import random
 from zina_app.api import api_bp
 from zina_app.services import DatabaseService
 from zina_app.models import CreateOrderRequest, OrderItemRequest
@@ -147,36 +147,38 @@ async def get_product(product_id):
 def register_user():
     """Register a new user"""
     try:
-        data = request.json
-
-        required_fields = ['employee_id', 'full_name', 'email', 'department']
+        data = request.form
+        required_fields = ['full_name', 'email', 'phone']
         for field in required_fields:
             if field not in data:
-                return jsonify({"error": f"Missing required field: {field}"}), 400
+                flash(f"Champ requis manquant: {field}", 'error')
+                return redirect(url_for('main.register'))
 
         # Validate email format
         import re
         email_pattern = r'^[\w\.-]+@[\w\.-]+\.\w+$'
         if not re.match(email_pattern, data['email']):
-            return jsonify({"error": "Invalid email format"}), 400
+            
+            flash("Format d'email invalide", 'error')
+            return redirect(url_for('main.register'))
 
         # Generate UUID from employee ID
         import hashlib
-        hash_bytes = hashlib.md5(data['employee_id'].encode()).digest()
+        random_integer = str(random.randint(9, int(1e6)))
+        hash_bytes = hashlib.md5(random_integer.encode()).digest()
         user_id = str(uuid.UUID(bytes=hash_bytes))
 
         # Generate a default password hash for new registrations
-        default_password = f"temp-{data['employee_id'][:8]}"
+        default_password = f"temp-{random_integer[:8]}"
         password_hash = hashlib.sha256(default_password.encode()).hexdigest()
 
         # Create user data
         user_data = {
             'user_id': user_id,
-            'full_name': data['full_name'],
-            'email': data['email'],
+            'full_name': data.get('full_name'),
+            'email': data.get('email'),
             'phone': data.get('phone'),
-            'department': data['department'],
-            'employee_id': data['employee_id'],
+            'notes': data.get('notes'),
             'password_hash': password_hash,  # Required field
             'created_at': datetime.now().isoformat()
         }
@@ -187,24 +189,64 @@ def register_user():
             current_app.config['SUPABASE_URL'],
             current_app.config['SUPABASE_KEY']
         )
-        
-        response = supabase.table('users').insert(user_data).execute()
-        
+        try:
+            response = supabase.table('users').insert(user_data).execute()
+        except Exception as db_error:
+            print(f"Database error during registration: {db_error}")
+            flash("Une erreur est survenue lors de l'inscription. Veuillez réessayer.", 'error')
+            return redirect(url_for('main.register'))
         if response.data:
-            return jsonify({
-                "status": "success",
-                "message": "Inscription réussie ! Vous pouvez maintenant vous connecter.",
-                "user_id": user_id,
-                "full_name": data['full_name']
-            })
+            # Redirect to login page with success message
+            
+            flash('Inscription réussie ! Vous pouvez maintenant vous connecter.', 'success')
+            return redirect(url_for('main.login'))
         else:
-            return jsonify({"error": "Échec de l'inscription"}), 500
+            flash('Échec de l\'inscription', 'error')
+            return redirect(url_for('main.register'))
 
     except Exception as e:
         print(f"Registration error: {str(e)}")
-        return jsonify({"error": "Une erreur est survenue lors de l'inscription"}), 500
+        
+        flash(f"Une erreur est survenue lors de l'inscription: {str(e)}", 'error')
+        return redirect(url_for('main.register'))
 
+@api_bp.route('/login_user', methods=['POST'])
+def login_user():
+    """Handle user login"""
+    try:
+        data = request.form
+        print("donne recuperee du login",data)
+        full_name = data.get('full_name')
+        phone = data.get('phone').replace(" ", "")  # Remove spaces from phone number
 
+        if not full_name or not phone:
+            flash("Nom complet et numéro de téléphone sont requis", 'error')
+            return redirect(url_for('main.login'))
+
+        from supabase import create_client
+        supabase = create_client(
+            current_app.config['SUPABASE_URL'],
+            current_app.config['SUPABASE_KEY']
+        )
+        response = supabase.table('users').select('*').eq('full_name', full_name).eq('phone', phone).execute()
+        if response.data:
+            jsonify({"message": "Connexion réussie !", "category": 'success'})
+            user = response.data[0]
+            print("user trouvé", user)
+            session["is_logged_in"] = True
+            session['user_id'] = user['user_id']  # or user['user_id'] depending on your column name
+            session['user_name'] = user['full_name']
+            session['is_logged_in'] = True
+            
+            return redirect(url_for('main.ordering'))
+        else:
+            flash("Nom complet ou numéro de téléphone incorrect", 'error')
+            return redirect(url_for('main.login'))
+
+    except Exception as e:
+        print(f"Login error: {str(e)}")
+        flash(f"Une erreur est survenue lors de la connexion: {str(e)}", 'error')
+        return redirect(url_for('main.login'))
 @api_bp.route('/order', methods=['POST'])
 async def place_order():
     """Place a new order"""
@@ -557,6 +599,47 @@ async def get_admin_orders():
         return jsonify(orders)
     except Exception as e:
         print(f"Error in get_admin_orders: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
+@api_bp.route('/user/profile')
+async def get_user_profile():
+    """Get user profile data by user_id"""
+    try:
+        # Get user_id from query parameter
+        user_id = request.args.get('user_id')
+        
+        if not user_id:
+            return jsonify({"error": "User ID required"}), 400
+
+        from supabase import create_client
+        supabase = create_client(
+            current_app.config['SUPABASE_URL'],
+            current_app.config['SUPABASE_KEY']
+        )
+        
+        # Fetch user data from users table
+        response = supabase.table('users').select('*').eq('user_id', user_id).execute()
+        
+        if response.data:
+            user_data = response.data[0]
+            return jsonify({
+                "status": "success",
+                "user": {
+                    "user_id": user_data.get('user_id'),
+                    "full_name": user_data.get('full_name'),
+                    "email": user_data.get('email'),
+                    "phone": user_data.get('phone'),
+                    "department": user_data.get('department'),
+                    "employee_id": user_data.get('employee_id'),
+                    "created_at": user_data.get('created_at')
+                }
+            })
+        else:
+            return jsonify({"error": "User not found"}), 404
+            
+    except Exception as e:
+        print(f"Error in get_user_profile: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 

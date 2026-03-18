@@ -539,14 +539,74 @@
         </div>
     </div>
 
+    <!-- User Profile Modal -->
+    <div class="modal profile-modal" id="profileModal" style="display: none; position: fixed !important; z-index: 9999 !important;">
+        <div class="modal-content profile-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-user"></i> <span data-translate="userProfile">Mon Profil</span></h2>
+                <button class="btn-close" onclick="closeProfileModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="profileContent">
+                    <div class="profile-view">
+                        <div class="profile-info-item">
+                            <label data-translate="fullName">Nom Complet</label>
+                            <p id="profileName">-</p>
+                        </div>
+                        <div class="profile-info-item">
+                            <label data-translate="email">Email</label>
+                            <p id="profileEmail">-</p>
+                        </div>
+                        <div class="profile-info-item">
+                            <label data-translate="phone">Téléphone</label>
+                            <p id="profilePhone">-</p>
+                        </div>
+                        <div class="profile-actions">
+                            <button class="btn-edit" onclick="editProfile()">
+                                <i class="fas fa-edit"></i>
+                                <span data-translate="edit">Modifier</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="profile-edit" id="profileEditForm" style="display: none;">
+                        <form onsubmit="saveProfile(event)">
+                            <div class="form-group">
+                                <label for="editName" data-translate="fullName">Nom Complet</label>
+                                <input type="text" id="editName" name="name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="editEmail" data-translate="email">Email</label>
+                                <input type="email" id="editEmail" name="email" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="editPhone" data-translate="phone">Téléphone</label>
+                                <input type="tel" id="editPhone" name="phone" required>
+                            </div>
+                            <div class="form-actions">
+                                <button type="button" class="btn-cancel" onclick="cancelEdit()">
+                                    <span data-translate="cancel">Annuler</span>
+                                </button>
+                                <button type="submit" class="btn-confirm">
+                                    <span data-translate="save">Enregistrer</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast Notifications (outside app container so it's always visible) -->
     <div class="toast-container" id="toastContainer"></div>
 
     <!-- Fixed Bottom Navigation Footer -->
     <nav class="bottom-nav">
-        <a href="#" class="nav-item" onclick="openSearchPage(); return false;">
-            <i class="fas fa-search"></i>
-            <span data-translate="search">Rechercher</span>
+        <a href="#" class="nav-item" onclick="showProfileModal(); return false;">
+            <i class="fas fa-user-circle"></i>
+            <span data-translate="profile">Profil</span>
         </a>
         <a href="#" class="nav-item" onclick="showOrderHistory(); return false;">
             <i class="fas fa-history"></i>
@@ -560,6 +620,19 @@
     </nav>
 
     <!-- JavaScript -->
+    <script>
+        // Set user info from Flask session if available
+        const flaskUserInfo = {{ user_info | tojson if user_info else 'null' }};
+        if (flaskUserInfo && flaskUserInfo.is_logged_in) {
+            window.currentUser = {
+                id: flaskUserInfo.id,
+                name: flaskUserInfo.name,
+                email: flaskUserInfo.email,
+                isGuest: false
+            };
+            localStorage.setItem('zina_user', JSON.stringify(window.currentUser));
+        }
+    </script>
     <script src="{{ url_for('static', filename='js/ordering.js') }}"></script>
 </body>
 </html>

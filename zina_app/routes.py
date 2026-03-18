@@ -3,7 +3,7 @@ ZINA Cantine BAD - Main Routes
 Handles page rendering routes (non-API)
 """
 
-from flask import Blueprint, render_template
+from flask import Blueprint, render_template,request, redirect, url_for,session,flash
 from zina_app.api.routes import get_db_service
 
 
@@ -18,21 +18,40 @@ def index():
 @main_bp.route('/commander')
 def ordering():
     """Ordering page for employees"""
-    return render_template('ordering.html')
-
+    # Check if user is logged in OR accessing as guest
+    is_logged_in = session.get('is_logged_in', False)
+    user_info = None
+    
+    if is_logged_in:
+        # User is authenticated
+        user_info = {
+            'id': session.get('user_id'),
+            'name': session.get('user_name'),
+            'email': session.get('user_email'),
+            'is_logged_in': True
+        }
+    elif 'guest' not in request.args:
+        # Not logged in and not accessing as guest
+        flash('Veuillez vous connecter ou continuer en tant qu\'invité', 'info')
+        return redirect(url_for('main.login'))
+    
+    return render_template('ordering.html', user_info=user_info)
 
 @main_bp.route('/login')
 def login():
     """Dedicated login page"""
+    
     return render_template('login.html')
 @main_bp.route('/logout')
 def logout():
     """Handle user logout"""
-    return render_template('index.html')
+    session.clear()  # Clear all session data
+    return redirect(url_for('main.index'))
 
 @main_bp.route('/register')
 def register():
     """Dedicated registration page"""
+    
     return render_template('register.html')
 
 
