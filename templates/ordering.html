@@ -105,34 +105,7 @@
                     <div class="brand-logo">
                         <img src="{{ url_for('static', filename='images/logo.PNG') }}" alt="ZINA Logo" class="header-logo">
                         <span class="brand-main">INA</span>
-                    </div>
-                    
-                    <!-- User Info -->
-                    <div class="user-info">
-                        <div class="user-avatar">
-                            <i class="fas fa-user-circle"></i>
-                        </div>
-                        <div class="user-details">
-                            <span class="user-name" id="userName" data-translate="employee">Employé</span>
-                            <span class="user-dept" id="userDept" data-translate="department">Département</span>
-                        </div>
-                    </div>
-                    
-                    <!-- Menu Items -->
-                    <nav class="burger-menu-nav">
-                        <button class="burger-menu-item" onclick="showOrderHistory(); toggleBurgerMenu();">
-                            <i class="fas fa-history"></i>
-                            <span data-translate="orderHistory">Mes Commandes</span>
-                        </button>
-                        <button class="burger-menu-item" onclick="toggleCart(); toggleBurgerMenu();">
-                            <i class="fas fa-shopping-cart"></i>
-                            <span data-translate="myCart">Mon Panier</span>
-                        </button>
-                        <button class="burger-menu-item logout-item" onclick="handleLogout(); toggleBurgerMenu();">
-                            <i class="fas fa-sign-out-alt"></i>
-                            <span data-translate="logout">Déconnexion</span>
-                        </button>
-                    </nav>
+                    </div>                   
                 </div>
             </div>
         </header>
@@ -623,14 +596,26 @@
     <script>
         // Set user info from Flask session if available
         const flaskUserInfo = {{ user_info | tojson if user_info else 'null' }};
-        if (flaskUserInfo && flaskUserInfo.is_logged_in) {
-            window.currentUser = {
-                id: flaskUserInfo.id,
-                name: flaskUserInfo.name,
-                email: flaskUserInfo.email,
-                isGuest: false
-            };
-            localStorage.setItem('zina_user', JSON.stringify(window.currentUser));
+        if (flaskUserInfo) {
+            if (flaskUserInfo.is_logged_in) {
+                // Logged-in user
+                window.currentUser = {
+                    id: flaskUserInfo.id,
+                    name: flaskUserInfo.name,
+                    email: flaskUserInfo.email,
+                    isGuest: false
+                };
+                localStorage.setItem('zina_user', JSON.stringify(window.currentUser));
+            } else if (flaskUserInfo.is_guest) {
+                // Guest user - language will be set by JavaScript
+                window.currentUser = {
+                    id: null,
+                    name: 'Guest',
+                    department: 'Visitor',
+                    isGuest: true
+                };
+                localStorage.setItem('zina_user', JSON.stringify(window.currentUser));
+            }
         }
     </script>
     <script src="{{ url_for('static', filename='js/ordering.js') }}"></script>

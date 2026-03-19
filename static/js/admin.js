@@ -356,6 +356,9 @@ function loadDashboardData() {
         });
 
     // Load users from API (if endpoint exists)
+    // Show loader first
+    showSectionDataLoader('users');
+    
     fetch('/api/admin/users')
         .then(response => {
             if (response.ok) {
@@ -366,12 +369,29 @@ function loadDashboardData() {
             }
         })
         .then(data => {
-            users = data && data.length > 0 ? data : [];
+            if (data && data.length > 0) {
+                // Map API data to frontend format
+                users = data.map(user => ({
+                    matricule: user.employee_id || user.id || '-',
+                    name: user.full_name || 'Utilisateur sans nom',
+                    email: user.email || '-',
+                    phone: user.phone || '-',
+                    joined: user.created_at ? formatDate(user.created_at) : '-',
+                    orders: 0, // Will be loaded separately
+                    userId: user.id // Keep original ID for reference
+                }));
+                // Load order counts for users
+                loadUserOrderCounts();
+            } else {
+                users = [];
+                hideSectionDataLoader('users');
+            }
             updateDashboardStats();
         })
         .catch(error => {
             console.error('Error loading users:', error);
             users = [];
+            hideSectionDataLoader('users');
             updateDashboardStats();
         });
 
@@ -1241,26 +1261,26 @@ function updateOrderStatus() {
 // ========================================
 function loadUsers() {
     const tbody = document.getElementById('usersTableBody');
-    
+
     if (users.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><i class="fas fa-users"></i><h3>Aucun utilisateur</h3><p>Aucun utilisateur enregistré</p></div></td></tr>';
     } else {
         tbody.innerHTML = users.map(user => `
             <tr>
-                <td><strong>${user.matricule}</strong></td>
                 <td>${user.name}</td>
-                <td>${user.department}</td>
+                <td>${user.email}</td>
+                <td>${user.phone}</td>
                 <td>${user.orders}</td>
                 <td>${user.joined}</td>
                 <td>
-                    <button class="action-btn edit" onclick="viewUser(${user.matricule})">
+                    <button class="action-btn edit" onclick="viewUser('${user.matricule}')">
                         <i class="fas fa-eye"></i>
                     </button>
                 </td>
             </tr>
         `).join('');
     }
-    
+
     hideSectionDataLoader('users');
 }
 
@@ -1270,7 +1290,9 @@ function filterUsers() {
 
 function viewUser(matricule) {
     const user = users.find(u => u.matricule === matricule);
-    showToast(`Profil de ${user.name}`, 'info');
+    if (user) {
+        showToast(`Profil de ${user.name}`, 'info');
+    }
 }
 
 // ========================================
@@ -1296,6 +1318,72 @@ function saveFeesSettings(event) {
 // ========================================
 function formatPrice(price) {
     return new Intl.NumberFormat('fr-FR').format(price) + ' FCFA';
+}
+
+function formatDate(dateString) {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('fr-FR', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric'
+    });
+}
+
+function loadUserOrderCounts() {
+    // Fetch all orders and count by user_id
+    fetch('/api/admin/orders')
+        .then(response => {
+            if (response.ok) {
+                return response.json();
+            }
+            return [];
+        })
+        .then(orders => {
+            console.log('Loaded orders:', orders);
+            console.log('Current users:', users);
+            
+            if (orders && orders.length > 0) {
+                // Count orders per user - normalize UUIDs by removing hyphens and converting to lowercase
+                const orderCounts = {};
+                orders.forEach(order => {
+                    const userId = order.user_id;
+                    if (userId) {
+                        // Normalize UUID: remove hyphens, convert to lowercase for consistent comparison
+                        const userIdNormalized = String(userId).replace(/-/g, '').toLowerCase();
+                        orderCounts[userIdNormalized] = (orderCounts[userIdNormalized] || 0) + 1;
+                    }
+                });
+
+                console.log('Order counts by user (normalized):', orderCounts);
+
+                // Update users with order counts
+                users.forEach(user => {
+                    if (user.userId) {
+                        // Normalize UUID for comparison
+                        const userIdNormalized = String(user.userId).replace(/-/g, '').toLowerCase();
+                        const count = orderCounts[userIdNormalized] || 0;
+                        user.orders = count;
+                        console.log(`User ${user.name} (${user.userId} -> ${userIdNormalized}): ${count} orders`);
+                    }
+                });
+
+                console.log('Users after order count update:', users);
+
+                // Hide loader and reload users table with updated order counts
+                hideSectionDataLoader('users');
+                loadUsers();
+            } else {
+                // No orders, hide loader and load users
+                hideSectionDataLoader('users');
+                loadUsers();
+            }
+        })
+        .catch(error => {
+            console.error('Error loading order counts:', error);
+            hideSectionDataLoader('users');
+            loadUsers();
+        });
 }
 
 function showToast(message, type = 'info') {
@@ -1375,6 +1463,7 @@ window.viewOrderDetails = viewOrderDetails;
 window.closeOrderDetails = closeOrderDetails;
 window.closeConfirmModal = closeConfirmModal;
 window.updateOrderStatus = updateOrderStatus;
+window.loadUsers = loadUsers;
 window.filterUsers = filterUsers;
 window.viewUser = viewUser;
 window.saveGeneralSettings = saveGeneralSettings;

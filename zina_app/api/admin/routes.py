@@ -10,6 +10,14 @@ from zina_app.api.admin import admin_bp
 from zina_app.services import DatabaseService
 
 
+def get_supabase():
+    """Get Supabase client from Flask app config"""
+    return create_client(
+        current_app.config['SUPABASE_URL'],
+        current_app.config['SUPABASE_KEY']
+    )
+
+
 def get_db_service():
     """Get database service from Flask app config"""
     supabase = create_client(
@@ -234,7 +242,24 @@ def delete_categories(category_id):
 def get_admin_orders():
     """Get all orders for admin"""
     try:
-        return jsonify([])
+        supabase = get_supabase()
+        response = supabase.table('orders').select('*').order('created_at', desc=True).execute()
+        
+        if response.data:
+            orders = []
+            for order in response.data:
+                orders.append({
+                    'order_id': order.get('order_id'),
+                    'user_id': order.get('user_id'),
+                    'total_amount': order.get('total_amount'),
+                    'order_status': order.get('order_status'),
+                    'created_at': order.get('created_at'),
+                    'pickup_time': order.get('pickup_time'),
+                    'prep_time_minutes': order.get('prep_time_minutes')
+                })
+            return jsonify(orders)
+        else:
+            return jsonify([])
     except Exception as e:
         return jsonify([{'error': str(e)}])
 

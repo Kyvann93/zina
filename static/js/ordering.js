@@ -252,32 +252,12 @@ function handleRegistration(event) {
 }
 
 function handleGuestAccess() {
-    currentUser = {
-        id: null,  // Will be assigned by backend when order is placed
-        name: currentLanguage === 'fr' ? 'Invité' : 'Guest',
-        department: currentLanguage === 'fr' ? 'Visiteur' : 'Visitor',
-        isGuest: true  // Flag to identify guest users
-    };
-
-    // Save to localStorage for persistence across page reloads
-    localStorage.setItem('zina_user', JSON.stringify(currentUser));
-    sessionStorage.setItem('zina_user', JSON.stringify(currentUser));  // Keep sessionStorage for compatibility
-
-    // Hide login, show app
-    const loginOverlay = document.getElementById('loginOverlay');
-    const appContainer = document.getElementById('appContainer');
-    const userName = document.getElementById('userName');
-    const userDept = document.getElementById('userDept');
-
-    if (loginOverlay) loginOverlay.style.display = 'none';
-    if (appContainer) appContainer.style.display = 'block';
-    if (userName) userName.textContent = currentLanguage === 'fr' ? 'Invité' : 'Guest';
-    if (userDept) userDept.textContent = currentLanguage === 'fr' ? 'Visiteur' : 'Visitor';
-
-    showToast(currentLanguage === 'fr' ? 'Accès invité - Votre historique de commandes sera disponible après votre première commande' : 'Guest access - Your order history will be available after your first order', 'info');
-
-    // Load menu
-    loadMenuFromAPI();
+    // Clear any existing user data first
+    localStorage.removeItem('zina_user');
+    sessionStorage.removeItem('zina_user');
+    
+    // Redirect to guest access endpoint which clears session and redirects back
+    window.location.href = '/guest-access';
 }
 
 async function handleLogin(event) {
@@ -378,9 +358,31 @@ function handleLogout() {
 
 // Order History Functions
 function showOrderHistory() {
-    // Allow all users (including guests) to see order history
+    // Allow guest users to see order history
     if (!currentUser) {
         showToast(currentLanguage === 'fr' ? 'Veuillez vous connecter pour voir vos commandes' : 'Please log in to view your orders', 'warning');
+        return;
+    }
+
+    // For guest users without an ID yet (haven't placed an order), show empty state
+    if (currentUser.isGuest && (!currentUser.id || currentUser.id === 'null' || currentUser.id === 'None')) {
+        // Still show the modal, but display message that they need to place an order first
+        const orderHistoryModal = document.getElementById('orderHistoryModal');
+        if (orderHistoryModal) {
+            orderHistoryModal.style.display = 'flex';
+            orderHistoryModal.offsetHeight; // Force reflow
+            orderHistoryModal.classList.add('active');
+        }
+        const contentDiv = document.getElementById('orderHistoryContent');
+        if (contentDiv) {
+            contentDiv.innerHTML = `
+                <div class="no-orders">
+                    <i class="fas fa-receipt"></i>
+                    <h3>${currentLanguage === 'fr' ? 'Aucune commande trouvée' : 'No orders found'}</h3>
+                    <p>${currentLanguage === 'fr' ? "Vous n'avez pas encore passé de commande. Passez votre première commande pour voir l'historique ici." : "You haven't placed any orders yet. Place your first order to see history here."}</p>
+                </div>
+            `;
+        }
         return;
     }
 
@@ -403,16 +405,20 @@ function closeOrderHistoryModal() {
 
 async function fetchUserOrders() {
     try {
+        console.log('fetchUserOrders called, currentUser:', currentUser);
+        
         // Show loading indicator
         const contentDiv = document.getElementById('orderHistoryContent');
         if (contentDiv) {
             contentDiv.innerHTML = '<div class=\"loading-spinner\"><i class=\"fas fa-circle-notch fa-spin\"></i><p>' + (currentLanguage === 'fr' ? 'Chargement de vos commandes...' : 'Loading your orders...') + '</p></div>';
         }
-        
+
         let url;
         if (currentUser.isGuest) {
             // Guest users use guest orders endpoint with their assigned user_id
+            console.log('Guest user, checking ID:', currentUser.id);
             if (!currentUser.id || currentUser.id === 'null' || currentUser.id === 'None') {
+                console.log('Guest user has no ID, showing empty state');
                 displayOrderHistoryError(currentLanguage === 'fr' ? 'Aucune commande trouvée. Passez votre première commande pour voir l\'historique.' : 'No orders found. Place your first order to see history.');
                 return;
             }
@@ -428,6 +434,8 @@ async function fetchUserOrders() {
         console.log(`Fetching orders from: ${url}`);
         const response = await fetch(url);
         const data = await response.json();
+
+        console.log('Orders response:', data);
 
         if (response.ok) {
             displayOrderHistory(data);
@@ -561,26 +569,34 @@ function formatTime(date) {
 function checkSession() {
     // Check if user just logged in
     const justLoggedIn = localStorage.getItem('login_success_flag') === 'true';
-    
+
     // Try localStorage first (persistent), then sessionStorage (session-based)
     const savedUser = localStorage.getItem('zina_user') || sessionStorage.getItem('zina_user');
     if (savedUser) {
         currentUser = JSON.parse(savedUser);
-        
+
+        // Update guest user name and department based on current language
+        if (currentUser.isGuest) {
+            currentUser.name = currentLanguage === 'fr' ? 'Invité' : 'Guest';
+            currentUser.department = currentLanguage === 'fr' ? 'Visiteur' : 'Visitor';
+            // Update saved user with correct language
+            localStorage.setItem('zina_user', JSON.stringify(currentUser));
+        }
+
         // Check if elements exist before accessing them
         const loginOverlay = document.getElementById('loginOverlay');
         const appContainer = document.getElementById('appContainer');
         const userName = document.getElementById('userName');
         const userDept = document.getElementById('userDept');
-        
+
         if (loginOverlay) loginOverlay.style.display = 'none';
         if (appContainer) appContainer.style.display = 'block';
         if (userName) userName.textContent = currentUser.name;
         if (userDept) userDept.textContent = currentUser.department;
-        
+
         // Restore cart if exists
         restoreCart();
-        
+
         // Show success toast if user just logged in (not guest)
         if (justLoggedIn && !currentUser.isGuest) {
             showToast(currentLanguage === 'fr' ? 'Connexion réussie ! Bienvenue ' + currentUser.name : 'Login successful! Welcome ' + currentUser.name, 'success');
@@ -662,45 +678,69 @@ function toggleBurgerMenu() {
 function toggleLanguage() {
     // Get the switch element
     const langSwitch = document.getElementById('langSwitch');
-    
+
     // Determine new language based on switch state
     const newLang = langSwitch.checked ? 'en' : 'fr';
-    
+
     // Update current language
     currentLanguage = newLang;
-    
+
     // Save language preference
     localStorage.setItem('zina_language', newLang);
-    
+
     // Update page language
     document.documentElement.lang = newLang;
-    
+
+    // Update guest user name and department if guest
+    if (currentUser && currentUser.isGuest) {
+        currentUser.name = newLang === 'fr' ? 'Invité' : 'Guest';
+        currentUser.department = newLang === 'fr' ? 'Visiteur' : 'Visitor';
+        localStorage.setItem('zina_user', JSON.stringify(currentUser));
+        // Update displayed user info
+        const userName = document.getElementById('userName');
+        const userDept = document.getElementById('userDept');
+        if (userName) userName.textContent = currentUser.name;
+        if (userDept) userDept.textContent = currentUser.department;
+    }
+
     // Update all translatable elements
     updateTranslations();
-    
+
     // Update date/time based on language
     initializeDate();
     updateMealPeriod();
-    
+
     showToast(newLang === 'fr' ? 'Langue changée en Français' : 'Language changed to English', 'info');
 }
 
 function changeLanguage(lang) {
     currentLanguage = lang;
-    
+
     // Save language preference
     localStorage.setItem('zina_language', lang);
-    
+
     // Update page language
     document.documentElement.lang = lang;
-    
+
+    // Update guest user name and department if guest
+    if (currentUser && currentUser.isGuest) {
+        currentUser.name = lang === 'fr' ? 'Invité' : 'Guest';
+        currentUser.department = lang === 'fr' ? 'Visiteur' : 'Visitor';
+        localStorage.setItem('zina_user', JSON.stringify(currentUser));
+        // Update displayed user info
+        const userName = document.getElementById('userName');
+        const userDept = document.getElementById('userDept');
+        if (userName) userName.textContent = currentUser.name;
+        if (userDept) userDept.textContent = currentUser.department;
+    }
+
     // Update all translatable elements
     updateTranslations();
-    
+
     // Update date/time based on language
     initializeDate();
     updateMealPeriod();
-    
+
     showToast(lang === 'fr' ? 'Langue changée en Français' : 'Language changed to English', 'info');
 }
 
@@ -709,7 +749,7 @@ function updateTranslations() {
         fr: {
             // Header & Navigation
             orderHistory: 'Mes Commandes',
-            myCart: 'Mon Panier',
+            Cart: 'Mon Panier',
             logout: 'Déconnexion',
             employee: 'Employé',
             department: 'Département',
@@ -809,6 +849,8 @@ function updateTranslations() {
             // Profile
             userProfile: 'Mon Profil',
             profile: 'Profil',
+            orders: 'Commandes',
+            cart: 'Panier',
             fullName: 'Nom Complet',
             email: 'Email',
             phone: 'Téléphone',
@@ -824,7 +866,7 @@ function updateTranslations() {
         en: {
             // Header & Navigation
             orderHistory: 'My Orders',
-            myCart: 'My Cart',
+            Cart: 'Cart',
             logout: 'Logout',
             employee: 'Employee',
             department: 'Department',
@@ -924,6 +966,8 @@ function updateTranslations() {
             // Profile
             userProfile: 'My Profile',
             profile: 'Profile',
+            orders: 'Orders',
+            cart: 'Cart',
             fullName: 'Full Name',
             email: 'Email',
             phone: 'Phone',

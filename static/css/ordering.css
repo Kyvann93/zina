@@ -80,7 +80,9 @@
     margin-top: var(--space-6);
     text-align: center;
 }
-
+div.category-sidebar{
+    width:auto;
+}
 .divider {
     position: relative;
     margin: var(--space-4) 0;
@@ -1131,11 +1133,9 @@ input:not(:checked) + .slider .slider-text.en {
    Main Layout
    ======================================== */
 .order-main {
-    display: flex;
     max-width: 1600px;
     margin: 0 auto;
     padding: 2rem;
-    gap: 2rem;
     min-height: 100vh;
 }
 
@@ -1151,9 +1151,7 @@ input:not(:checked) + .slider .slider-text.en {
     transition: all 0.3s ease;
 }
 
-.category-sidebar .search-bar {
-    margin-top: 0;
-}
+
 
 .sidebar-title {
     font-family: var(--font-primary);
@@ -1177,6 +1175,7 @@ input:not(:checked) + .slider .slider-text.en {
     overflow-x: auto;
     overflow-y: hidden;
     padding-bottom: 0.5rem;
+    
     /* Hide scrollbar for cleaner look */
     scrollbar-width: thin;
     scrollbar-color: var(--light-gray) transparent;
@@ -1372,8 +1371,9 @@ input:not(:checked) + .slider .slider-text.en {
 
 /* Menu Section */
 .menu-section {
-    flex: 1;
     min-width: 0;
+    align-content: center;
+    
 }
 
 .menu-header {
@@ -1385,6 +1385,7 @@ input:not(:checked) + .slider .slider-text.en {
     font-size: 1rem;
     color: var(--primary);
     margin-bottom: 1rem;
+    margin-top:1rem;
 }
 
 .menu-filters {
@@ -1445,6 +1446,7 @@ input:not(:checked) + .slider .slider-text.en {
 
 .search-bar {
     position: relative;
+    margin:auto;
     margin-bottom: 2rem;
     width: 100%;
     max-width: 600px;
@@ -2433,9 +2435,12 @@ input:not(:checked) + .slider .slider-text.en {
     border-radius: 10px;
     padding: 1.5rem;
 }
-
+button.btn-retry{
+    border:none;
+    background:none;
+}
 .order-item {
-    display: flex;
+    display: contents;
     flex-wrap: wrap;
     justify-content: space-between;
     padding: 0.75rem 0;
@@ -3061,7 +3066,7 @@ input:not(:checked) + .slider .slider-text.en {
    ======================================== */
 
 /* Tablet and below (1024px and smaller) */
-@media (max-width: 2560px) {
+@media (min-width:1200px) and (max-width: 2560px) {
     .order-main {
         flex-direction: column;
         padding: 1.5rem;
@@ -3076,6 +3081,7 @@ input:not(:checked) + .slider .slider-text.en {
     .category-nav {
         flex-wrap: nowrap;
         padding-bottom: 0.5rem;
+        justify-content:center;
     }
 
     .cat-btn {
@@ -3135,12 +3141,15 @@ input:not(:checked) + .slider .slider-text.en {
     body {
         overflow-x: hidden;
     }
-
+    .menu-section{
+        padding:10px;
+    }
     .order-main {
         padding: 1.5rem;
-        gap: 1.5rem;
     }
-
+    .category-nav{
+        justify-content: center;
+    }
     .menu-grid {
         grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
         gap: 1.5rem;
@@ -3178,7 +3187,7 @@ input:not(:checked) + .slider .slider-text.en {
     /* Main layout */
     .order-main {
         padding: 1rem;
-        gap: 1rem;
+        
     }
 
     /* Category sidebar */
@@ -4681,7 +4690,6 @@ input:not(:checked) + .slider .slider-text.en {
 }
 
 [data-theme="dark"] .search-bar input {
-    margin-left: 10px;
     background: var(--white);
     border-color: var(--light-gray);
     color: var(--dark-gray);
