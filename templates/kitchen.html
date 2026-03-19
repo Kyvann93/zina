@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="refresh" content="30">
+  <title>ZINA — Cuisine</title>
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo.PNG') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/zina-ultimate.css') }}">
+  <style>
+    body { background: #060608; }
+
+    .kitchen-header {
+      background: linear-gradient(135deg, #0A0A0F, #1A0010);
+      border-bottom: 2px solid var(--bad-red);
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .kitchen-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .kitchen-title {
+      font-size: 1.8rem;
+      font-weight: 900;
+      background: linear-gradient(135deg, var(--bad-red), var(--bad-gold));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .kitchen-clock {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: var(--bad-gold);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.05em;
+    }
+
+    .kitchen-stats {
+      display: flex;
+      gap: 1.5rem;
+    }
+
+    .kitchen-stat {
+      text-align: center;
+    }
+
+    .kitchen-stat-value {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      display: block;
+    }
+
+    .kitchen-stat-label {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .kitchen-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.5rem;
+      padding: 2rem;
+    }
+
+    .order-card {
+      background: var(--bg-secondary);
+      border: 2px solid var(--glass-border);
+      border-radius: 20px;
+      padding: 1.5rem;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .order-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 6px;
+      height: 100%;
+    }
+
+    .order-card.status-pending { border-color: rgba(245,166,35,0.4); }
+    .order-card.status-pending::before { background: var(--bad-gold); }
+    .order-card.status-pending { animation: pendingPulse 2s ease-in-out infinite; }
+
+    @keyframes pendingPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(245,166,35,0.2); }
+      50% { box-shadow: 0 0 20px 4px rgba(245,166,35,0.15); }
+    }
+
+    .order-card.status-preparing { border-color: rgba(59,130,246,0.5); }
+    .order-card.status-preparing::before { background: #3B82F6; }
+
+    .order-card.status-ready { border-color: rgba(0,166,81,0.6); }
+    .order-card.status-ready::before { background: var(--bad-green); }
+    .order-card.status-ready { animation: readyFlash 1.5s ease-in-out infinite; }
+
+    @keyframes readyFlash {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(0,166,81,0.3); }
+      50% { box-shadow: 0 0 24px 6px rgba(0,166,81,0.2); }
+    }
+
+    .order-card.status-delivered {
+      opacity: 0.5;
+      border-color: rgba(255,255,255,0.1);
+    }
+
+    .order-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+
+    .order-number {
+      font-size: 1.6rem;
+      font-weight: 900;
+      color: var(--text-primary);
+    }
+
+    .order-time-badge {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 2px;
+    }
+
+    .order-time {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .elapsed-time {
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
+
+    .elapsed-normal { color: var(--bad-green); }
+    .elapsed-warning { color: var(--bad-gold); }
+    .elapsed-danger { color: var(--bad-red); }
+
+    .order-items-list {
+      margin-bottom: 1rem;
+    }
+
+    .order-item-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem 0;
+      border-bottom: 1px solid var(--glass-border);
+      font-size: 1rem;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .order-item-qty {
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: var(--bad-gold);
+      min-width: 30px;
+    }
+
+    .mark-ready-btn {
+      width: 100%;
+      padding: 0.75rem;
+      background: linear-gradient(135deg, var(--bad-green), var(--bad-green-light));
+      border: none;
+      border-radius: 12px;
+      color: white;
+      font-size: 1rem;
+      font-weight: 700;
+      font-family: var(--font-family);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    .mark-ready-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0,166,81,0.4);
+    }
+
+    .mark-ready-btn.already-ready {
+      background: rgba(255,255,255,0.1);
+      color: var(--text-muted);
+      cursor: default;
+    }
+
+    .mark-ready-btn.already-ready:hover {
+      transform: none;
+      box-shadow: none;
+    }
+
+    .empty-kitchen {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 5rem 2rem;
+      color: var(--text-muted);
+    }
+
+    .empty-kitchen-icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+      display: block;
+    }
+
+    .refresh-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.6rem 1.25rem;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 8px;
+      color: var(--text-secondary);
+      font-family: var(--font-family);
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .refresh-btn:hover {
+      background: rgba(196,0,43,0.1);
+      border-color: var(--bad-red);
+      color: var(--bad-red);
+    }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.85rem;
+      transition: color 0.2s;
+    }
+
+    .back-link:hover { color: var(--bad-red); }
+  </style>
+</head>
+<body>
+
+<!-- Kitchen Header -->
+<header class="kitchen-header">
+  <div class="kitchen-brand">
+    <img src="{{ url_for('static', filename='images/logo.PNG') }}" style="width:44px; filter:drop-shadow(0 0 8px rgba(196,0,43,0.5))" alt="ZINA">
+    <div>
+      <div class="kitchen-title">🍳 Cuisine ZINA</div>
+      <a href="/commander" class="back-link">
+        <i class="fas fa-arrow-left"></i> Retour
+      </a>
+    </div>
+  </div>
+
+  <div class="kitchen-clock" id="kitchen-clock">--:--:--</div>
+
+  <div class="kitchen-stats">
+    <div class="kitchen-stat">
+      <span class="kitchen-stat-value" id="stat-total" style="color:var(--bad-gold)">—</span>
+      <span class="kitchen-stat-label">Commandes aujourd'hui</span>
+    </div>
+    <div class="kitchen-stat">
+      <span class="kitchen-stat-value" id="stat-pending" style="color:var(--bad-gold)">—</span>
+      <span class="kitchen-stat-label">En attente</span>
+    </div>
+    <div class="kitchen-stat">
+      <span class="kitchen-stat-value" id="stat-ready" style="color:var(--bad-green)">—</span>
+      <span class="kitchen-stat-label">Prêtes</span>
+    </div>
+    <button class="refresh-btn" onclick="loadOrders()">
+      <i class="fas fa-sync-alt" id="refresh-icon"></i> Actualiser
+    </button>
+  </div>
+</header>
+
+<!-- Order cards grid -->
+<div class="kitchen-grid" id="kitchen-grid">
+  <div class="empty-kitchen">
+    <span class="empty-kitchen-icon">⏳</span>
+    <p style="font-size:1.2rem; font-weight:600; margin-bottom:0.5rem">Chargement des commandes...</p>
+  </div>
+</div>
+
+<script>
+// ── Clock ────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  document.getElementById('kitchen-clock').textContent =
+    now.toLocaleTimeString('fr-FR', { hour12: false });
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+// ── Order state (tracked locally for mark-as-ready) ──
+const localOrderStatus = {};
+
+function elapsedClass(minutes) {
+  if (minutes < 15) return 'elapsed-normal';
+  if (minutes < 25) return 'elapsed-warning';
+  return 'elapsed-danger';
+}
+
+function elapsedLabel(minutes) {
+  if (minutes < 1) return '< 1 min';
+  if (minutes < 60) return `${minutes} min`;
+  return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+}
+
+function minutesSince(dateStr) {
+  if (!dateStr) return 0;
+  return Math.floor((Date.now() - new Date(dateStr).getTime()) / 60000);
+}
+
+function statusLabel(status) {
+  const map = {
+    pending: 'En attente',
+    preparing: 'En préparation',
+    ready: 'Prêt',
+    delivered: 'Récupéré',
+    cancelled: 'Annulé'
+  };
+  return map[status] || status || 'En attente';
+}
+
+function getStatus(order) {
+  return localOrderStatus[order.order_id] || order.order_status || 'pending';
+}
+
+function markReady(orderId, btn) {
+  localOrderStatus[orderId] = 'ready';
+  const card = btn.closest('.order-card');
+  if (card) {
+    card.className = 'order-card status-ready';
+  }
+  btn.innerHTML = '<i class="fas fa-check-circle"></i> Prêt pour récupération';
+  btn.className = 'mark-ready-btn already-ready';
+  updateStats();
+}
+
+function updateStats() {
+  const cards = document.querySelectorAll('.order-card');
+  const total = cards.length;
+  let pending = 0, ready = 0;
+  cards.forEach(c => {
+    if (c.classList.contains('status-pending') || c.classList.contains('status-preparing')) pending++;
+    if (c.classList.contains('status-ready')) ready++;
+  });
+  const el_total = document.getElementById('stat-total');
+  const el_pending = document.getElementById('stat-pending');
+  const el_ready = document.getElementById('stat-ready');
+  if (el_total) el_total.textContent = total;
+  if (el_pending) el_pending.textContent = pending;
+  if (el_ready) el_ready.textContent = ready;
+}
+
+// ── Mock data for when API is unavailable ──
+function getMockedOrders() {
+  const now = new Date();
+  const minus = (m) => new Date(now - m * 60000).toISOString();
+  return [
+    {
+      order_id: 1001,
+      order_status: 'pending',
+      created_at: minus(3),
+      items: [
+        { product_name: 'Attiéké Poulet', quantity: 2 },
+        { product_name: 'Jus Bissap', quantity: 1 }
+      ]
+    },
+    {
+      order_id: 1002,
+      order_status: 'preparing',
+      created_at: minus(8),
+      items: [
+        { product_name: 'Riz Sauce Graine', quantity: 1 },
+        { product_name: 'Eau Minérale', quantity: 2 }
+      ]
+    },
+    {
+      order_id: 1003,
+      order_status: 'ready',
+      created_at: minus(15),
+      items: [
+        { product_name: 'Placali Poisson', quantity: 1 }
+      ]
+    },
+    {
+      order_id: 1004,
+      order_status: 'pending',
+      created_at: minus(1),
+      items: [
+        { product_name: 'Menu Complet', quantity: 3 },
+        { product_name: 'Jus Gingembre', quantity: 3 }
+      ]
+    },
+    {
+      order_id: 1005,
+      order_status: 'preparing',
+      created_at: minus(20),
+      items: [
+        { product_name: 'Foutou Poisson', quantity: 2 },
+        { product_name: 'Coca-Cola', quantity: 2 }
+      ]
+    }
+  ];
+}
+
+function renderOrders(orders) {
+  const grid = document.getElementById('kitchen-grid');
+
+  if (!orders || orders.length === 0) {
+    grid.innerHTML = `
+      <div class="empty-kitchen">
+        <span class="empty-kitchen-icon">🍽️</span>
+        <p style="font-size:1.2rem;font-weight:600;margin-bottom:0.5rem">Aucune commande pour le moment</p>
+        <p>Les nouvelles commandes apparaîtront ici automatiquement</p>
+      </div>`;
+    updateStats();
+    return;
+  }
+
+  // Sort: pending first, then preparing, then ready, then delivered
+  const order_priority = { pending: 0, preparing: 1, ready: 2, delivered: 3 };
+  const sorted = [...orders].sort((a, b) => {
+    const pa = order_priority[getStatus(a)] ?? 1;
+    const pb = order_priority[getStatus(b)] ?? 1;
+    if (pa !== pb) return pa - pb;
+    return new Date(a.created_at) - new Date(b.created_at);
+  });
+
+  grid.innerHTML = sorted.map(order => {
+    const status = getStatus(order);
+    const elapsed = minutesSince(order.created_at);
+    const elClass = elapsedClass(elapsed);
+    const isReady = status === 'ready' || status === 'delivered';
+    const isDelivered = status === 'delivered';
+
+    const itemsHtml = (order.items || []).map(item => `
+      <div class="order-item-row">
+        <span class="order-item-qty">${item.quantity}×</span>
+        <span>${item.product_name || item.name || '—'}</span>
+      </div>`).join('');
+
+    return `
+      <div class="order-card status-${status}" data-order-id="${order.order_id}">
+        <div class="order-card-header">
+          <div class="order-number">#${order.order_id}</div>
+          <div class="order-time-badge">
+            <span class="order-time">
+              ${order.created_at ? new Date(order.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+            </span>
+            <span class="elapsed-time ${elClass}">${elapsedLabel(elapsed)}</span>
+          </div>
+        </div>
+
+        <div style="margin-bottom:0.75rem">
+          <span class="status-badge ${status}">${statusLabel(status)}</span>
+        </div>
+
+        <div class="order-items-list">${itemsHtml || '<p style="color:var(--text-muted)">Aucun article</p>'}</div>
+
+        ${!isDelivered ? `
+          <button class="mark-ready-btn ${isReady ? 'already-ready' : ''}"
+                  onclick="markReady(${order.order_id}, this)">
+            ${isReady
+              ? '<i class="fas fa-check-circle"></i> Prêt pour récupération'
+              : '<i class="fas fa-bell"></i> Marquer comme Prêt'
+            }
+          </button>` : `
+          <div style="text-align:center; color:var(--text-muted); font-size:0.85rem; padding:0.5rem">
+            <i class="fas fa-check-double"></i> Récupéré
+          </div>`
+        }
+      </div>`;
+  }).join('');
+
+  updateStats();
+}
+
+async function loadOrders() {
+  const icon = document.getElementById('refresh-icon');
+  if (icon) icon.style.animation = 'spin 0.8s linear infinite';
+
+  try {
+    const resp = await fetch('/api/admin/orders');
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const orders = await resp.json();
+    renderOrders(Array.isArray(orders) ? orders : getMockedOrders());
+  } catch (err) {
+    console.warn('[Kitchen] API unavailable, using mock data:', err.message);
+    renderOrders(getMockedOrders());
+  } finally {
+    if (icon) icon.style.animation = '';
+  }
+}
+
+// Auto-refresh every 30 seconds (meta refresh also set)
+loadOrders();
+setInterval(loadOrders, 30000);
+</script>
+
+</body>
+</html>

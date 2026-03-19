@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ZINA — Classement</title>
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo.PNG') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/zina-ultimate.css') }}">
+  <style>
+    body { min-height: 100vh; }
+
+    .lb-page {
+      max-width: 700px;
+      margin: 0 auto;
+      padding: 2rem 1rem;
+    }
+
+    /* ── Page Header ── */
+    .lb-page-header {
+      text-align: center;
+      margin-bottom: 3rem;
+      position: relative;
+    }
+
+    .lb-back-btn {
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.875rem;
+      font-weight: 500;
+      padding: 0.5rem 0.75rem;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+
+    .lb-back-btn:hover {
+      color: var(--bad-red);
+      border-color: var(--bad-red);
+      background: rgba(196,0,43,0.08);
+    }
+
+    .lb-page-title {
+      font-size: 2rem;
+      font-weight: 900;
+      background: linear-gradient(135deg, var(--bad-gold), var(--bad-red));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 0.4rem;
+    }
+
+    .lb-page-subtitle {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+
+    /* ── Period Toggle ── */
+    .period-toggle {
+      display: flex;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-bottom: 2.5rem;
+    }
+
+    .period-btn {
+      padding: 0.5rem 1.5rem;
+      border-radius: 20px;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      color: var(--text-secondary);
+      font-family: var(--font-family);
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .period-btn.active {
+      background: linear-gradient(135deg, var(--bad-red), var(--bad-red-light));
+      border-color: var(--bad-red);
+      color: white;
+      box-shadow: 0 4px 15px var(--bad-red-glow);
+    }
+
+    /* ── Podium ── */
+    .podium {
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 3rem;
+    }
+
+    .podium-place {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.75rem;
+      animation: podiumRise 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    }
+
+    .podium-place:nth-child(1) { animation-delay: 0.2s; }
+    .podium-place:nth-child(2) { animation-delay: 0s; }
+    .podium-place:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes podiumRise {
+      from { transform: translateY(30px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .podium-crown {
+      font-size: 2rem;
+      animation: crownFloat 2s ease-in-out infinite;
+    }
+
+    @keyframes crownFloat {
+      0%, 100% { transform: translateY(0) rotate(-5deg); }
+      50% { transform: translateY(-6px) rotate(5deg); }
+    }
+
+    .podium-avatar {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: white;
+      border: 3px solid rgba(255,255,255,0.2);
+      position: relative;
+    }
+
+    .podium-avatar.rank-1 {
+      width: 80px;
+      height: 80px;
+      font-size: 1.8rem;
+      border-color: var(--bad-gold);
+      box-shadow: 0 0 24px var(--bad-gold-glow), 0 0 48px rgba(245,166,35,0.1);
+    }
+
+    .podium-avatar.rank-2 {
+      border-color: #C0C0C0;
+      box-shadow: 0 0 16px rgba(192,192,192,0.4);
+    }
+
+    .podium-avatar.rank-3 {
+      border-color: #CD7F32;
+      box-shadow: 0 0 16px rgba(205,127,50,0.4);
+    }
+
+    .podium-name {
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      text-align: center;
+    }
+
+    .podium-points {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--bad-gold);
+    }
+
+    .podium-block {
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      border-radius: 12px 12px 0 0;
+      font-size: 1.5rem;
+      font-weight: 900;
+      color: rgba(255,255,255,0.4);
+      min-width: 80px;
+      padding: 0.5rem;
+    }
+
+    .podium-block.rank-1 {
+      background: linear-gradient(180deg, rgba(245,166,35,0.25), rgba(245,166,35,0.08));
+      border: 1px solid rgba(245,166,35,0.3);
+      height: 100px;
+    }
+
+    .podium-block.rank-2 {
+      background: linear-gradient(180deg, rgba(192,192,192,0.15), rgba(192,192,192,0.05));
+      border: 1px solid rgba(192,192,192,0.2);
+      height: 70px;
+    }
+
+    .podium-block.rank-3 {
+      background: linear-gradient(180deg, rgba(205,127,50,0.15), rgba(205,127,50,0.05));
+      border: 1px solid rgba(205,127,50,0.2);
+      height: 50px;
+    }
+
+    /* ── Full List ── */
+    .lb-section-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+    }
+
+    .lb-full-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .lb-full-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.9rem 1rem;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--border-radius-md);
+      transition: all 0.25s ease;
+      animation: listSlideIn 0.4s ease both;
+    }
+
+    .lb-full-row:hover {
+      background: rgba(255,255,255,0.05);
+      transform: translateX(4px);
+    }
+
+    .lb-full-row.is-current-user {
+      background: rgba(196,0,43,0.08);
+      border-color: rgba(196,0,43,0.35);
+    }
+
+    .lb-full-row.is-current-user:hover {
+      transform: translateX(4px);
+      box-shadow: 0 4px 16px rgba(196,0,43,0.1);
+    }
+
+    @keyframes listSlideIn {
+      from { transform: translateX(-16px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    .lb-rank-number {
+      font-size: 1rem;
+      font-weight: 800;
+      min-width: 32px;
+      text-align: center;
+    }
+
+    .lb-full-avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      font-weight: 700;
+      color: white;
+      flex-shrink: 0;
+    }
+
+    .lb-full-info { flex: 1; min-width: 0; }
+
+    .lb-full-name {
+      font-size: 0.925rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .lb-full-detail {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+
+    .lb-full-points {
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--bad-gold);
+    }
+
+    .lb-level-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 2px 8px;
+      background: rgba(245,166,35,0.12);
+      border: 1px solid rgba(245,166,35,0.25);
+      border-radius: 10px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--bad-gold);
+    }
+  </style>
+</head>
+<body>
+
+<div class="lb-page">
+  <!-- Header -->
+  <div class="lb-page-header">
+    <a href="/commander" class="lb-back-btn">
+      <i class="fas fa-arrow-left"></i> Retour
+    </a>
+    <div>
+      <div class="lb-page-title">🏆 Classement</div>
+      <div class="lb-page-subtitle">Les meilleurs gourmets de la BAD</div>
+    </div>
+  </div>
+
+  <!-- Period Toggle -->
+  <div class="period-toggle">
+    <button class="period-btn active" onclick="setPeriod('week', this)">Cette semaine</button>
+    <button class="period-btn" onclick="setPeriod('month', this)">Ce mois</button>
+    <button class="period-btn" onclick="setPeriod('all', this)">Tout temps</button>
+  </div>
+
+  <!-- Podium (top 3) -->
+  <div class="podium" id="podium"></div>
+
+  <!-- Full List (4-10) -->
+  <div class="lb-section-title">Suite du classement</div>
+  <div class="lb-full-list" id="lb-full-list"></div>
+</div>
+
+<script>
+const LEVEL_NAMES = [
+  '', 'Novice', 'Amateur', 'Régulier', 'Habitué', 'Gourmet',
+  'Expert', 'Maître', 'Grand Chef', 'Légende', 'ZINA VIP'
+];
+
+const AVATAR_COLORS = [
+  '#C4002B', '#F5A623', '#00A651', '#7C3AED', '#DB2777',
+  '#0891B2', '#059669', '#D97706', '#DC2626', '#8B5CF6'
+];
+
+// Mock leaderboard data (same pool as gamification.js, + current user from localStorage)
+function buildLeaderboard(period) {
+  const base = [
+    { name: 'Kofi A.', points: period === 'week' ? 420 : period === 'month' ? 1800 : 4200, level: 8, favItem: 'Attiéké Poulet', orders: 84 },
+    { name: 'Marie D.', points: period === 'week' ? 380 : period === 'month' ? 1600 : 3800, level: 7, favItem: 'Jus Bissap', orders: 76 },
+    { name: 'Aminata S.', points: period === 'week' ? 310 : period === 'month' ? 1300 : 3100, level: 7, favItem: 'Riz Sauce', orders: 62 },
+    { name: 'Ibrahim K.', points: period === 'week' ? 280 : period === 'month' ? 1200 : 2800, level: 6, favItem: 'Menu Complet', orders: 56 },
+    { name: 'Fatou N.', points: period === 'week' ? 240 : period === 'month' ? 1000 : 2400, level: 6, favItem: 'Placali', orders: 48 },
+    { name: 'Jean P.', points: period === 'week' ? 210 : period === 'month' ? 900 : 2100, level: 6, favItem: 'Foutou', orders: 42 },
+    { name: 'Akosua M.', points: period === 'week' ? 180 : period === 'month' ? 780 : 1800, level: 5, favItem: 'Salade', orders: 36 },
+    { name: 'Kwame B.', points: period === 'week' ? 150 : period === 'month' ? 640 : 1500, level: 5, favItem: 'Attiéké', orders: 30 },
+    { name: 'Nadia O.', points: period === 'week' ? 120 : period === 'month' ? 500 : 1200, level: 4, favItem: 'Jus Gingembre', orders: 24 },
+    { name: 'Cheikh T.', points: period === 'week' ? 90 : period === 'month' ? 380 : 900, level: 4, favItem: 'Menu Complet', orders: 18 },
+  ];
+
+  // Add current user from localStorage
+  let userXP = 0, userLevel = 1;
+  try {
+    const raw = localStorage.getItem('zina_gamification');
+    if (raw) {
+      const g = JSON.parse(raw);
+      userXP = g.xp || 0;
+      userLevel = g.level || 1;
+    }
+  } catch(e) {}
+
+  if (userXP > 0) {
+    const periodXP = period === 'week' ? Math.floor(userXP * 0.1) : period === 'month' ? Math.floor(userXP * 0.4) : userXP;
+    base.push({ name: 'Vous', points: periodXP, level: userLevel, favItem: 'En cours', orders: 0, isCurrentUser: true });
+  }
+
+  base.sort((a, b) => b.points - a.points);
+  return base.slice(0, 10).map((e, i) => ({ ...e, rank: i + 1 }));
+}
+
+function renderLeaderboard(period) {
+  const data = buildLeaderboard(period);
+
+  const top3 = data.slice(0, 3);
+  const rest = data.slice(3);
+
+  // Reorder podium: 2nd, 1st, 3rd
+  const podiumOrder = [top3[1], top3[0], top3[2]].filter(Boolean);
+  const rankClass = (e) => {
+    if (e.rank === 1) return 'rank-1';
+    if (e.rank === 2) return 'rank-2';
+    return 'rank-3';
+  };
+  const crownEmoji = (e) => {
+    if (e.rank === 1) return '👑';
+    if (e.rank === 2) return '🥈';
+    return '🥉';
+  };
+
+  document.getElementById('podium').innerHTML = podiumOrder.map(e => `
+    <div class="podium-place">
+      <div class="podium-crown">${crownEmoji(e)}</div>
+      <div class="podium-avatar ${rankClass(e)}"
+           style="background: ${AVATAR_COLORS[(e.rank - 1) % AVATAR_COLORS.length]}">
+        ${e.name[0].toUpperCase()}
+      </div>
+      <div class="podium-name">${e.name}</div>
+      <div class="podium-points">${e.points.toLocaleString('fr-FR')} pts</div>
+      <div class="podium-block ${rankClass(e)}">${e.rank}</div>
+    </div>`).join('');
+
+  const rankColors = ['🥇', '🥈', '🥉'];
+
+  document.getElementById('lb-full-list').innerHTML = rest.map((e, idx) => `
+    <div class="lb-full-row ${e.isCurrentUser ? 'is-current-user' : ''}"
+         style="animation-delay: ${idx * 0.07}s">
+      <span class="lb-rank-number" style="color: ${e.isCurrentUser ? 'var(--bad-red)' : 'var(--text-muted)'}">
+        ${e.rank}
+      </span>
+      <div class="lb-full-avatar" style="background: ${AVATAR_COLORS[(e.rank - 1) % AVATAR_COLORS.length]}">
+        ${e.name[0].toUpperCase()}
+      </div>
+      <div class="lb-full-info">
+        <div class="lb-full-name">
+          ${e.name}
+          ${e.isCurrentUser ? '<span style="color:var(--bad-red);font-size:0.7rem;margin-left:0.4rem">● Vous</span>' : ''}
+        </div>
+        <div class="lb-full-detail">
+          <span class="lb-level-badge">Niv. ${e.level} · ${LEVEL_NAMES[e.level] || 'Expert'}</span>
+          &nbsp;·&nbsp;Favori: ${e.favItem}
+        </div>
+      </div>
+      <div class="lb-full-points">${e.points.toLocaleString('fr-FR')} pts</div>
+    </div>`).join('');
+}
+
+function setPeriod(period, btn) {
+  document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderLeaderboard(period);
+}
+
+// Initial render
+renderLeaderboard('week');
+</script>
+
+</body>
+</html>

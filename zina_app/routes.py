@@ -68,6 +68,18 @@ def register():
     return render_template('register.html')
 
 
+@main_bp.route('/kitchen')
+def kitchen():
+    """Kitchen display — shows live orders for kitchen staff"""
+    return render_template('kitchen.html')
+
+
+@main_bp.route('/leaderboard')
+def leaderboard():
+    """Employee gamification leaderboard"""
+    return render_template('leaderboard.html')
+
+
 @main_bp.route('/admin')
 def admin_dashboard():
     """Admin dashboard interface"""

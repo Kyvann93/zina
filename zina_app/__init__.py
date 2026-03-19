@@ -25,9 +25,11 @@ def create_app(config_object=None):
     # Register blueprints
     from zina_app.api import api_bp
     from zina_app.api.admin import admin_bp
-    
+    from zina_app.api.features_routes import features_bp
+
     app.register_blueprint(api_bp, url_prefix='/api')
     app.register_blueprint(admin_bp, url_prefix='/api/admin')
+    app.register_blueprint(features_bp, url_prefix='/api')
     
     # Register main routes
     from zina_app.routes import main_bp

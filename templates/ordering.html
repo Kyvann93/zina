@@ -1,623 +1,305 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZINA </title>
-    <meta name="description" content="Commandez votre repas en ligne - ZINA Cantine de la BAD Abidjan">
-    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo.PNG') }}">
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600&family=Playfair+Display:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/ordering.css') }}">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ZINA — Commander</title>
+  <meta name="description" content="Commandez votre repas en ligne — ZINA Cantine BAD Abidjan">
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo.PNG') }}">
+
+  <!-- User info for JS -->
+  {% if user_info %}
+  <meta name="user-name"  content="{{ user_info.name or '' }}">
+  <meta name="user-id"    content="{{ user_info.id or '' }}">
+  <meta name="is-guest"   content="{{ 'true' if user_info.is_guest else 'false' }}">
+  {% else %}
+  <meta name="user-name"  content="Invité">
+  <meta name="user-id"    content="">
+  <meta name="is-guest"   content="true">
+  {% endif %}
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- ZINA Ultimate CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/zina-ultimate.css') }}">
 </head>
 <body>
-    <!-- Login Modal -->
-    <div class="login-overlay" id="loginOverlay" style="display: none;">
-        <div class="login-modal">
-            <div class="login-header">
-                <div class="login-logo">
-                    <img src="{{ url_for('static', filename='images/logo.PNG') }}" style="width:40px;" alt="ZINA Cantine BAD">
-                </div>
-                <h1>ZINA</h1>
-                <p>Accès Employés - Banque Africaine de Développement</p>
-            </div>
-            
-            <div class="login-content">
-                <div class="login-panel active">
-                    <div style="text-align: center; padding: 2rem;">
-                        <h3 data-translate="loginRequired">Veuillez vous connecter pour accéder au service</h3>
-                        <p style="margin: 1rem 0; color: rgba(255,255,255,0.8);" data-translate="loginSecure">
-                            Utilisez notre page de connexion sécurisée
-                        </p>
-                        <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
-                            <button onclick="window.location.href='/login'" class="login-submit-btn">
-                                <i class="fas fa-sign-in-alt"></i>
-                                <span data-translate="signIn">Se Connecter</span>
-                            </button>
-                            <button onclick="window.location.href='/register'" style="width:50%;" class="register-btn" >
-                                <i class="fas fa-user-plus"></i>
-                                <span data-translate="signUp">S'inscrire</span>
-                            </button>
-                        </div>
-                        <div style="margin-top: 2rem;">
-                            <button onclick="handleGuestAccess()" class="guest-btn" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); padding: 8px 16px; font-size: 14px;">
-                                <i class="fas fa-user-secret"></i>
-                                <span data-translate="guestAccess">Continuer en tant qu'Invité</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+
+<!-- ── Particle canvas background ── -->
+<canvas id="particles-bg" aria-hidden="true"></canvas>
+<!-- ── Confetti canvas ── -->
+<canvas id="confetti-canvas" aria-hidden="true"></canvas>
+
+<!-- ── Toast container ── -->
+<div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+<!-- ── Live Activity Feed ── -->
+<div id="activity-feed" class="activity-feed" aria-live="polite"></div>
+
+<!-- ── Level Up Overlay ── -->
+<div id="levelup-overlay" class="levelup-overlay" aria-hidden="true"></div>
+
+<!-- ── Sidebar Overlay (mobile) ── -->
+<div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+<!-- ══════════════════════════════════════════
+     NAVBAR
+═══════════════════════════════════════════ -->
+<header class="zina-navbar" role="banner">
+  <!-- Brand -->
+  <a class="navbar-brand" href="/">
+    <img src="{{ url_for('static', filename='images/logo.PNG') }}"
+         alt="ZINA Logo" class="navbar-logo">
+    <span class="navbar-title">ZINA</span>
+  </a>
+
+  <!-- XP Bar (desktop) -->
+  <div class="navbar-center">
+    <div class="xp-container">
+      <span class="xp-label" id="xp-label">Niv. 1</span>
+      <div class="xp-bar-track">
+        <div class="xp-bar-fill" id="xp-bar-fill" style="width: 0%"></div>
+      </div>
+      <span class="xp-value" id="xp-value">0 / 100 XP</span>
     </div>
 
-    <!-- Main App (hidden until login) -->
-    <div class="app-container" id="appContainer" style="display: none;">
-        <!-- Header -->
-        <header class="order-header">
-            <div class="header-container">
-                <div class="header-left">
-                
-                    
-                    <!-- Logo (visible on desktop) -->
-                    <div class="brand-logo">
-                        <img src="{{ url_for('static', filename='images/logo.PNG') }}" alt="ZINA Logo" class="header-logo">
-                        <span class="brand-main">INA</span>
-                    </div>
-                    
-                    <!-- Language Toggle Switch -->
-                    <div class="language-toggle">
-                        <label class="switch">
-                            <input type="checkbox" id="langSwitch" onchange="toggleLanguage()">
-                            <span class="slider">
-                                <span class="slider-text fr">FR</span>
-                                <span class="slider-text en">EN</span>
-                            </span>
-                        </label>
-                    </div>
-                    
-                    <!-- Theme Toggle -->
-                    <div class="theme-toggle">
-                        <button class="theme-btn" id="themeToggle" onclick="toggleTheme()">
-                            <i class="fas fa-moon" id="themeIcon"></i>
-                        </button>
-                    </div>
-                </div>
-                
-                
-                
-                <div class="header-right">
-                    <a class="logout-btn" href="/logout" title="Déconnexion">
-                        <i class="fas fa-sign-out-alt"></i>
-                    </a>
-                </div>
-            </div>
-            
-            <!-- Burger Menu Panel -->
-            <div class="burger-menu-panel" id="burgerMenuPanel">
-                <div class="burger-menu-content">
-                    <!-- Logo inside burger menu -->
-                    <div class="brand-logo">
-                        <img src="{{ url_for('static', filename='images/logo.PNG') }}" alt="ZINA Logo" class="header-logo">
-                        <span class="brand-main">INA</span>
-                    </div>                   
-                </div>
-            </div>
-        </header>
+    <!-- Points -->
+    <div class="points-display" id="points-display" title="Voir mes stats">
+      <span class="points-icon">⭐</span>
+      <span class="points-value" id="points-value">0 pts</span>
+    </div>
+  </div>
 
-        <!-- Main Content -->
-        <main class="order-main">
-            <!-- Category Sidebar -->
-            <div class="category-sidebar">
-                <!-- Search Bar -->
-                <div class="search-bar">
-                    <i class="fas fa-search"></i>
-                    <input type="text" id="searchInput" placeholder="Rechercher un plat, un snack..." onkeyup="searchMenu()">
-                </div>
-
-                <nav class="category-nav">
-                    <button class="cat-btn active" data-category="all" onclick="filterCategory('all')">
-                        <div class="cat-icon">
-                            <i class="fas fa-th"></i>
-                        </div>
-                        <span class="cat-name" data-translate="allCategories">Tous</span>
-                    </button>
-                    <button class="cat-btn" data-category="breakfast" onclick="filterCategory('breakfast')">
-                        <div class="cat-icon">
-                            <i class="fas fa-coffee"></i>
-                        </div>
-                        <span class="cat-name" data-translate="breakfast">Petit-Déjeuner</span>
-                    </button>
-                    <button class="cat-btn" data-category="lunch" onclick="filterCategory('lunch')">
-                        <div class="cat-icon">
-                            <i class="fas fa-utensils"></i>
-                        </div>
-                        <span class="cat-name" data-translate="lunch">Plats Complets</span>
-                    </button>
-                    <button class="cat-btn" data-category="snacks" onclick="filterCategory('snacks')">
-                        <div class="cat-icon">
-                            <i class="fas fa-cookie"></i>
-                        </div>
-                        <span class="cat-name" data-translate="snacks">Snacks</span>
-                    </button>
-                    <button class="cat-btn" data-category="salads" onclick="filterCategory('salads')">
-                        <div class="cat-icon">
-                            <i class="fas fa-leaf"></i>
-                        </div>
-                        <span class="cat-name" data-translate="salads">Salades</span>
-                    </button>
-                    <button class="cat-btn" data-category="drinks" onclick="filterCategory('drinks')">
-                        <div class="cat-icon">
-                            <i class="fas fa-glass-water"></i>
-                        </div>
-                        <span class="cat-name" data-translate="drinks">Boissons</span>
-                    </button>
-                    <button class="cat-btn" data-category="desserts" onclick="filterCategory('desserts')">
-                        <div class="cat-icon">
-                            <i class="fas fa-ice-cream"></i>
-                        </div>
-                        <span class="cat-name" data-translate="desserts">Desserts</span>
-                    </button>
-                    <button class="cat-btn" data-category="specials" onclick="filterCategory('specials')">
-                        <div class="cat-icon">
-                            <i class="fas fa-star"></i>
-                        </div>
-                        <span class="cat-name" data-translate="specials">Spécialités</span>
-                    </button>
-                </nav>
-
-                <!-- Subcategories Section -->
-                <div class="subcategories-section" id="subcategoriesSection" style="display: none;">
-                    <nav class="subcategories-nav" id="subcategoriesNav">
-                        <!-- Subcategories will be dynamically loaded here -->
-                    </nav>
-                </div>
-            </div>
-
-            <!-- Menu Grid -->
-            <section class="menu-section">
-                <div class="menu-header">
-                    <h2 id="menuTitle" data-translate="orderTitle">Commander</h2>
-                    <div class="menu-filters">
-                        <button class="filter-chip active" data-filter="all" onclick="filterItems('all')" data-translate="all">
-                            Tous
-                        </button>
-                        <button class="filter-chip" data-filter="popular" onclick="filterItems('popular')">
-                            <i class="fas fa-fire"></i> <span data-translate="popular">Populaires</span>
-                        </button>
-                        <button class="filter-chip" data-filter="new" onclick="filterItems('new')">
-                            <i class="fas fa-sparkles"></i> <span data-translate="new">Nouveautés</span>
-                        </button>
-                    </div>
-                </div>
-
-
-
-                <div class="menu-grid" id="menuGrid">
-                    <!-- Menu items will be loaded here -->
-                    <div class="loading-spinner">
-                        <i class="fas fa-spinner fa-spin"></i>
-                        <p data-translate="loadingMenu">Chargement du menu...</p>
-                    </div>
-                </div>
-            </section>
-        </main>
-
-        <!-- Cart Sidebar -->
-        <div class="cart-sidebar" id="cartSidebar">
-            <div class="cart-header">
-                <h3>
-                    <i class="fas fa-shopping-cart"></i>
-                    <span data-translate="cartTitle">Mon Panier</span>
-                </h3>
-                <button class="close-cart" onclick="toggleCart()">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-
-            <div class="cart-items" id="cartItems">
-                <div class="empty-cart">
-                    <i class="fas fa-shopping-basket"></i>
-                    <p data-translate="cartEmpty">Votre panier est vide</p>
-                    <span data-translate="cartEmptySub">Ajoutez des articles pour commencer</span>
-                </div>
-            </div>
-
-            <div class="cart-footer">
-                <div class="cart-summary">
-                    <div class="summary-row total">
-                        <span data-translate="total">Total</span>
-                        <span id="cartTotal">0 FCFA</span>
-                    </div>
-                </div>
-
-                <div class="cart-actions">
-                    <button class="checkout-btn" onclick="proceedToCheckout()">
-                        <i class="fas fa-receipt"></i>
-                        <span data-translate="checkout">Commander</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Cart Overlay -->
-        <div class="cart-overlay" id="cartOverlay" onclick="toggleCart()"></div>
-
-        <!-- Meal Selection Modal (Siders Modal) -->
-        <div class="modal meal-selection-modal" id="mealSelectionModal">
-            <div class="modal-content meal-selection-content">
-                <div class="modal-header">
-                    <button class="btn-close" onclick="closeMealSelectionModal()">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <!-- Progress Indicator -->
-                    <div class="progress-indicator">
-                        <div class="progress-step active" data-step="1">
-                            <div class="step-number">1</div>
-                            <span class="step-label" data-translate="siders">Accompagnements</span>
-                        </div>
-                        <div class="progress-line"></div>
-                        <div class="progress-step" data-step="2">
-                            <div class="step-number">2</div>
-                            <span class="step-label" data-translate="verification">Vérification</span>
-                        </div>
-                        <div class="progress-line"></div>
-                        <div class="progress-step" data-step="3">
-                            <div class="step-number">3</div>
-                            <span class="step-label" data-translate="pickup">Récupération</span>
-                        </div>
-                    </div>
-
-                    <!-- Step 1: Siders Selection -->
-                    <div class="modal-step active" id="step1">
-                        <div class="step-header">
-                            <h3 data-translate="chooseSiders">Choisissez vos accompagnements</h3>
-                            <p class="selected-meal-info" id="selectedMealInfo"></p>
-                        </div>
-                        <div class="siders-grid">
-                            <div class="sider-item">
-                                <div class="sider-image">
-                                    <img src="{{ url_for('static', filename='images/food/frites.jpg') }}" alt="Frites" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2280%22>🍟</text></svg>'">
-                                </div>
-                                <div class="sider-details">
-                                    <h4 data-translate="fries">Frites</h4>
-                                    <div class="sider-info">
-                                    <p class="sider-price" data-translate="included">Inclus</p>
-                                </div>
-                            </div>
-                            <div class="sider-item">
-                                <div class="sider-image">
-                                    <img src="{{ url_for('static', filename='images/food/alloco-avec-oeuf.jpeg') }}" alt="Alloco" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2280%22>🍌</text></svg>'">
-                                </div>
-                                <div class="sider-details">
-                                    <h4 data-translate="alloco">Alloco</h4>
-                                    <p class="sider-price" data-translate="included">Inclus</p>
-                                </div>
-                            </div>
-                            <div class="sider-item">
-                                <div class="sider-image">
-                                    <img src="{{ url_for('static', filename='images/food/dejeuner.jpg') }}" alt="Attiéké" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2280%22>🍚</text></svg>'">
-                                </div>
-                                <div class="sider-details">
-                                    <h4 data-translate="attieke">Attiéké</h4>
-                                    <p class="sider-price" data-translate="included">Inclus</p>
-                                </div>
-                            </div>
-                        </div>
-                        <p class="sider-note"><i class="fas fa-info-circle"></i> <span data-translate="siderNote">Sélectionnez le nombre de portions pour chaque accompagnement</span></p>
-                    </div>
-
-                    <!-- Step 2: Verification -->
-                    <div class="modal-step" id="step2">
-                        <div class="step-header">
-                            <h3 data-translate="verifyOrder">Vérifiez votre commande</h3>
-                        </div>
-                        <div class="order-verification">
-                            <div class="verification-meal">
-                                <div class="verification-image" id="verifyMealImage"></div>
-                                <div class="verification-details">
-                                    <h4 id="verifyMealName"></h4>
-                                    <p class="verification-price" id="verifyMealPrice"></p>
-                                </div>
-                                <div class="verification-quantity">
-                                    <span class="qty-badge" id="verifyMealQty"></span>
-                                </div>
-                            </div>
-                            <div class="verification-siders" id="verificationSiders">
-                                <!-- Siders will be listed here -->
-                            </div>
-                            <div class="verification-total">
-                                <span data-translate="total">Total</span>
-                                <strong id="verifyTotal"></strong>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Step 3: Pickup Time -->
-                    <div class="modal-step" id="step3">
-                        <div class="step-header">
-                            <h3 data-translate="choosePickupTime">Choisissez l'heure de récupération</h3>
-                        </div>
-                        <div class="pickup-time-selection">
-                            <div class="prep-time-info">
-                                <i class="fas fa-clock"></i>
-                                <span><span data-translate="prepTime">Temps de préparation estimé</span>: <strong id="prepTimeDisplay">15</strong> <span data-translate="minutes">minutes</span></span>
-                            </div>
-                            <div class="time-options">
-                                <label class="time-option">
-                                    <input type="radio" name="pickupTime" value="asap" checked onchange="updateCustomTime()">
-                                    <div class="time-option-card">
-                                        <i class="fas fa-bolt"></i>
-                                        <span data-translate="asap">Dès que possible</span>
-                                        <small id="earliestTime"></small>
-                                    </div>
-                                </label>
-                                <label class="time-option">
-                                    <input type="radio" name="pickupTime" value="custom" onchange="enableCustomTime()">
-                                    <div class="time-option-card">
-                                        <i class="fas fa-calendar"></i>
-                                        <span data-translate="chooseTime">Choisir l'heure</span>
-                                        <small data-translate="selectTime">Sélectionnez votre heure</small>
-                                    </div>
-                                </label>
-                            </div>
-                            <div class="custom-time-input" id="customTimeInput" style="display: none;">
-                                <label for="pickupTimeSelect" data-translate="pickupTimeLabel">Heure de récupération</label>
-                                <select id="pickupTimeSelect" onchange="updatePickupTime()">
-                                    <!-- Options will be populated dynamically -->
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn-cancel" id="backBtn" onclick="previousStep()" style="display: none;">
-                        <i class="fas fa-arrow-left"></i>
-                        <span data-translate="back">Retour</span>
-                    </button>
-                    <button class="btn-confirm" id="nextBtn" onclick="nextStep()">
-                        <span data-translate="next">Suivant</span>
-                        <i class="fas fa-arrow-right"></i>
-                    </button>
-                    <button class="btn-confirm" id="confirmBtn" onclick="confirmMealOrder()" style="display: none;">
-                        <i class="fas fa-check"></i>
-                        <span data-translate="confirmOrder">Confirmer la Commande</span>
-                    </button>
-                </div>
-            </div>
-        </div>
+  <!-- Actions -->
+  <div class="navbar-actions">
+    <!-- User avatar & name -->
+    <div class="user-greeting">
+      <span class="user-name-text" id="user-greeting-name">Invité</span>
+      <div class="user-avatar" id="user-avatar" title="Mon profil">I</div>
     </div>
 
-    <!-- Order History Modal - Outside app container -->
-    <div class="modal order-history-modal" id="orderHistoryModal" style="display: none; position: fixed !important; z-index: 9999 !important;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2><i class="fas fa-history"></i> <span data-translate="orderHistoryTitle">Mes Commandes</span></h2>
-                <button class="btn-close" onclick="closeOrderHistoryModal()">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="modal-body">
-                <div id="orderHistoryContent">
-                    <div class="loading-spinner">
-                        <i class="fas fa-spinner fa-spin"></i>
-                        <p data-translate="loadingOrders">Chargement de vos commandes...</p>
-                    </div>
-                </div>
-            </div>
+    <!-- Theme toggle -->
+    <button class="nav-icon-btn" id="theme-toggle-btn" title="Changer le thème">
+      <i class="fas fa-moon"></i>
+    </button>
+
+    <!-- History -->
+    <button class="nav-icon-btn" id="history-btn" title="Mes commandes">
+      <i class="fas fa-history"></i>
+    </button>
+
+    <!-- Gamification -->
+    <button class="nav-icon-btn" id="gamification-btn" title="Mes badges et niveau">
+      <i class="fas fa-trophy"></i>
+    </button>
+
+    <!-- Cart FAB -->
+    <button class="cart-fab" id="cart-fab" title="Mon panier">
+      <i class="fas fa-shopping-cart"></i>
+      <span class="cart-badge" id="cart-badge"></span>
+    </button>
+
+    <!-- Logout -->
+    <a class="nav-icon-btn" href="/logout" title="Déconnexion">
+      <i class="fas fa-sign-out-alt"></i>
+    </a>
+  </div>
+</header>
+
+<!-- ══════════════════════════════════════════
+     FLASH DEALS BANNER
+═══════════════════════════════════════════ -->
+<div class="flash-deals-banner">
+  <div class="flash-deals-header">
+    <div class="flash-deals-title">
+      <span class="flash-icon">⚡</span>
+      Offres Flash du Jour
+    </div>
+  </div>
+  <div class="flash-deals-scroll" id="flash-deals-scroll">
+    <!-- Rendered by zina-deals.js -->
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     MAIN LAYOUT
+═══════════════════════════════════════════ -->
+<div class="app-layout">
+
+  <!-- ── Category Sidebar ── -->
+  <nav class="category-sidebar" id="category-sidebar" aria-label="Catégories">
+    <p class="sidebar-section-title">Catégories</p>
+    <div id="category-list">
+      <!-- Rendered by zina-order.js -->
+      <div class="category-item">
+        <div class="category-left">
+          <span class="category-icon">⏳</span>
+          <span class="category-name">Chargement...</span>
         </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── Main Menu Content ── -->
+  <main class="main-content" role="main">
+    <div class="content-header">
+      <h1 class="content-title" id="menu-section-title">Menu du Jour</h1>
+      <p class="content-subtitle">Cantine BAD — Abidjan · Paiement à la caisse</p>
     </div>
 
-    <!-- Order Success Modal - Outside app container -->
-    <div class="modal success-modal" id="successModal" style="display: none; position: fixed !important; z-index: 9999 !important;">
-        <div class="modal-content">
-            <!-- Loading Spinner -->
-            <div class="order-loading" id="orderLoading">
-                <div class="loading-spinner-large">
-                    <i class="fas fa-circle-notch fa-spin"></i>
-                    <p data-translate="processingOrder">Traitement de votre commande...</p>
-                </div>
-            </div>
-
-            <!-- Order Receipt (hidden initially) -->
-            <div class="order-receipt" id="orderReceipt" style="display: none;">
-                <div class="receipt-header">
-                    <div class="success-icon">
-                        <i class="fas fa-check-circle"></i>
-                    </div>
-                    <h2 data-translate="orderConfirmed">Commande Confirmée !</h2>
-                    <p class="order-number-text">
-                        <span data-translate="orderNumberLabel" style="color:white;">#</span>
-                        <strong id="orderNumber">---</strong>
-                    </p>
-                </div>
-
-                <div class="receipt-body">
-                    <div class="receipt-section">
-                        <h3 class="receipt-section-title">
-                            <i class="fas fa-shopping-bag"></i>
-                            <span data-translate="orderedItems">Articles Commandés</span>
-                        </h3>
-                        <div class="receipt-items-list" id="receiptItemsList">
-                            <!-- Items will be inserted here -->
-                        </div>
-                    </div>
-
-                    <div class="receipt-section receipt-totals">
-                        <div class="receipt-row">
-                            <span data-translate="subtotal">Sous-total</span>
-                            <span class="receipt-value" id="receiptSubtotal">0 FCFA</span>
-                        </div>
-                        <div class="receipt-row receipt-total">
-                            <span data-translate="total">Total</span>
-                            <span class="receipt-value receipt-total-amount" id="receiptTotal">0 FCFA</span>
-                        </div>
-                    </div>
-
-                    <div class="receipt-section receipt-info">
-                        <div class="info-row">
-                            <i class="fas fa-clock"></i>
-                            <div class="info-details">
-                                <span class="info-label" data-translate="pickupTime">Heure de récupération</span>
-                                <span class="info-value" id="receiptPickupTime">--:--</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="receipt-footer">
-                    <p class="thank-you" data-translate="thankYou">Merci pour votre commande !</p>
-                    <button class="btn-close" onclick="closeSuccessModal()" data-translate="close">Fermer</button>
-                </div>
-            </div>
-        </div>
+    <!-- Search -->
+    <div class="search-bar">
+      <i class="fas fa-search search-icon"></i>
+      <input type="text" id="menu-search" class="search-input"
+             placeholder="Rechercher un plat..." autocomplete="off">
     </div>
 
-    <!-- Order Confirmation Modal (for cart checkout) - Outside app container -->
-    <div class="modal" id="orderModal" style="display: none; position: fixed !important; z-index: 9999 !important;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <i class="fas fa-check-circle"></i>
-                <h2 data-translate="orderConfirmation">Confirmation de Commande</h2>
-            </div>
-            <div class="modal-body">
-                <div class="order-summary" id="orderSummary">
-                    <!-- Order details will be shown here -->
-                </div>
-                <div class="pickup-time">
-                    <h4 data-translate="pickupTime">Heure de Récupération</h4>
-                    <select id="pickupTime" style="color: black;">
-                        <option value="now" data-translate="immediately">Immédiatement</option>
-                        <option value="15" data-translate="in15min">Dans 15 minutes</option>
-                        <option value="30" data-translate="in30min">Dans 30 minutes</option>
-                        <option value="45" data-translate="in45min">Dans 45 minutes</option>
-                        <option value="60" data-translate="in60min">Dans 1 heure</option>
-                    </select>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn-cancel" onclick="closeOrderModal()" data-translate="cancel">Annuler</button>
-                <button class="btn-confirm" onclick="confirmOrder()">
-                    <i class="fas fa-check"></i>
-                    <span data-translate="confirmOrder">Confirmer la Commande</span>
-                </button>
-            </div>
-        </div>
+    <!-- Menu Grid -->
+    <div class="menu-grid" id="menu-grid">
+      <!-- Rendered by zina-order.js -->
+    </div>
+  </main>
+
+  <!-- ── Cart Panel ── -->
+  <aside class="cart-panel" id="cart-panel" role="complementary" aria-label="Panier">
+    <div class="cart-header">
+      <h2 class="cart-title"><i class="fas fa-shopping-cart" style="color:var(--bad-red)"></i> Mon Panier</h2>
+      <button class="cart-close-btn" id="cart-close" aria-label="Fermer le panier">
+        <i class="fas fa-times"></i>
+      </button>
     </div>
 
-    <!-- User Profile Modal -->
-    <div class="modal profile-modal" id="profileModal" style="display: none; position: fixed !important; z-index: 9999 !important;">
-        <div class="modal-content profile-content">
-            <div class="modal-header">
-                <h2><i class="fas fa-user"></i> <span data-translate="userProfile">Mon Profil</span></h2>
-                <button class="btn-close" onclick="closeProfileModal()">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="modal-body">
-                <div id="profileContent">
-                    <div class="profile-view">
-                        <div class="profile-info-item">
-                            <label data-translate="fullName">Nom Complet</label>
-                            <p id="profileName">-</p>
-                        </div>
-                        <div class="profile-info-item">
-                            <label data-translate="email">Email</label>
-                            <p id="profileEmail">-</p>
-                        </div>
-                        <div class="profile-info-item">
-                            <label data-translate="phone">Téléphone</label>
-                            <p id="profilePhone">-</p>
-                        </div>
-                        <div class="profile-actions">
-                            <button class="btn-edit" onclick="editProfile()">
-                                <i class="fas fa-edit"></i>
-                                <span data-translate="edit">Modifier</span>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="profile-edit" id="profileEditForm" style="display: none;">
-                        <form onsubmit="saveProfile(event)">
-                            <div class="form-group">
-                                <label for="editName" data-translate="fullName">Nom Complet</label>
-                                <input type="text" id="editName" name="name" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="editEmail" data-translate="email">Email</label>
-                                <input type="email" id="editEmail" name="email" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="editPhone" data-translate="phone">Téléphone</label>
-                                <input type="tel" id="editPhone" name="phone" required>
-                            </div>
-                            <div class="form-actions">
-                                <button type="button" class="btn-cancel" onclick="cancelEdit()">
-                                    <span data-translate="cancel">Annuler</span>
-                                </button>
-                                <button type="submit" class="btn-confirm">
-                                    <span data-translate="save">Enregistrer</span>
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <div class="cart-body" id="cart-body">
+      <div class="cart-empty">
+        <div class="cart-empty-icon">🛒</div>
+        <div class="cart-empty-text">Votre panier est vide</div>
+      </div>
     </div>
 
-    <!-- Toast Notifications (outside app container so it's always visible) -->
-    <div class="toast-container" id="toastContainer"></div>
+    <div class="cart-footer">
+      <!-- Totals -->
+      <div id="cart-totals" class="cart-totals" style="display:none"></div>
 
-    <!-- Fixed Bottom Navigation Footer -->
-    <nav class="bottom-nav">
-        <a href="#" class="nav-item" onclick="showProfileModal(); return false;">
-            <i class="fas fa-user-circle"></i>
-            <span data-translate="profile">Profil</span>
+      <!-- Notes -->
+      <textarea class="cart-notes-area" id="order-notes"
+                placeholder="Remarques particulières (sans piment, sans oignon...)"
+                rows="2"></textarea>
+
+      <!-- Pickup time -->
+      <select class="pickup-selector" id="pickup-time-select">
+        <option value="">Heure de retrait (maintenant)</option>
+        <option value="12:00">12h00</option>
+        <option value="12:15">12h15</option>
+        <option value="12:30">12h30</option>
+        <option value="12:45">12h45</option>
+        <option value="13:00">13h00</option>
+        <option value="13:15">13h15</option>
+        <option value="13:30">13h30</option>
+        <option value="13:45">13h45</option>
+        <option value="14:00">14h00</option>
+      </select>
+
+      <!-- Order button -->
+      <button class="order-btn" id="order-btn" disabled>
+        <i class="fas fa-check"></i>
+        Passer la commande
+      </button>
+
+      <!-- Order Tracking (shown after order placed) -->
+      <div class="order-tracking" id="order-tracking-section" style="display:none">
+        <div class="tracking-title">
+          <i class="fas fa-route" style="color:var(--bad-gold)"></i>
+          Suivi de commande
+        </div>
+        <div class="tracking-timeline" id="tracking-timeline"></div>
+      </div>
+    </div>
+  </aside>
+
+</div><!-- /.app-layout -->
+
+<!-- ── Voice Button ── -->
+<button class="voice-btn" id="voice-btn" title="Commander par la voix">
+  <i class="fas fa-microphone"></i>
+</button>
+
+<!-- ── Mobile Sidebar Toggle ── -->
+<button class="sidebar-toggle" id="sidebar-toggle" title="Catégories">
+  <i class="fas fa-list"></i>
+</button>
+
+<!-- ══════════════════════════════════════════
+     MODALS
+═══════════════════════════════════════════ -->
+
+<!-- Order History Modal -->
+<div class="modal-overlay" id="history-modal" role="dialog" aria-modal="true" aria-label="Historique des commandes">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title"><i class="fas fa-history" style="color:var(--bad-red);margin-right:0.5rem"></i>Mes Commandes</h2>
+      <button class="modal-close-btn" data-close-modal="history-modal" aria-label="Fermer">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="modal-body" id="order-history-list">
+      <div class="page-loading">
+        <div class="loading-spinner"></div>
+        <p>Chargement...</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Gamification Modal -->
+<div class="modal-overlay" id="gamification-modal" role="dialog" aria-modal="true" aria-label="Mes badges et niveau">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title"><i class="fas fa-trophy" style="color:var(--bad-gold);margin-right:0.5rem"></i>Mon Profil Gourmet</h2>
+      <button class="modal-close-btn" data-close-modal="gamification-modal" aria-label="Fermer">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <!-- Level display -->
+      <div class="level-display">
+        <div class="level-number" id="gami-level-number">1</div>
+        <div class="level-name" id="gami-level-name">Novice</div>
+      </div>
+
+      <!-- Badges -->
+      <p style="font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-muted); margin-bottom:0.75rem">
+        Mes Badges
+      </p>
+      <div class="badges-grid" id="gami-badges-grid"></div>
+
+      <!-- Leaderboard mini -->
+      <p style="font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-muted); margin-bottom:0.75rem">
+        Classement
+      </p>
+      <div class="leaderboard-mini" id="gami-leaderboard"></div>
+
+      <div style="text-align:center; margin-top:1.5rem">
+        <a href="/leaderboard" class="add-to-cart-btn" style="display:inline-flex; text-decoration:none; width:auto; padding:0.6rem 1.5rem">
+          <i class="fas fa-list-ol"></i> Classement complet
         </a>
-        <a href="#" class="nav-item" onclick="showOrderHistory(); return false;">
-            <i class="fas fa-history"></i>
-            <span data-translate="orders">Commandes</span>
-        </a>
-        <a href="#" class="nav-item" onclick="toggleCart(); return false;">
-            <i class="fas fa-shopping-cart"></i>
-            <span class="nav-badge" id="navCartCount">0</span>
-            <span data-translate="cart">Panier</span>
-        </a>
-    </nav>
+      </div>
+    </div>
+  </div>
+</div>
 
-    <!-- JavaScript -->
-    <script>
-        // Set user info from Flask session if available
-        const flaskUserInfo = {{ user_info | tojson if user_info else 'null' }};
-        if (flaskUserInfo) {
-            if (flaskUserInfo.is_logged_in) {
-                // Logged-in user
-                window.currentUser = {
-                    id: flaskUserInfo.id,
-                    name: flaskUserInfo.name,
-                    email: flaskUserInfo.email,
-                    isGuest: false
-                };
-                localStorage.setItem('zina_user', JSON.stringify(window.currentUser));
-            } else if (flaskUserInfo.is_guest) {
-                // Guest user - language will be set by JavaScript
-                window.currentUser = {
-                    id: null,
-                    name: 'Guest',
-                    department: 'Visitor',
-                    isGuest: true
-                };
-                localStorage.setItem('zina_user', JSON.stringify(window.currentUser));
-            }
-        }
-    </script>
-    <script src="{{ url_for('static', filename='js/ordering.js') }}"></script>
+<!-- ══════════════════════════════════════════
+     SCRIPTS — order matters!
+═══════════════════════════════════════════ -->
+<script src="{{ url_for('static', filename='js/zina-particles.js') }}"></script>
+<script src="{{ url_for('static', filename='js/zina-gamification.js') }}"></script>
+<script src="{{ url_for('static', filename='js/zina-deals.js') }}"></script>
+<script src="{{ url_for('static', filename='js/zina-voice.js') }}"></script>
+<script src="{{ url_for('static', filename='js/zina-activity.js') }}"></script>
+<script src="{{ url_for('static', filename='js/zina-order.js') }}"></script>
+
 </body>
 </html>
