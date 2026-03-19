@@ -1,683 +1,635 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - ZINA Cantine BAD</title>
-    <meta name="description" content="Interface d'administration - Gestion du site ZINA Cantine BAD">
-    <link rel="icon"  href="{{ url_for('static', filename='images/logo.PNG') }}">
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — ZINA Cantine BAD</title>
+  <link rel="icon" href="{{ url_for('static', filename='images/logo.PNG') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
 </head>
 <body>
-    <!-- Page Loader -->
-    <div class="page-loader" id="pageLoader">
-        <div class="loader-logo-container">
-            <div class="loader-logo-wrapper">
-                <div class="loader-logo-fill-container">
-                    <div class="loader-logo-fill" id="loaderFill"></div>
-                </div>
-                <img src="{{ url_for('static', filename='images/logo.PNG') }}" alt="ZINA Logo" class="loader-logo">
-            </div>
-            <div class="loader-text">
-                <p>Chargement...</p>
-                <div class="loader-progress-bar">
-                    <div class="loader-progress" id="loaderProgress"></div>
-                </div>
-            </div>
+
+<!-- ── Page Loader ── -->
+<div class="page-loader" id="pageLoader">
+  <div class="loader-logo-container">
+    <div class="loader-logo-wrapper">
+      <div class="loader-logo-fill-container">
+        <div class="loader-logo-fill" id="loaderFill"></div>
+      </div>
+      <img src="{{ url_for('static', filename='images/logo.PNG') }}" alt="ZINA" class="loader-logo">
+    </div>
+    <div class="loader-text">
+      <p>Chargement du tableau de bord...</p>
+      <div class="loader-progress-bar">
+        <div class="loader-progress" id="loaderProgress"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Login ── -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-modal">
+    <div class="login-header">
+      <div class="login-logo"><i class="fas fa-shield-alt"></i></div>
+      <h1>Administration ZINA</h1>
+      <p>Accès réservé au personnel autorisé</p>
+    </div>
+    <form id="adminLogin" onsubmit="handleAdminLogin(event)">
+      <div class="form-group">
+        <label><i class="fas fa-user"></i> Identifiant</label>
+        <input type="text" id="adminUsername" placeholder="admin" required autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label><i class="fas fa-lock"></i> Mot de passe</label>
+        <input type="password" id="adminPassword" placeholder="••••••••" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="login-submit-btn">
+        <i class="fas fa-sign-in-alt"></i> Se Connecter
+      </button>
+    </form>
+    <div class="login-footer"><i class="fas fa-info-circle"></i> Interface d'administration sécurisée</div>
+  </div>
+</div>
+
+<!-- ── Main Dashboard ── -->
+<div class="admin-wrapper" id="adminWrapper" style="display:none;">
+
+  <!-- Sidebar -->
+  <aside class="admin-sidebar" id="adminSidebar">
+    <div class="sidebar-header">
+      <div class="brand-logo">
+        <img src="{{ url_for('static', filename='images/logo.PNG') }}" alt="ZINA" class="sidebar-logo">
+        <span class="sidebar-logo-text">ZINA</span>
+      </div>
+      <button class="sidebar-toggle" onclick="toggleSidebar()" title="Réduire">
+        <i class="fas fa-bars"></i>
+      </button>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="sidebar-section-title">Principal</div>
+      <a class="nav-item active" onclick="showSection('dashboard')" id="nav-dashboard">
+        <i class="fas fa-chart-pie"></i>
+        <span class="nav-label">Tableau de Bord</span>
+      </a>
+      <a class="nav-item" onclick="showSection('orders')" id="nav-orders">
+        <i class="fas fa-receipt"></i>
+        <span class="nav-label">Commandes</span>
+        <span class="nav-badge" id="pendingBadge" style="display:none">0</span>
+      </a>
+
+      <div class="sidebar-section-title">Catalogue</div>
+      <a class="nav-item" onclick="showSection('menu')" id="nav-menu">
+        <i class="fas fa-utensils"></i>
+        <span class="nav-label">Plats</span>
+      </a>
+      <a class="nav-item" onclick="showSection('categories')" id="nav-categories">
+        <i class="fas fa-tags"></i>
+        <span class="nav-label">Catégories</span>
+      </a>
+
+      <div class="sidebar-section-title">Gestion</div>
+      <a class="nav-item" onclick="showSection('users')" id="nav-users">
+        <i class="fas fa-users"></i>
+        <span class="nav-label">Utilisateurs</span>
+      </a>
+      <a class="nav-item" onclick="showSection('settings')" id="nav-settings">
+        <i class="fas fa-cog"></i>
+        <span class="nav-label">Paramètres</span>
+      </a>
+
+      <div class="sidebar-section-title">Liens Rapides</div>
+      <a class="nav-item" href="/kitchen" target="_blank">
+        <i class="fas fa-fire"></i>
+        <span class="nav-label">Cuisine Live</span>
+      </a>
+      <a class="nav-item" href="/leaderboard" target="_blank">
+        <i class="fas fa-trophy"></i>
+        <span class="nav-label">Classement</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button class="logout-btn" onclick="handleLogout()">
+        <i class="fas fa-sign-out-alt"></i>
+        <span class="logout-label">Déconnexion</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="admin-main" id="adminMain">
+
+    <!-- Header -->
+    <header class="admin-header">
+      <div class="header-left">
+        <button class="mobile-toggle" onclick="toggleMobileSidebar()">
+          <i class="fas fa-bars"></i>
+        </button>
+        <h1 id="pageTitle">Tableau de Bord</h1>
+      </div>
+      <div class="header-right">
+        <div class="refresh-indicator" id="refreshIndicator">
+          <div class="refresh-dot"></div>
+          <span id="lastUpdated">À jour</span>
         </div>
-    </div>
-
-    <!-- Login Modal -->
-    <div class="login-overlay" id="loginOverlay">
-        <div class="login-modal">
-            <div class="login-header">
-                <div class="login-logo">
-                    <i class="fas fa-shield-alt"></i>
-                </div>
-                <h1>Administration ZINA</h1>
-                <p>Accès réservé au personnel autorisé</p>
+        <div class="notifications">
+          <button class="notif-btn" onclick="toggleNotifs()" id="notifBtn">
+            <i class="fas fa-bell"></i>
+            <span class="notif-count" id="notifCount" style="display:none">0</span>
+          </button>
+          <div class="notif-dropdown" id="notifDropdown">
+            <div class="notif-header">
+              Notifications
+              <button onclick="clearNotifs()" style="background:none;border:none;font-size:11px;color:var(--brand);cursor:pointer;font-weight:600;">Tout effacer</button>
             </div>
-            
-            <form id="adminLogin" onsubmit="handleAdminLogin(event)">
-                <div class="form-group">
-                    <label for="adminUsername">
-                        <i class="fas fa-user"></i>
-                        Identifiant
-                    </label>
-                    <input type="text" id="adminUsername" placeholder="admin" required>
-                </div>
-                <div class="form-group">
-                    <label for="adminPassword">
-                        <i class="fas fa-lock"></i>
-                        Mot de passe
-                    </label>
-                    <input type="password" id="adminPassword" placeholder="••••••••" required>
-                </div>
-                <button type="submit" class="login-submit-btn">
-                    <i class="fas fa-sign-in-alt"></i>
-                    <span>Se Connecter</span>
-                </button>
-            </form>
-            
-            <div class="login-footer">
-                <p><i class="fas fa-info-circle"></i> Interface d'administration sécurisée</p>
+            <div id="notifList">
+              <div class="notif-item">
+                <i class="fas fa-info-circle"></i>
+                <div><strong>Bienvenue dans ZINA Admin</strong><p>Tableau de bord chargé</p></div>
+              </div>
             </div>
+          </div>
         </div>
-    </div>
-
-    <!-- Main Dashboard (hidden until login) -->
-    <div class="admin-wrapper" id="adminWrapper" style="display: none;">
-        <!-- Sidebar -->
-        <aside class="admin-sidebar">
-            <div class="sidebar-header">
-                <div class="brand-logo">
-                    <img src="{{ url_for('static', filename='images/logo.PNG') }}" alt="ZINA Logo" class="sidebar-logo">
-                    <span style="color: #713d40;">INA</span>
-                </div>
-                <button class="sidebar-toggle" onclick="toggleSidebar()">
-                    <i class="fas fa-bars"></i>
-                </button>
-            </div>
-            
-            <nav class="sidebar-nav">
-                <a href="#dashboard" class="nav-item active" onclick="showSection('dashboard')">
-                    <i class="fas fa-tachometer-alt"></i>
-                    <span>Tableau de Bord</span>
-                </a>
-                <a href="#menu" class="nav-item" onclick="showSection('menu')">
-                    <i class="fas fa-hamburger"></i>
-                    <span>Menu / Plats</span>
-                </a>
-                <a href="#categories" class="nav-item" onclick="showSection('categories')">
-                    <i class="fas fa-tags"></i>
-                    <span>Catégories</span>
-                </a>
-                <a href="#orders" class="nav-item" onclick="showSection('orders')">
-                    <i class="fas fa-receipt"></i>
-                    <span>Commandes</span>
-                </a>
-                <a href="#users" class="nav-item" onclick="showSection('users')">
-                    <i class="fas fa-users"></i>
-                    <span>Utilisateurs</span>
-                </a>
-                <a href="#settings" class="nav-item" onclick="showSection('settings')">
-                    <i class="fas fa-cog"></i>
-                    <span>Paramètres</span>
-                </a>
-            </nav>
-            
-            <div class="sidebar-footer">
-                <button class="logout-btn" onclick="handleLogout()">
-                    <i class="fas fa-sign-out-alt"></i>
-                    <span>Déconnexion</span>
-                </button>
-            </div>
-        </aside>
-
-        <!-- Main Content -->
-        <main class="admin-main">
-            <!-- Top Bar -->
-            <header class="admin-header">
-                <div class="header-left">
-                    <button class="mobile-toggle" onclick="toggleSidebar()">
-                        <i class="fas fa-bars"></i>
-                    </button>
-                    <h1 id="pageTitle">Tableau de Bord</h1>
-                </div>
-                <div class="header-right">
-                    <div class="notifications">
-                        <button class="notif-btn" onclick="toggleNotifs()">
-                            <i class="fas fa-bell"></i>
-                            <span class="notif-count" id="notifCount">3</span>
-                        </button>
-                        <div class="notif-dropdown" id="notifDropdown">
-                            <div class="notif-header">Notifications</div>
-                            <div class="notif-list">
-                                <div class="notif-item">
-                                    <i class="fas fa-shopping-cart"></i>
-                                    <div>
-                                        <strong>Nouvelle commande #4827</strong>
-                                        <p>Il y a 5 minutes</p>
-                                    </div>
-                                </div>
-                                <div class="notif-item">
-                                    <i class="fas fa-user-plus"></i>
-                                    <div>
-                                        <strong>Nouvel utilisateur inscrit</strong>
-                                        <p>Il y a 15 minutes</p>
-                                    </div>
-                                </div>
-                                <div class="notif-item">
-                                    <i class="fas fa-exclamation-triangle"></i>
-                                    <div>
-                                        <strong>Stock faible: Eau Minérale</strong>
-                                        <p>Il y a 1 heure</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="admin-user">
-                        <div class="user-avatar">
-                            <i class="fas fa-user-circle"></i>
-                        </div>
-                        <div class="user-info">
-                            <span class="user-name" id="adminName">Administrateur</span>
-                            <span class="user-role">Super Admin</span>
-                        </div>
-                    </div>
-                </div>
-            </header>
-
-            <!-- Dashboard Section -->
-            <section class="admin-section active" id="dashboardSection">
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                            <i class="fas fa-hamburger"></i>
-                        </div>
-                        <div class="stat-details">
-                            <h3 id="totalMenus">65</h3>
-                            <p>Menus Totaux</p>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-                            <i class="fas fa-shopping-cart"></i>
-                        </div>
-                        <div class="stat-details">
-                            <h3 id="todayOrders">24</h3>
-                            <p>Commandes du Jour</p>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-                            <i class="fas fa-users"></i>
-                        </div>
-                        <div class="stat-details">
-                            <h3 id="totalUsers">156</h3>
-                            <p>Utilisateurs</p>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
-                            <i class="fas fa-coins"></i>
-                        </div>
-                        <div class="stat-details">
-                            <h3 id="todayRevenue">125000</h3>
-                            <p>Revenu du Jour (FCFA)</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="dashboard-grid">
-                    <div class="dashboard-card">
-                        <div class="card-header">
-                            <h3>Commandes Récentes</h3>
-                            <a href="#orders" onclick="showSection('orders')" class="view-all">Voir tout</a>
-                        </div>
-                        <div class="card-body">
-                            <table class="data-table">
-                                <thead>
-                                    <tr>
-                                        <th>Commande #</th>
-                                        <th>Client</th>
-                                        <th>Montant</th>
-                                        <th>Statut</th>
-                                        <th>Heure</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="ordersTableBody">
-                                    <!-- Orders will be populated by JavaScript -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <div class="dashboard-card">
-                        <div class="card-header">
-                            <h3>Plats Populaires</h3>
-                            <a href="#menu" onclick="showSection('menu')" class="view-all">Gérer</a>
-                        </div>
-                        <div class="card-body">
-                            <div class="popular-list" id="popularItemsList">
-                                <!-- Popular items will be populated by JavaScript -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Menu Management Section -->
-            <section class="admin-section" id="menuSection">
-                <div class="section-header">
-                    <h2>Gestion des Menus / Plats</h2>
-                    <button class="btn-primary" onclick="openMenuModal()">
-                        <i class="fas fa-plus"></i>
-                        <span>Ajouter un Plat</span>
-                    </button>
-                </div>
-
-                <div class="filters-bar">
-                    <div class="search-box">
-                        <i class="fas fa-search"></i>
-                        <input type="text" id="menuSearch" placeholder="Rechercher un plat..." onkeyup="filterMenus()">
-                    </div>
-                    <div class="filter-group">
-                        <select id="categoryFilter" onchange="filterMenus()">
-                            <option value="" disabled selected>Toutes les catégories</option>
-                        </select>
-                        <select id="availabilityFilter" onchange="filterMenus()">
-                            <option value="">Tous</option>
-                            <option value="available">Disponibles</option>
-                            <option value="unavailable">Indisponibles</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="menu-grid" id="menuGrid">
-                    <div class="section-loader-container" id="menuLoaderContainer">
-                        <div class="loader-logo-container-small">
-                            <div class="loader-logo-wrapper-small">
-                                <div class="loader-logo-fill-container-small">
-                                    <div class="loader-logo-fill-small" id="menuLoaderFill"></div>
-                                </div>
-                                <img src="{{ url_for('static', filename='images/logo.PNG') }}" alt="ZINA Logo" class="loader-logo-small">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Categories Section -->
-            <section class="admin-section" id="categoriesSection">
-                <div class="section-header">
-                    <h2>Gestion des Catégories</h2>
-                    <button class="btn-primary" onclick="openCategoryModal()">
-                        <i class="fas fa-plus"></i>
-                        <span>Ajouter une Catégorie</span>
-                    </button>
-                </div>
-
-                <div class="categories-grid" id="categoriesGrid">
-                    <div class="section-loader-container" id="categoriesLoaderContainer">
-                        <div class="loader-logo-container-small">
-                            <div class="loader-logo-wrapper-small">
-                                <div class="loader-logo-fill-container-small">
-                                    <div class="loader-logo-fill-small" id="categoriesLoaderFill"></div>
-                                </div>
-                                <img src="{{ url_for('static', filename='images/logo.PNG') }}" alt="ZINA Logo" class="loader-logo-small">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Orders Section -->
-            <section class="admin-section" id="ordersSection">
-                <div class="section-header">
-                    <h2>Gestion des Commandes</h2>
-                    <div class="filter-group">
-                        <select id="ordersFilter" onchange="loadOrders()">
-                            <option value="all">Toutes les commandes</option>
-                            <option value="pending">En attente</option>
-                            <option value="processing">En cours</option>
-                            <option value="completed">Complétées</option>
-                            <option value="cancelled">Annulées</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="orders-table-container">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Commande #</th>
-                                <th>Client</th>
-                                <th>Articles</th>
-                                <th>Total</th>
-                                <th>Paiement</th>
-                                <th>Statut</th>
-                                <th>Heure</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="ordersTableBody">
-                            <tr class="section-loader-row" id="ordersLoaderRow">
-                                <td colspan="8">
-                                    <div class="loader-logo-container-small">
-                                        <div class="loader-logo-wrapper-small">
-                                            <div class="loader-logo-fill-container-small">
-                                                <div class="loader-logo-fill-small" id="ordersLoaderFill"></div>
-                                            </div>
-                                            <img src="{{ url_for('static', filename='images/logo.PNG') }}" alt="ZINA Logo" class="loader-logo-small">
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-
-            <!-- Users Section -->
-            <section class="admin-section" id="usersSection">
-                <div class="section-header">
-                    <h2>Gestion des Utilisateurs</h2>
-                    <div class="search-box">
-                        <i class="fas fa-search"></i>
-                        <input type="text" placeholder="Rechercher un utilisateur..." onkeyup="filterUsers()">
-                    </div>
-                </div>
-
-                <div class="users-table-container">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Nom</th>
-                                <th>Email</th>
-                                <th>Téléphone</th>
-                                <th>Commandes</th>
-                                <th>Inscription</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="usersTableBody">
-                            <tr class="section-loader-row" id="usersLoaderRow">
-                                <td colspan="6">
-                                    <div class="loader-logo-container-small">
-                                        <div class="loader-logo-wrapper-small">
-                                            <div class="loader-logo-fill-container-small">
-                                                <div class="loader-logo-fill-small" id="usersLoaderFill"></div>
-                                            </div>
-                                            <img src="{{ url_for('static', filename='images/logo.PNG') }}" alt="ZINA Logo" class="loader-logo-small">
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-
-            <!-- Settings Section -->
-            <section class="admin-section" id="settingsSection">
-                <div class="section-header">
-                    <h2>Paramètres du Site</h2>
-                </div>
-
-                <div class="settings-grid">
-                    <div class="settings-card">
-                        <h3>Informations Générales</h3>
-                        <form id="generalSettings" onsubmit="saveGeneralSettings(event)">
-                            <div class="form-group">
-                                <label>Nom de l'entreprise</label>
-                                <input type="text" value="ZINA Cantine BAD">
-                            </div>
-                            <div class="form-group">
-                                <label>Email de contact</label>
-                                <input type="email" value="contact@zina-cantine.ci">
-                            </div>
-                            <div class="form-group">
-                                <label>Téléphone</label>
-                                <input type="tel" value="+225 27 20 00 00 00">
-                            </div>
-                            <div class="form-group">
-                                <label>Adresse</label>
-                                <textarea rows="3">Cantine BAD, Avenue Joseph Anoma, Abidjan, Côte d'Ivoire</textarea>
-                            </div>
-                            <button type="submit" class="btn-primary">
-                                <i class="fas fa-save"></i>
-                                <span>Enregistrer</span>
-                            </button>
-                        </form>
-                    </div>
-
-                    <div class="settings-card">
-                        <h3>Horaires d'Ouverture</h3>
-                        <form id="hoursSettings" onsubmit="saveHoursSettings(event)">
-                            <div class="form-group">
-                                <label>Lundi - Vendredi</label>
-                                <input type="text" value="7h00 - 18h00">
-                            </div>
-                            <div class="form-group">
-                                <label>Samedi</label>
-                                <input type="text" value="8h00 - 14h00">
-                            </div>
-                            <div class="form-group">
-                                <label>Dimanche</label>
-                                <input type="text" value="Fermé">
-                            </div>
-                            <button type="submit" class="btn-primary">
-                                <i class="fas fa-save"></i>
-                                <span>Enregistrer</span>
-                            </button>
-                        </form>
-                    </div>
-
-                    <div class="settings-card">
-                        <h3>Frais de Service</h3>
-                        <form id="feesSettings" onsubmit="saveFeesSettings(event)">
-                            <div class="form-group">
-                                <label>Frais de service (FCFA)</label>
-                                <input type="number" value="200">
-                            </div>
-                            <div class="form-group">
-                                <label>TVA (%)</label>
-                                <input type="number" value="18">
-                            </div>
-                            <button type="submit" class="btn-primary">
-                                <i class="fas fa-save"></i>
-                                <span>Enregistrer</span>
-                            </button>
-                        </form>
-                    </div>
-
-                    <div class="settings-card">
-                        <h3>Modes de Paiement</h3>
-                        <div class="toggle-group">
-                            <label class="toggle-item">
-                                <span>Espèces</span>
-                                <input type="checkbox" checked>
-                                <span class="toggle-slider"></span>
-                            </label>
-                            <label class="toggle-item">
-                                <span>Carte Bancaire</span>
-                                <input type="checkbox" checked>
-                                <span class="toggle-slider"></span>
-                            </label>
-                            <label class="toggle-item">
-                                <span>Orange Money</span>
-                                <input type="checkbox" checked>
-                                <span class="toggle-slider"></span>
-                            </label>
-                            <label class="toggle-item">
-                                <span>MTN Mobile Money</span>
-                                <input type="checkbox" checked>
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-            </section>
-        </main>
-    </div>
-
-    <!-- Menu Modal -->
-    <div class="modal" id="menuModal">
-        <div class="modal-content large">
-            <div class="modal-header">
-                <h2 id="menuModalTitle">Ajouter un Plat</h2>
-                <button class="modal-close" onclick="closeMenuModal()">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <form id="menuForm" onsubmit="saveMenu(event)">
-                <input type="hidden" id="menuId">
-                <div class="modal-body">
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Nom du Plat *</label>
-                            <input type="text" id="menuName" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Catégorie *</label>
-                            <select id="menuCategory" required>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Prix (FCFA) *</label>
-                            <input type="number" id="menuPrice" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Temps de Préparation (min)</label>
-                            <input type="number" id="menuPrepTime" value="15">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Description</label>
-                        <textarea id="menuDescription" rows="3" placeholder="Description du plat..."></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label>Image du Plat</label>
-                        <input type="file" id="menuImageFile" accept="image/*">
-                        <small class="form-help">Formats acceptés: PNG, JPG, JPEG, GIF, WebP</small>
-                    </div>
-                    <div class="form-group">
-                        <label>Emoji (si pas d'image)</label>
-                        <input type="text" id="menuImage" placeholder="Ex: 🍗">
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Statut</label>
-                            <select id="menuAvailable">
-                                <option value="true">Disponible</option>
-                                <option value="false">Indisponible</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="menuPopular">
-                                <span class="checkmark"></span>
-                                Plat Populaire
-                            </label>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn-cancel" onclick="closeMenuModal()">Annuler</button>
-                    <button type="submit" class="btn-primary">
-                        <i class="fas fa-save"></i>
-                        <span>Enregistrer</span>
-                    </button>
-                </div>
-            </form>
+        <div class="admin-user">
+          <div class="user-avatar" id="adminAvatar">A</div>
+          <div>
+            <div class="user-name" id="adminName">Administrateur</div>
+            <span class="user-role">Super Admin</span>
+          </div>
         </div>
-    </div>
+      </div>
+    </header>
 
-    <!-- Category Modal -->
-    <div class="modal" id="categoryModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="categoryModalTitle">Ajouter une Catégorie</h2>
-                <button class="modal-close" onclick="closeCategoryModal()">
-                    <i class="fas fa-times"></i>
-                </button>
+    <!-- ═══ DASHBOARD ═══ -->
+    <section class="admin-section active" id="dashboardSection">
+
+      <!-- KPI Row 1: Revenue + Orders + Avg basket + Completion rate -->
+      <div class="kpi-grid" id="kpiGrid">
+        <!-- card 1 -->
+        <div class="kpi-card red">
+          <div class="kpi-top">
+            <div class="kpi-icon"><i class="fas fa-coins"></i></div>
+            <div class="kpi-trend neutral" id="trendRevenue">— <i class="fas fa-minus"></i></div>
+          </div>
+          <div class="kpi-value" id="kpiRevenue">—</div>
+          <div class="kpi-label">Revenu du Jour</div>
+          <div class="kpi-sublabel">FCFA</div>
+          <canvas class="kpi-sparkline" id="sparkRevenue"></canvas>
+        </div>
+        <!-- card 2 -->
+        <div class="kpi-card gold">
+          <div class="kpi-top">
+            <div class="kpi-icon"><i class="fas fa-shopping-basket"></i></div>
+            <div class="kpi-trend neutral" id="trendOrders">— <i class="fas fa-minus"></i></div>
+          </div>
+          <div class="kpi-value" id="kpiOrders">—</div>
+          <div class="kpi-label">Commandes Aujourd'hui</div>
+          <div class="kpi-sublabel" id="kpiOrdersSub">—</div>
+          <canvas class="kpi-sparkline" id="sparkOrders"></canvas>
+        </div>
+        <!-- card 3 -->
+        <div class="kpi-card green">
+          <div class="kpi-top">
+            <div class="kpi-icon"><i class="fas fa-chart-line"></i></div>
+            <div class="kpi-trend neutral" id="trendAvg">— <i class="fas fa-minus"></i></div>
+          </div>
+          <div class="kpi-value" id="kpiAvg">—</div>
+          <div class="kpi-label">Panier Moyen</div>
+          <div class="kpi-sublabel">FCFA / commande</div>
+          <canvas class="kpi-sparkline" id="sparkAvg"></canvas>
+        </div>
+        <!-- card 4 -->
+        <div class="kpi-card blue">
+          <div class="kpi-top">
+            <div class="kpi-icon"><i class="fas fa-check-circle"></i></div>
+            <div class="kpi-trend neutral" id="trendCompletion">—</div>
+          </div>
+          <div class="kpi-value" id="kpiCompletion">—</div>
+          <div class="kpi-label">Taux de Complétion</div>
+          <div class="kpi-sublabel" id="kpiCompletionSub">—</div>
+          <canvas class="kpi-sparkline" id="sparkCompletion"></canvas>
+        </div>
+      </div>
+
+      <!-- Stat mini row -->
+      <div class="dashboard-row-3" style="margin-bottom:24px;">
+        <div class="stat-mini">
+          <div class="stat-mini-icon" style="background:var(--brand-muted);color:var(--brand);">
+            <i class="fas fa-utensils"></i>
+          </div>
+          <div>
+            <div class="stat-mini-value" id="statMenus" style="color:var(--brand);">—</div>
+            <div class="stat-mini-label">Plats au Menu</div>
+          </div>
+        </div>
+        <div class="stat-mini">
+          <div class="stat-mini-icon" style="background:var(--gold-muted);color:var(--gold);">
+            <i class="fas fa-clock"></i>
+          </div>
+          <div>
+            <div class="stat-mini-value" id="statPending" style="color:var(--gold);">—</div>
+            <div class="stat-mini-label">En Attente</div>
+          </div>
+        </div>
+        <div class="stat-mini">
+          <div class="stat-mini-icon" style="background:var(--green-muted);color:var(--green);">
+            <i class="fas fa-users"></i>
+          </div>
+          <div>
+            <div class="stat-mini-value" id="statUsers" style="color:var(--green);">—</div>
+            <div class="stat-mini-label">Utilisateurs</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts + Recent Orders -->
+      <div class="dashboard-row">
+        <!-- Orders trend chart -->
+        <div class="dash-card">
+          <div class="dash-card-header">
+            <div class="dash-card-title">
+              <i class="fas fa-chart-bar"></i> Commandes — 7 Derniers Jours
             </div>
-            <form id="categoryForm" onsubmit="saveCategory(event)">
-                <div class="modal-body">
-                    <div class="form-group">
-                        <label>Nom de la Catégorie <span style="color: red;">*</span></label>
-                        <input type="text" id="categoryName" required placeholder="Ex: Petit Déjeuner">
+            <div style="font-size:12px;color:var(--text-muted);" id="chartDateRange"></div>
+          </div>
+          <div class="dash-card-body">
+            <canvas class="chart-canvas" id="chartOrders7d" height="180"></canvas>
+          </div>
+        </div>
+        <!-- Status donut -->
+        <div class="dash-card">
+          <div class="dash-card-header">
+            <div class="dash-card-title">
+              <i class="fas fa-circle-notch"></i> Statuts des Commandes
+            </div>
+          </div>
+          <div class="dash-card-body" style="display:flex;flex-direction:column;align-items:center;gap:16px;">
+            <canvas id="chartDonut" width="180" height="180" style="max-width:180px;"></canvas>
+            <div id="donutLegend" style="width:100%;display:flex;flex-direction:column;gap:8px;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent orders + popular items -->
+      <div class="dashboard-row">
+        <div class="dash-card">
+          <div class="dash-card-header">
+            <div class="dash-card-title"><i class="fas fa-receipt"></i> Commandes Récentes</div>
+            <a class="view-all" onclick="showSection('orders');return false;" href="#">Voir tout</a>
+          </div>
+          <div class="dash-card-body" style="padding:0;">
+            <table class="mini-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Client</th>
+                  <th>Montant</th>
+                  <th>Statut</th>
+                  <th>Heure</th>
+                </tr>
+              </thead>
+              <tbody id="recentOrdersBody">
+                <tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-muted);">Chargement...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="dash-card">
+          <div class="dash-card-header">
+            <div class="dash-card-title"><i class="fas fa-fire"></i> Plats Populaires</div>
+            <a class="view-all" onclick="showSection('menu');return false;" href="#">Gérer</a>
+          </div>
+          <div class="dash-card-body">
+            <div id="popularItemsList">
+              <div style="text-align:center;padding:24px;color:var(--text-muted);">Chargement...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ MENU ═══ -->
+    <section class="admin-section" id="menuSection">
+      <div class="section-header">
+        <h2>Gestion des Plats</h2>
+        <button class="btn-primary" onclick="openMenuModal()">
+          <i class="fas fa-plus"></i> Ajouter un Plat
+        </button>
+      </div>
+      <div class="filters-bar">
+        <div class="search-box">
+          <i class="fas fa-search"></i>
+          <input type="text" id="menuSearch" placeholder="Rechercher un plat..." onkeyup="filterMenus()">
+        </div>
+        <div class="filter-group">
+          <select id="categoryFilter" onchange="filterMenus()">
+            <option value="">Toutes les catégories</option>
+          </select>
+          <select id="availabilityFilter" onchange="filterMenus()">
+            <option value="">Tous les statuts</option>
+            <option value="available">Disponibles</option>
+            <option value="unavailable">Indisponibles</option>
+          </select>
+        </div>
+      </div>
+      <div class="menu-grid" id="menuGrid">
+        <div class="section-loader-container" id="menuLoaderContainer">
+          <div class="loader-logo-container-small">
+            <div class="loader-logo-wrapper-small">
+              <div class="loader-logo-fill-container-small">
+                <div class="loader-logo-fill-small" id="menuLoaderFill"></div>
+              </div>
+              <img src="{{ url_for('static', filename='images/logo.PNG') }}" alt="" class="loader-logo-small">
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ CATEGORIES ═══ -->
+    <section class="admin-section" id="categoriesSection">
+      <div class="section-header">
+        <h2>Gestion des Catégories</h2>
+        <button class="btn-primary" onclick="openCategoryModal()">
+          <i class="fas fa-plus"></i> Ajouter une Catégorie
+        </button>
+      </div>
+      <div class="categories-grid" id="categoriesGrid">
+        <div class="section-loader-container" id="categoriesLoaderContainer">
+          <div class="loader-logo-container-small">
+            <div class="loader-logo-wrapper-small">
+              <div class="loader-logo-fill-container-small">
+                <div class="loader-logo-fill-small" id="categoriesLoaderFill"></div>
+              </div>
+              <img src="{{ url_for('static', filename='images/logo.PNG') }}" alt="" class="loader-logo-small">
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ ORDERS ═══ -->
+    <section class="admin-section" id="ordersSection">
+      <div class="section-header">
+        <h2>Gestion des Commandes</h2>
+        <div class="filter-group">
+          <select id="ordersFilter" onchange="loadOrders()">
+            <option value="all">Toutes</option>
+            <option value="pending">En Attente</option>
+            <option value="processing">En Cours</option>
+            <option value="completed">Complétées</option>
+            <option value="cancelled">Annulées</option>
+          </select>
+          <button class="btn-secondary" onclick="loadOrders()">
+            <i class="fas fa-sync-alt"></i> Actualiser
+          </button>
+        </div>
+      </div>
+      <div class="orders-table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Client</th>
+              <th>Articles</th>
+              <th>Total</th>
+              <th>Statut</th>
+              <th>Heure</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="ordersTableBody">
+            <tr class="section-loader-row" id="ordersLoaderRow">
+              <td colspan="7">
+                <div class="loader-logo-container-small" style="display:flex;">
+                  <div class="loader-logo-wrapper-small">
+                    <div class="loader-logo-fill-container-small">
+                      <div class="loader-logo-fill-small" id="ordersLoaderFill"></div>
                     </div>
-                    <div class="form-group">
-                        <label>Description</label>
-                        <textarea id="categoryDescription" rows="3" placeholder="Description de la catégorie..."></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label>Image de la Catégorie</label>
-                        <input type="file" id="categoryImage" accept="image/*">
-                        <small class="form-help">Formats acceptés: PNG, JPG, JPEG, GIF, WebP</small>
-                    </div>
-                    <div class="form-group">
-                        <label>Icône (Emoji)</label>
-                        <input type="text" id="categoryIcon" placeholder="Ex: 🍔">
-                    </div>
-                    <div class="form-group">
-                        <label>Couleur</label>
-                        <input type="color" id="categoryColor" value="#581b1f">
-                    </div>
+                    <img src="{{ url_for('static', filename='images/logo.PNG') }}" alt="" class="loader-logo-small">
+                  </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn-cancel" onclick="closeCategoryModal()">Annuler</button>
-                    <button type="submit" class="btn-primary">
-                        <i class="fas fa-save"></i>
-                        <span>Enregistrer</span>
-                    </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ═══ USERS ═══ -->
+    <section class="admin-section" id="usersSection">
+      <div class="section-header">
+        <h2>Gestion des Utilisateurs</h2>
+        <div class="search-box" style="max-width:280px;">
+          <i class="fas fa-search"></i>
+          <input type="text" id="userSearch" placeholder="Rechercher..." onkeyup="filterUsers()">
+        </div>
+      </div>
+      <div class="users-table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Utilisateur</th>
+              <th>Email</th>
+              <th>Téléphone</th>
+              <th>Département</th>
+              <th>Inscription</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="usersTableBody">
+            <tr class="section-loader-row" id="usersLoaderRow">
+              <td colspan="6">
+                <div class="loader-logo-container-small" style="display:flex;">
+                  <div class="loader-logo-wrapper-small">
+                    <div class="loader-logo-fill-container-small">
+                      <div class="loader-logo-fill-small" id="usersLoaderFill"></div>
+                    </div>
+                    <img src="{{ url_for('static', filename='images/logo.PNG') }}" alt="" class="loader-logo-small">
+                  </div>
                 </div>
-            </form>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ═══ SETTINGS ═══ -->
+    <section class="admin-section" id="settingsSection">
+      <div class="section-header"><h2>Paramètres</h2></div>
+      <div class="settings-grid">
+        <div class="settings-card">
+          <h3><i class="fas fa-building"></i> Informations Générales</h3>
+          <form onsubmit="saveGeneralSettings(event)">
+            <div class="form-group"><label>Nom de l'entreprise</label><input type="text" value="ZINA Cantine BAD"></div>
+            <div class="form-group"><label>Email de contact</label><input type="email" value="contact@zina-cantine.ci"></div>
+            <div class="form-group"><label>Téléphone</label><input type="tel" value="+225 27 20 00 00 00"></div>
+            <div class="form-group"><label>Adresse</label><textarea rows="2">Cantine BAD, Avenue Joseph Anoma, Abidjan</textarea></div>
+            <button type="submit" class="btn-primary"><i class="fas fa-save"></i> Enregistrer</button>
+          </form>
         </div>
-    </div>
-
-    <!-- Order Details Modal -->
-    <div class="modal" id="orderDetailsModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Détails de la Commande</h2>
-                <button class="modal-close" onclick="closeOrderDetails()">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="modal-body" id="orderDetailsContent">
-                <!-- Order details will be loaded here -->
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn-cancel" onclick="closeOrderDetails()">Fermer</button>
-                <button type="button" class="btn-primary" onclick="updateOrderStatus()">
-                    <i class="fas fa-check"></i>
-                    <span>Mettre à Jour</span>
-                </button>
-            </div>
+        <div class="settings-card">
+          <h3><i class="fas fa-clock"></i> Horaires d'Ouverture</h3>
+          <form onsubmit="saveHoursSettings(event)">
+            <div class="form-group"><label>Lundi – Vendredi</label><input type="text" value="7h00 – 18h00"></div>
+            <div class="form-group"><label>Samedi</label><input type="text" value="8h00 – 14h00"></div>
+            <div class="form-group"><label>Dimanche</label><input type="text" value="Fermé"></div>
+            <button type="submit" class="btn-primary"><i class="fas fa-save"></i> Enregistrer</button>
+          </form>
         </div>
-    </div>
-
-    <!-- Confirmation Modal -->
-    <div class="modal" id="confirmModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="confirmModalTitle">Confirmation</h2>
-                <button class="modal-close" onclick="closeConfirmModal()">
-                    <i class="fas fa-times"></i>
-                </button>
+        <div class="settings-card">
+          <h3><i class="fas fa-percentage"></i> Frais & Taxes</h3>
+          <form onsubmit="saveFeesSettings(event)">
+            <div class="form-row">
+              <div class="form-group"><label>Frais de service (FCFA)</label><input type="number" value="200"></div>
+              <div class="form-group"><label>TVA (%)</label><input type="number" value="18"></div>
             </div>
-            <div class="modal-body">
-                <p id="confirmMessage">Êtes-vous sûr ?</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn-cancel" onclick="closeConfirmModal()">Annuler</button>
-                <button type="button" class="btn-danger" id="confirmBtn">
-                    <i class="fas fa-trash"></i>
-                    <span>Supprimer</span>
-                </button>
-            </div>
+            <button type="submit" class="btn-primary"><i class="fas fa-save"></i> Enregistrer</button>
+          </form>
         </div>
+        <div class="settings-card">
+          <h3><i class="fas fa-mobile-alt"></i> Modes de Paiement</h3>
+          <div class="toggle-group">
+            <label class="toggle-item"><span>Espèces</span><input type="checkbox" checked><span class="toggle-slider"></span></label>
+            <label class="toggle-item"><span>Carte Bancaire</span><input type="checkbox" checked><span class="toggle-slider"></span></label>
+            <label class="toggle-item"><span>Orange Money</span><input type="checkbox" checked><span class="toggle-slider"></span></label>
+            <label class="toggle-item"><span>MTN Mobile Money</span><input type="checkbox" checked><span class="toggle-slider"></span></label>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ── Menu Modal ── -->
+<div class="modal" id="menuModal">
+  <div class="modal-content large">
+    <div class="modal-header">
+      <h2 id="menuModalTitle">Ajouter un Plat</h2>
+      <button class="modal-close" onclick="closeMenuModal()"><i class="fas fa-times"></i></button>
     </div>
+    <form id="menuForm" onsubmit="saveMenu(event)">
+      <input type="hidden" id="menuId">
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group"><label>Nom du Plat *</label><input type="text" id="menuName" required placeholder="Ex: Attiéké Poulet"></div>
+          <div class="form-group"><label>Catégorie *</label><select id="menuCategory" required></select></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Prix (FCFA) *</label><input type="number" id="menuPrice" required min="0" placeholder="2500"></div>
+          <div class="form-group"><label>Temps de Préparation (min)</label><input type="number" id="menuPrepTime" value="15" min="0"></div>
+        </div>
+        <div class="form-group"><label>Description</label><textarea id="menuDescription" rows="3" placeholder="Description du plat..."></textarea></div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Image du Plat</label>
+            <input type="file" id="menuImageFile" accept="image/*">
+            <span class="form-help">PNG, JPG, WebP acceptés</span>
+          </div>
+          <div class="form-group">
+            <label>Emoji (si pas d'image)</label>
+            <input type="text" id="menuImage" placeholder="🍗">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Statut</label>
+            <select id="menuAvailable">
+              <option value="true">Disponible</option>
+              <option value="false">Indisponible</option>
+            </select>
+          </div>
+          <div class="form-group" style="display:flex;align-items:center;">
+            <label class="checkbox-label" style="margin-top:22px;">
+              <input type="checkbox" id="menuPopular">
+              <span class="checkmark"></span>
+              Plat Populaire
+            </label>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-cancel" onclick="closeMenuModal()">Annuler</button>
+        <button type="submit" class="btn-primary"><i class="fas fa-save"></i> Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
 
-    <!-- Toast Container -->
-    <div class="toast-container" id="toastContainer"></div>
+<!-- ── Category Modal ── -->
+<div class="modal" id="categoryModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 id="categoryModalTitle">Ajouter une Catégorie</h2>
+      <button class="modal-close" onclick="closeCategoryModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <form id="categoryForm" onsubmit="saveCategory(event)">
+      <div class="modal-body">
+        <div class="form-group"><label>Nom *</label><input type="text" id="categoryName" required placeholder="Ex: Petit Déjeuner"></div>
+        <div class="form-group"><label>Description</label><textarea id="categoryDescription" rows="2" placeholder="Description..."></textarea></div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Image</label>
+            <input type="file" id="categoryImage" accept="image/*">
+            <span class="form-help">PNG, JPG acceptés</span>
+          </div>
+          <div class="form-group"><label>Icône Emoji</label><input type="text" id="categoryIcon" placeholder="🍔"></div>
+        </div>
+        <div class="form-group"><label>Couleur</label><input type="color" id="categoryColor" value="#C4002B"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-cancel" onclick="closeCategoryModal()">Annuler</button>
+        <button type="submit" class="btn-primary"><i class="fas fa-save"></i> Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
 
-    <!-- JavaScript -->
-    <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+<!-- ── Order Details Modal ── -->
+<div class="modal" id="orderDetailsModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Détails de la Commande</h2>
+      <button class="modal-close" onclick="closeOrderDetails()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body" id="orderDetailsContent"></div>
+    <div class="modal-footer">
+      <button type="button" class="btn-cancel" onclick="closeOrderDetails()">Fermer</button>
+      <button type="button" class="btn-primary" onclick="updateOrderStatus()">
+        <i class="fas fa-check"></i> Mettre à Jour
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Confirm Modal ── -->
+<div class="modal" id="confirmModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 id="confirmModalTitle">Confirmation</h2>
+      <button class="modal-close" onclick="closeConfirmModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body"><p id="confirmMessage">Êtes-vous sûr ?</p></div>
+    <div class="modal-footer">
+      <button type="button" class="btn-cancel" onclick="closeConfirmModal()">Annuler</button>
+      <button type="button" class="btn-danger" id="confirmBtn">
+        <i class="fas fa-trash"></i> Supprimer
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
 </body>
 </html>
