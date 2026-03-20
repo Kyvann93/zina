@@ -38,6 +38,9 @@ classifiers = [
 requires-python = ">=3.8"
 dependencies = [
     "Flask==2.3.3",
+    "flasgger==0.9.7b2",
+    "PyYAML==6.0.1",
+    "jsonschema==4.20.0",
     "supabase==1.0.4",
     "python-dotenv==1.0.0",
     "PyJWT==2.8.0",

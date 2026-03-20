@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZINA</title>
+    <meta name="description" content="Connectez-vous à votre espace ZINA Cantine BAD">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo.PNG') }}">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600&family=Playfair+Display:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/ordering.css') }}">
+    <style>
+        .login-only {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, rgba(88, 27, 31, 0.95) 0%, rgba(160, 101, 107, 0.9) 100%),
+                        url('https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1920&h=1080&fit=crop') center/cover;
+        }
+        
+        .login-container {
+            width: 100%;
+            max-width: 450px;
+            padding: 20px;
+        }
+        
+        .back-link {
+            text-align: center;
+            margin-top: 20px;
+        }
+        
+        .back-link a {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.3s ease;
+        }
+        
+        .back-link a:hover {
+            color: white;
+        }
+        
+        .guest-access {
+            text-align: center;
+           
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .flash-message {
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            text-align: center;
+            font-weight: bold;
+            font-size:12px;
+        }
+        .flash-message.success {
+            background: rgba(46, 204, 113, 0.2);
+            border: 1px solid rgba(46, 204, 113, 0.5);
+        }
+        .flash-message.error {
+            background: rgba(231, 76, 60, 0.2);
+            border: 1px solid rgba(231, 76, 60, 0.5);
+            color:white;
+        }
+
+        .guest-btn {
+            background: rgb(112 51 56);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+        
+        .guest-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="login-only">
+        <div class="login-container">
+            <div class="login-modal">
+                <div class="login-header">
+                    <div class="login-logo">
+                        <img src="{{ url_for('static', filename='images/logo.PNG') }}" style="width:40px;" alt="ZINA Cantine BAD">
+                    </div>
+                    <p>Connexion Employés</p>
+                </div>
+                
+                <div class="login-content">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="flash-message {{ category }}">{{ message }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+                    <div class="login-panel active" id="manualPanel">
+                        <form id="loginForm" action="{{url_for('api.login_user')}}" method="POST" onsubmit="localStorage.setItem('login_success_flag', 'true'); showFormLoader();">
+                            <div class="form-group">
+                                <label for="employeeName">
+                                    <i class="fas fa-user"></i>
+                                    Nom Complet *
+                                </label>
+                                <input type="text" id="employeeName" name="full_name" placeholder="Votre nom" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="department">
+                                    <i class="fas fa-building"></i>
+                                   Numero de téléphone *
+                                </label>
+                               <input type="text" id="phone" name="phone" placeholder="Votre numéro de téléphone" required>
+                            </div>
+                            <button type="submit" class="login-submit-btn">
+                                <i class="fas fa-sign-in-alt"></i>
+                                <span>Se Connecter</span>
+                            </button>
+                        </form>
+                        
+                        <div class="register-option">
+                            <div class="divider">
+                                <span>OU</span>
+                            </div>
+                            <button class="register-btn" onclick="window.location.href='/register'">
+                                <i class="fas fa-user-plus"></i>
+                                <span>Nouvel Employé ? S'inscrire</span>
+                            </button>
+                        </div>
+                        
+                        <div class="guest-access">
+                            <button class="guest-btn" onclick="window.location.href='/commander?guest'">
+                                <i class="fas fa-user-secret"></i>
+                                <span>Continuer en tant qu'Invité</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="back-link">
+                <a href="/">
+                    <i class="fas fa-arrow-left"></i>
+                    Retour à l'accueil
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loader Overlay -->
+    <div id="formLoader" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); justify-content: center; align-items: center; z-index: 10000; display: none;">
+        <div style="background: white; padding: 30px; border-radius: 10px; text-align: center;">
+            <div style="font-size: 3em; margin-bottom: 10px;">
+                <i class="fas fa-circle-notch fa-spin"></i>
+            </div>
+            <p style="color: #333; font-weight: bold;">Connexion en cours...</p>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        function showFormLoader() {
+            const loader = document.getElementById('formLoader');
+            if (loader) {
+                loader.style.display = 'flex';
+            }
+        }
+    </script>
+    
+</body>
+</html>

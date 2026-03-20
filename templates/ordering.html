@@ -254,9 +254,16 @@
                         <span class="cat-count" id="countBreakfast">0</span>
                     </button>
                     <button class="cat-btn" data-category="lunch" onclick="filterCategory('lunch')">
+<<<<<<< Updated upstream
                         <div class="cat-img-container"><img src="{{ url_for('static', filename='images/food/dejeuner.jpg') }}" alt="Plats Complets" class="cat-img"></div>
                         <span>Plats Complets</span>
                         <span class="cat-count" id="countLunch">0</span>
+=======
+                        <div class="cat-icon">
+                            <i class="fas fa-utensils"></i>
+                        </div>
+                        <span class="cat-name" data-translate="lunch">Déjeuner</span>
+>>>>>>> Stashed changes
                     </button>
                     <button class="cat-btn" data-category="snacks" onclick="filterCategory('snacks')">
                          <div class="cat-img-container"><img src="{{ url_for('static', filename='images/food/snacks.jpg') }}" alt="Snacks" class="cat-img"></div>
@@ -299,7 +306,16 @@
             <!-- Menu Grid -->
             <section class="menu-section">
                 <div class="menu-header">
+<<<<<<< Updated upstream
                     <h2 id="menuTitle">Tous les Plats</h2>
+=======
+                    <h2 id="menuTitle" data-translate="orderTitle">Commander</h2>
+                    <div class="formula-bar">
+                        <button class="formula-btn" onclick="openFormulaModal(); return false;" data-translate="formulas">
+                            Formules
+                        </button>
+                    </div>
+>>>>>>> Stashed changes
                     <div class="menu-filters">
                         <button class="filter-chip active" data-filter="all" onclick="filterItems('all')">
                             Tous
@@ -353,6 +369,14 @@
             
             <div class="cart-footer">
                 <div class="cart-summary">
+                    <div class="summary-row">
+                        <span data-translate="subtotal">Sous-total</span>
+                        <span id="cartSubtotal">0 FCFA</span>
+                    </div>
+                    <div class="summary-row">
+                        <span data-translate="formulaDiscount">Remise formules</span>
+                        <span id="cartFormulaDiscount">0 FCFA</span>
+                    </div>
                     <div class="summary-row total">
                         <span>Total</span>
                         <span id="cartTotal">0 FCFA</span>
@@ -371,9 +395,44 @@
         <!-- Cart Overlay -->
         <div class="cart-overlay" id="cartOverlay" onclick="toggleCart()"></div>
 
+<<<<<<< Updated upstream
         <!-- Order Confirmation Modal -->
         <div class="modal" id="orderModal">
             <div class="modal-content">
+=======
+        <!-- Formula Modal -->
+        <div class="modal formula-modal" id="formulaModal" style="display: none;">
+            <div class="modal-content formula-content">
+                <div class="modal-header">
+                    <h2><i class="fas fa-layer-group"></i> <span data-translate="formulas">Formules</span></h2>
+                    <button class="btn-close" onclick="closeFormulaModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div id="formulaSelectScreen" class="formula-screen" >
+                        <button class="formula-option" onclick="startFormula('EP')" data-translate="formulaEP">Entrée + Plat</button>
+                        <button class="formula-option" onclick="startFormula('PD')" data-translate="formulaPD">Plat + Dessert</button>
+                        <button class="formula-option" onclick="startFormula('EPD')" data-translate="formulaEPD">Entrée + Plat + Dessert</button>
+                        <button class="formula-option" onclick="startFormula('EPDB')" data-translate="formulaEPDB">Entrée + Plat + Dessert + Boisson</button>
+                    </div>
+
+                    <div id="formulaWizardScreen" class="formula-screen" style="display: none;">
+                        <h3 id="formulaStepTitle" class="formula-step-title"></h3>
+                        <div id="formulaItemsGrid" class="formula-items-grid"></div>
+                        <div class="formula-actions">
+                            <button class="formula-action" onclick="formulaPrevStep()" data-translate="back">Retour</button>
+                            <button class="formula-action" onclick="formulaCancel()" data-translate="cancel">Annuler</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Meal Selection Modal (Siders Modal) -->
+        <div class="modal meal-selection-modal" id="mealSelectionModal">
+            <div class="modal-content meal-selection-content">
+>>>>>>> Stashed changes
                 <div class="modal-header">
                     <i class="fas fa-check-circle"></i>
                     <h2>Confirmation de Commande</h2>
@@ -436,9 +495,53 @@
                         <span>Temps d'attente estimé:</span>
                         <strong id="waitTime">15-20 min</strong>
                     </div>
+<<<<<<< Updated upstream
                     <div class="detail-row">
                         <span>Lieu de récupération:</span>
                         <strong>Cantine BAD - Comptoir 1</strong>
+=======
+                    <h2 data-translate="orderConfirmed">Commande Confirmée !</h2>
+                    <p class="order-number-text">
+                        <span data-translate="orderNumberLabel" style="color:white;">#</span>
+                        <strong id="orderNumber">---</strong>
+                    </p>
+                </div>
+
+                <div class="receipt-body">
+                    <div class="receipt-section">
+                        <h3 class="receipt-section-title">
+                            <i class="fas fa-shopping-bag"></i>
+                            <span data-translate="orderedItems">Articles Commandés</span>
+                        </h3>
+                        <div class="receipt-items-list" id="receiptItemsList">
+                            <!-- Items will be inserted here -->
+                        </div>
+                    </div>
+
+                    <div class="receipt-section receipt-totals">
+                        <div class="receipt-row">
+                            <span data-translate="subtotal">Sous-total</span>
+                            <span class="receipt-value" id="receiptSubtotal">0 FCFA</span>
+                        </div>
+                        <div class="receipt-row">
+                            <span data-translate="formulaDiscount">Remise formules</span>
+                            <span class="receipt-value" id="receiptFormulaDiscount">0 FCFA</span>
+                        </div>
+                        <div class="receipt-row receipt-total">
+                            <span data-translate="total">Total</span>
+                            <span class="receipt-value receipt-total-amount" id="receiptTotal">0 FCFA</span>
+                        </div>
+                    </div>
+
+                    <div class="receipt-section receipt-info">
+                        <div class="info-row">
+                            <i class="fas fa-clock"></i>
+                            <div class="info-details">
+                                <span class="info-label" data-translate="pickupTime">Heure de récupération</span>
+                                <span class="info-value" id="receiptPickupTime">--:--</span>
+                            </div>
+                        </div>
+>>>>>>> Stashed changes
                     </div>
                 </div>
                 <button class="btn-close" onclick="closeSuccessModal()">Fermer</button>

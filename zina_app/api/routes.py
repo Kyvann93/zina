@@ -6,8 +6,15 @@ Handles menu, categories, products, orders, and company info endpoints
 import uuid
 from datetime import datetime
 from decimal import Decimal
+<<<<<<< Updated upstream
 from flask import jsonify, request, current_app
 
+=======
+from flask import jsonify, request, current_app, redirect, url_for, flash, session
+import random
+import json
+from pathlib import Path
+>>>>>>> Stashed changes
 from zina_app.api import api_bp
 from zina_app.services import DatabaseService
 from zina_app.models import CreateOrderRequest, OrderItemRequest
@@ -21,6 +28,20 @@ def get_db_service():
         current_app.config['SUPABASE_KEY']
     )
     return DatabaseService(supabase)
+
+
+@api_bp.route('/formulas')
+def get_formulas_config():
+    """Get formulas configuration (discounts)"""
+    try:
+        config_path = Path(current_app.root_path) / 'config' / 'formulas.json'
+        if not config_path.exists():
+            return jsonify({"discounts": {"EP": 0, "PD": 0, "EPD": 0, "EPDB": 0}})
+
+        data = json.loads(config_path.read_text(encoding='utf-8'))
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 DEFAULT_IMAGES = {
         'petit_déjeuner': 'https://images.unsplash.com/photo-1533089862017-5614ec45e25a?w=400&h=300&fit=crop',
@@ -64,7 +85,6 @@ async def get_menu():
             category_image = category.image_url
             try:
                 category_key = category.category_name.lower().replace(' ', '_')
-                print("image produit",category.products[0].image_url)
                 menu_data[category_key] = [
                     {
                         "id": product.product_id,
@@ -86,8 +106,8 @@ async def get_menu():
                 ]
             except Exception as cat_error:
                 print(f"Error processing category {category.category_id}: {cat_error}")
-                continue
-        
+                menu_data[category_key] = []
+
         return jsonify(menu_data)
     except Exception as e:
         print(f"Error in get_menu: {str(e)}")
@@ -187,6 +207,7 @@ def register_user():
             current_app.config['SUPABASE_URL'],
             current_app.config['SUPABASE_KEY']
         )
+<<<<<<< Updated upstream
         
         response = supabase.table('users').insert(user_data).execute()
         
@@ -199,6 +220,33 @@ def register_user():
             })
         else:
             return jsonify({"error": "Échec de l'inscription"}), 500
+=======
+        #retrieving existing user
+        existing_user = supabase.table('users').select().or_(f'email.eq.{data["email"]},phone.eq.{data["phone"]}').limit(1).execute()
+        
+        
+        try:
+            if not existing_user.data :
+                response = supabase.table('users').insert(user_data).execute()
+                print("Utilisateur crée",response)
+                if response.data:
+                    # Redirect to login page with success message
+                    
+                    flash('Inscription réussie ! Vous pouvez maintenant vous connecter.', 'success')
+                    return redirect(url_for('main.login'))
+                else:
+                    flash('Échec de l\'inscription', 'error')
+                    return redirect(url_for('main.register'))
+            else :
+                print("Utilisateur deja existant", existing_user.data)
+                flash("Vous avez deja un compte ! Veuillez vous connecter","error")
+                return redirect(url_for('main.register'))
+        except Exception as db_error:
+            print(f"Database error during registration: {db_error}")
+            flash("Une erreur est survenue lors de l'inscription. Veuillez réessayer.", 'error')
+            return redirect(url_for('main.register'))
+        
+>>>>>>> Stashed changes
 
     except Exception as e:
         print(f"Registration error: {str(e)}")
@@ -230,6 +278,19 @@ async def place_order():
             )
             order_items.append(order_item)
 
+        db = get_db_service()
+
+        requested_product_ids = [item_request.product_id for item_request in order_items]
+        products = await db.get_products_by_ids(requested_product_ids)
+        existing_ids = {p.product_id for p in (products or [])}
+        invalid_product_ids = [pid for pid in requested_product_ids if pid not in existing_ids]
+
+        if invalid_product_ids:
+            return jsonify({
+                "error": "Invalid product_id(s) in order items",
+                "invalid_product_ids": invalid_product_ids,
+            }), 400
+
         # Parse user_id safely if provided
         if user_id:
             try:
@@ -251,6 +312,9 @@ async def place_order():
         # Get prep_time from order data or use default
         prep_time_minutes = order_data.get('prep_time_minutes', 15)
 
+        # Optional discount amount (FCFA)
+        discount_amount = order_data.get('discount_amount', 0)
+
         # Create order request - use inspect to check if fields exist
         import inspect
         sig = inspect.signature(CreateOrderRequest.__init__)
@@ -268,13 +332,15 @@ async def place_order():
         if 'prep_time_minutes' in params:
             init_kwargs['prep_time_minutes'] = prep_time_minutes
 
+        if 'discount_amount' in params:
+            init_kwargs['discount_amount'] = discount_amount
+
         create_order_request = CreateOrderRequest(**init_kwargs)
 
         # Store extra data on the object for the database service to use
         create_order_request.pickup_time = pickup_time  # type: ignore
         create_order_request.prep_time_minutes = prep_time_minutes  # type: ignore
 
-        db = get_db_service()
         order_response = await db.create_order(create_order_request)
 
         if order_response:
@@ -347,16 +413,34 @@ async def get_order(order_id):
         db = get_db_service()
         order = await db.get_order_by_id(order_id)
         if order:
-            return jsonify({
-                "order_id": order.order_id,
-                "user_id": str(order.user_id),
-                "total_amount": float(order.total_amount),
-                "order_status": order.order_status,
-                "created_at": order.created_at.isoformat() if order.created_at else None,
-                "pickup_time": order.pickup_time.isoformat() if order.pickup_time else None,
-                "prep_time_minutes": order.prep_time_minutes,
-                "items": [
-                    {
+            items_list = []
+            for item in (order.items or []):
+                if isinstance(item, dict):
+                    options_list = []
+                    if item.get('options'):
+                        for opt in item['options']:
+                            if isinstance(opt, dict):
+                                options_list.append({
+                                    "option_id": opt.get("option_id"),
+                                    "option_name": opt.get("option_name"),
+                                    "additional_price": float(opt.get("additional_price", 0)),
+                                })
+                            else:
+                                options_list.append({
+                                    "option_id": opt.option_id,
+                                    "option_name": opt.option_name,
+                                    "additional_price": float(opt.additional_price),
+                                })
+
+                    items_list.append({
+                        "product_id": item.get("product_id"),
+                        "product_name": item.get("product_name"),
+                        "quantity": item.get("quantity"),
+                        "unit_price": float(item.get("unit_price", 0)),
+                        "options": options_list,
+                    })
+                else:
+                    items_list.append({
                         "product_id": item.product_id,
                         "product_name": item.product_name,
                         "quantity": item.quantity,
@@ -365,16 +449,50 @@ async def get_order(order_id):
                             {
                                 "option_id": opt.option_id,
                                 "option_name": opt.option_name,
-                                "additional_price": float(opt.additional_price)
-                            } for opt in (item.options or [])
-                        ] if item.options else []
-                    } for item in (order.items or [])
-                ]
+                                "additional_price": float(opt.additional_price),
+                            }
+                            for opt in (item.options or [])
+                        ] if item.options else [],
+                    })
+
+            # Get payment info
+            payment_info = {"payment_method": "Non spécifié", "payment_status": "N/A"}
+            try:
+                db = get_db_service()
+                payment_response = db.supabase.table('payments')\
+                    .select('payment_method, payment_status')\
+                    .eq('order_id', order.order_id)\
+                    .execute()
+                if payment_response.data and len(payment_response.data) > 0:
+                    payment_info = {
+                        "payment_method": payment_response.data[0].get('payment_method', 'Non spécifié'),
+                        "payment_status": payment_response.data[0].get('payment_status', 'N/A')
+                    }
+            except Exception:
+                pass  # payments table might not exist or no payment yet
+
+            return jsonify({
+                "order_id": order.order_id,
+                "user_id": str(order.user_id),
+                "total_amount": float(order.total_amount),
+                "order_status": order.order_status,
+                "created_at": order.created_at.isoformat() if order.created_at else None,
+                "pickup_time": order.pickup_time.isoformat() if order.pickup_time else None,
+                "prep_time_minutes": order.prep_time_minutes,
+                "items": items_list,
+                "payment": payment_info
             })
         else:
             return jsonify({"error": "Order not found"}), 404
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        print(f"Error in get_order: {e}")
+        import traceback
+        traceback.print_exc()
+        error_str = str(e)
+        if '502' in error_str or 'Bad gateway' in error_str or 'bad gateway' in error_str:
+            return jsonify({"error": "Upstream service unavailable"}), 503
+
+        return jsonify({"error": error_str}), 500
 
 
 @api_bp.route('/menu/today')

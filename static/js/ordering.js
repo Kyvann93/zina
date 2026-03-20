@@ -20,6 +20,13 @@ let currentFilter = 'all';
 document.addEventListener('DOMContentLoaded', function() {
     initializeDate();
     updateMealPeriod();
+<<<<<<< Updated upstream
+=======
+    checkSession(); // Check if user is logged in (moved inside DOMContentLoaded)
+    loadLanguagePreference(); // Load language preference
+    loadThemePreference(); // Load theme preference
+    loadFormulaDiscounts();
+>>>>>>> Stashed changes
     loadMenuFromAPI();
 });
 
@@ -373,9 +380,391 @@ function updateMealPeriod() {
     const hour = new Date().getHours();
     let period = 'Déjeuner';
     
+<<<<<<< Updated upstream
     if (hour < 10) period = 'Petit-Déjeuner';
     else if (hour >= 14 && hour < 16) period = 'Collation';
     else if (hour >= 18) period = 'Dîner';
+=======
+    if (panel.classList.contains('active')) {
+        panel.classList.remove('active');
+        burger.innerHTML = '<i class="fas fa-bars"></i>';
+    } else {
+        panel.classList.add('active');
+        burger.innerHTML = '<i class="fas fa-times"></i>';
+    }
+}
+
+function toggleLanguage() {
+    // Get the switch element
+    const langSwitch = document.getElementById('langSwitch');
+
+    // Determine new language based on switch state
+    const newLang = langSwitch.checked ? 'en' : 'fr';
+
+    // Update current language
+    currentLanguage = newLang;
+
+    // Save language preference
+    localStorage.setItem('zina_language', newLang);
+
+    // Update page language
+    document.documentElement.lang = newLang;
+
+    // Update guest user name and department if guest
+    if (currentUser && currentUser.isGuest) {
+        currentUser.name = newLang === 'fr' ? 'Invité' : 'Guest';
+        currentUser.department = newLang === 'fr' ? 'Visiteur' : 'Visitor';
+        localStorage.setItem('zina_user', JSON.stringify(currentUser));
+        // Update displayed user info
+        const userName = document.getElementById('userName');
+        const userDept = document.getElementById('userDept');
+        if (userName) userName.textContent = currentUser.name;
+        if (userDept) userDept.textContent = currentUser.department;
+    }
+
+    // Update all translatable elements
+    updateTranslations();
+
+    // Update date/time based on language
+    initializeDate();
+    updateMealPeriod();
+
+    showToast(newLang === 'fr' ? 'Langue changée en Français' : 'Language changed to English', 'info');
+}
+
+function changeLanguage(lang) {
+    currentLanguage = lang;
+
+    // Save language preference
+    localStorage.setItem('zina_language', lang);
+
+    // Update page language
+    document.documentElement.lang = lang;
+
+    // Update guest user name and department if guest
+    if (currentUser && currentUser.isGuest) {
+        currentUser.name = lang === 'fr' ? 'Invité' : 'Guest';
+        currentUser.department = lang === 'fr' ? 'Visiteur' : 'Visitor';
+        localStorage.setItem('zina_user', JSON.stringify(currentUser));
+        // Update displayed user info
+        const userName = document.getElementById('userName');
+        const userDept = document.getElementById('userDept');
+        if (userName) userName.textContent = currentUser.name;
+        if (userDept) userDept.textContent = currentUser.department;
+    }
+
+    // Update all translatable elements
+    updateTranslations();
+
+    // Update date/time based on language
+    initializeDate();
+    updateMealPeriod();
+
+    showToast(lang === 'fr' ? 'Langue changée en Français' : 'Language changed to English', 'info');
+}
+
+function updateTranslations() {
+    const translations = {
+        fr: {
+            // Header & Navigation
+            orderHistory: 'Mes Commandes',
+            Cart: 'Mon Panier',
+            logout: 'Déconnexion',
+            employee: 'Employé',
+            department: 'Département',
+
+            formulas: 'Formules',
+            formulaEP: 'Entrée + Plat',
+            formulaPD: 'Plat + Dessert',
+            formulaEPD: 'Entrée + Plat + Dessert',
+            formulaEPDB: 'Entrée + Plat + Dessert + Boisson',
+
+            // Search & Categories
+            searchPlaceholder: 'Rechercher un plat, un snack...',
+            allCategories: 'Tous',
+            breakfast: 'Petit-Déjeuner',
+            lunch: 'Plats Complets',
+            snacks: 'Snacks',
+            salads: 'Salades',
+            drinks: 'Boissons',
+            desserts: 'Desserts',
+            specials: 'Spécialités',
+            subcategories: 'Sous-catégories',
+
+            // Menu
+            orderTitle: 'Commander',
+            all: 'Tous',
+            popular: 'Populaires',
+            new: 'Nouveautés',
+            loadingMenu: 'Chargement du menu...',
+
+            // Cart
+            cartTitle: 'Mon Panier',
+            cartEmpty: 'Votre panier est vide',
+            cartEmptySub: 'Ajoutez des articles pour commencer',
+            subtotal: 'Sous-total',
+            formulaDiscount: 'Remise formules',
+            total: 'Total',
+            checkout: 'Commander',
+            addToCart: 'Ajouter au panier',
+            addMore: 'Ajouter',
+            quantity: 'Quantité',
+
+            // Meal Selection Modal
+            chooseSiders: 'Choisissez vos accompagnements',
+            siders: 'Accompagnements',
+            verification: 'Vérification',
+            pickup: 'Récupération',
+            fries: 'Frites',
+            alloco: 'Alloco',
+            attieke: 'Attiéké',
+            included: 'Inclus',
+            siderNote: 'Sélectionnez le nombre de portions pour chaque accompagnement',
+            verifyOrder: 'Vérifiez votre commande',
+            choosePickupTime: 'Choisissez l\'heure de récupération',
+            prepTime: 'Temps de préparation estimé',
+            minutes: 'minutes',
+            asap: 'Dès que possible',
+            chooseTime: 'Choisir l\'heure',
+            selectTime: 'Sélectionnez votre heure',
+            pickupTimeLabel: 'Heure de récupération',
+            back: 'Retour',
+            next: 'Suivant',
+            confirmOrder: 'Confirmer la Commande',
+
+            // Order Modal
+            orderConfirmation: 'Confirmation de Commande',
+            orderSummary: 'Résumé de la commande',
+            pickupTime: 'Heure de Récupération',
+            immediately: 'Immédiatement',
+            in15min: 'Dans 15 minutes',
+            in30min: 'Dans 30 minutes',
+            in45min: 'Dans 45 minutes',
+            in60min: 'Dans 1 heure',
+            cancel: 'Annuler',
+
+            // Order History
+            orderHistoryTitle: 'Mes Commandes',
+            loadingOrders: 'Chargement de vos commandes...',
+            noOrders: 'Aucune commande trouvée',
+            noOrdersSub: 'Vous n\'avez pas encore passé de commande',
+            orderNumber: 'Commande',
+            status: 'Statut',
+            amount: 'Montant',
+            prepTimeLabel: 'Préparation',
+            pickupTimeLabel: 'Récupération',
+            orderedItems: 'Articles commandés',
+            retry: 'Réessayer',
+
+            // Success Modal
+            orderConfirmed: 'Commande Confirmée !',
+            orderSaved: 'Votre commande #',
+            estimatedWait: 'Temps d\'attente estimé',
+            pickupLocation: 'Lieu de récupération',
+            pickupLocationValue: 'Cantine BAD - Comptoir 1',
+            close: 'Fermer',
+
+            // Login
+            loginTitle: 'ZINA Cantine BAD',
+            loginSubtitle: 'Accès Employés - Banque Africaine de Développement',
+            loginRequired: 'Veuillez vous connecter pour accéder au service',
+            loginSecure: 'Utilisez notre page de connexion sécurisée',
+            signIn: 'Se Connecter',
+            signUp: 'S\'inscrire',
+            guestAccess: 'Continuer en tant qu\'Invité',
+
+            // Profile
+            userProfile: 'Mon Profil',
+            profile: 'Profil',
+            orders: 'Commandes',
+            cart: 'Panier',
+            fullName: 'Nom Complet',
+            email: 'Email',
+            phone: 'Téléphone',
+            edit: 'Modifier',
+            save: 'Enregistrer',
+
+            // Toast messages
+            error: 'Erreur',
+            success: 'Succès',
+            warning: 'Attention',
+            info: 'Information'
+        },
+        en: {
+            // Header & Navigation
+            orderHistory: 'My Orders',
+            Cart: 'Cart',
+            logout: 'Logout',
+            employee: 'Employee',
+            department: 'Department',
+
+            formulas: 'Formulas',
+            formulaEP: 'Starter + Main',
+            formulaPD: 'Main + Dessert',
+            formulaEPD: 'Starter + Main + Dessert',
+            formulaEPDB: 'Starter + Main + Dessert + Drink',
+
+            // Search & Categories
+            searchPlaceholder: 'Search for a dish, snack...',
+            allCategories: 'All',
+            breakfast: 'Breakfast',
+            lunch: 'Full Meals',
+            snacks: 'Snacks',
+            salads: 'Salads',
+            drinks: 'Drinks',
+            desserts: 'Desserts',
+            specials: 'Specialties',
+            subcategories: 'Subcategories',
+
+            // Menu
+            orderTitle: 'Order',
+            all: 'All',
+            popular: 'Popular',
+            new: 'New',
+            loadingMenu: 'Loading menu...',
+
+            // Cart
+            cartTitle: 'My Cart',
+            cartEmpty: 'Your cart is empty',
+            cartEmptySub: 'Add items to get started',
+            subtotal: 'Subtotal',
+            formulaDiscount: 'Formula discount',
+            total: 'Total',
+            checkout: 'Checkout',
+            addToCart: 'Add to Cart',
+            addMore: 'Add',
+            quantity: 'Quantity',
+
+            // Meal Selection Modal
+            chooseSiders: 'Choose your sides',
+            siders: 'Sides',
+            verification: 'Verification',
+            pickup: 'Pickup',
+            fries: 'Fries',
+            alloco: 'Alloco',
+            attieke: 'Attiéké',
+            included: 'Included',
+            siderNote: 'Select the number of portions for each side',
+            verifyOrder: 'Verify your order',
+            choosePickupTime: 'Choose pickup time',
+            prepTime: 'Estimated prep time',
+            minutes: 'minutes',
+            asap: 'As soon as possible',
+            chooseTime: 'Choose time',
+            selectTime: 'Select your time',
+            pickupTimeLabel: 'Pickup time',
+            back: 'Back',
+            next: 'Next',
+            confirmOrder: 'Confirm Order',
+
+            // Order Modal
+            orderConfirmation: 'Order Confirmation',
+            orderSummary: 'Order Summary',
+            pickupTime: 'Pickup Time',
+            immediately: 'Immediately',
+            in15min: 'In 15 minutes',
+            in30min: 'In 30 minutes',
+            in45min: 'In 45 minutes',
+            in60min: 'In 1 hour',
+            cancel: 'Cancel',
+
+            // Order History
+            orderHistoryTitle: 'My Orders',
+            loadingOrders: 'Loading your orders...',
+            noOrders: 'No orders found',
+            noOrdersSub: 'You haven\'t placed any orders yet',
+            orderNumber: 'Order',
+            status: 'Status',
+            amount: 'Amount',
+            prepTimeLabel: 'Prep Time',
+            pickupTimeLabel: 'Pickup Time',
+            orderedItems: 'Ordered Items',
+            retry: 'Retry',
+
+            // Success Modal
+            orderConfirmed: 'Order Confirmed!',
+            orderSaved: 'Your order #',
+            estimatedWait: 'Estimated wait time',
+            pickupLocation: 'Pickup Location',
+            pickupLocationValue: 'BAD Canteen - Counter 1',
+            close: 'Close',
+
+            // Login
+            loginTitle: 'ZINA BAD Canteen',
+            loginSubtitle: 'Employee Access - African Development Bank',
+            loginRequired: 'Please log in to access the service',
+            loginSecure: 'Use our secure login page',
+            signIn: 'Sign In',
+            signUp: 'Sign Up',
+            guestAccess: 'Continue as Guest',
+
+            // Profile
+            userProfile: 'My Profile',
+            profile: 'Profile',
+            orders: 'Orders',
+            cart: 'Cart',
+            fullName: 'Full Name',
+            email: 'Email',
+            phone: 'Phone',
+            edit: 'Edit',
+            save: 'Save',
+
+            // Toast messages
+            error: 'Error',
+            success: 'Success',
+            warning: 'Warning',
+            info: 'Information'
+        }
+    };
+
+    const currentTranslations = translations[currentLanguage];
+
+    // Update elements with data-translate attribute
+    document.querySelectorAll('[data-translate]').forEach(element => {
+        const key = element.getAttribute('data-translate');
+        if (currentTranslations[key]) {
+            element.textContent = currentTranslations[key];
+        }
+    });
+
+    // Update search placeholder
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput && currentTranslations.searchPlaceholder) {
+        searchInput.placeholder = currentTranslations.searchPlaceholder;
+    }
+
+    // Update filter buttons
+    document.querySelectorAll('.filter-chip').forEach(chip => {
+        const filter = chip.getAttribute('data-filter');
+        if (currentTranslations[filter]) {
+            // Preserve icons in filter chips
+            const icon = chip.querySelector('i');
+            if (icon) {
+                chip.innerHTML = `${icon.outerHTML} ${currentTranslations[filter]}`;
+            } else {
+                chip.textContent = currentTranslations[filter];
+            }
+        }
+    });
+
+    // Update category buttons
+    document.querySelectorAll('.cat-btn').forEach(btn => {
+        const category = btn.getAttribute('data-category');
+        const catNameEl = btn.querySelector('.cat-name');
+        if (catNameEl && currentTranslations[category]) {
+            catNameEl.textContent = currentTranslations[category];
+        }
+    });
+
+    // Update meal period dynamically
+    updateMealPeriod();
+}
+
+// Load saved language preference
+function loadLanguagePreference() {
+    const savedLang = localStorage.getItem('zina_language') || 'fr';
+    currentLanguage = savedLang;
+>>>>>>> Stashed changes
     
     document.getElementById('mealPeriod').textContent = period;
 }
@@ -384,6 +773,214 @@ function updateMealPeriod() {
 // Menu System - Load from Backend
 // ========================================
 let menuItems = []; // Store all menu items from backend
+
+let currentFormula = null;
+let formulaStepIndex = 0;
+let formulaSelections = {};
+
+let formulaDiscounts = { EP: 0, PD: 0, EPD: 0, EPDB: 0 };
+
+function loadFormulaDiscounts() {
+    fetch('/api/formulas')
+        .then(r => r.json())
+        .then(data => {
+            if (data && data.discounts) {
+                formulaDiscounts = {
+                    EP: parseInt(data.discounts.EP || 0),
+                    PD: parseInt(data.discounts.PD || 0),
+                    EPD: parseInt(data.discounts.EPD || 0),
+                    EPDB: parseInt(data.discounts.EPDB || 0)
+                };
+            }
+            updateCartTotals();
+        })
+        .catch(() => {
+            updateCartTotals();
+        });
+}
+
+const COURSE_CATEGORY_MAPPING = {
+    entree: ['snacks', 'salads', 'salades', 'salade', 'entrées', 'entrees', 'appetizers'],
+    plat: ['lunch', 'specials', 'déjeuner', 'dejeuner', 'plats complets', 'plats_complets', 'spécialités', 'specialites', 'specials'],
+    dessert: ['desserts', 'dessert'],
+    boisson: ['drinks', 'boissons']
+};
+
+const FORMULAS = {
+    EP: { key: 'EP', steps: ['entree', 'plat'] },
+    PD: { key: 'PD', steps: ['plat', 'dessert'] },
+    EPD: { key: 'EPD', steps: ['entree', 'plat', 'dessert'] },
+    EPDB: { key: 'EPDB', steps: ['entree', 'plat', 'dessert', 'boisson'] }
+};
+
+function normalizeCategoryForFormula(cat) {
+    if (!cat) return '';
+    return cat
+        .toString()
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, ' ')
+        .replace(/_/g, ' ');
+}
+
+function openFormulaModal() {
+    const modal = document.getElementById('formulaModal');
+    const selectScreen = document.getElementById('formulaSelectScreen');
+    const wizardScreen = document.getElementById('formulaWizardScreen');
+    if (!modal || !selectScreen || !wizardScreen) return;
+
+    modal.style.display = 'flex';
+    modal.classList.add('active');
+    selectScreen.style.display = 'flex';
+    wizardScreen.style.display = 'none';
+}
+
+function closeFormulaModal() {
+    const modal = document.getElementById('formulaModal');
+    if (modal) {
+        modal.classList.remove('active');
+        modal.style.display = 'none';
+    }
+    formulaCancel();
+}
+
+function startFormula(formulaKey) {
+    const formula = FORMULAS[formulaKey];
+    const selectScreen = document.getElementById('formulaSelectScreen');
+    const wizardScreen = document.getElementById('formulaWizardScreen');
+    if (!formula || !selectScreen || !wizardScreen) return;
+
+    currentFormula = formula;
+    formulaStepIndex = 0;
+    formulaSelections = {};
+
+    selectScreen.style.display = 'none';
+    wizardScreen.style.display = 'block';
+    renderFormulaStep();
+}
+
+function formulaCancel() {
+    currentFormula = null;
+    formulaStepIndex = 0;
+    formulaSelections = {};
+
+    const selectScreen = document.getElementById('formulaSelectScreen');
+    const wizardScreen = document.getElementById('formulaWizardScreen');
+    if (selectScreen && wizardScreen) {
+        selectScreen.style.display = 'block';
+        wizardScreen.style.display = 'none';
+    }
+}
+
+function formulaPrevStep() {
+    if (!currentFormula) {
+        formulaCancel();
+        return;
+    }
+
+    if (formulaStepIndex <= 0) {
+        formulaCancel();
+        return;
+    }
+
+    formulaStepIndex -= 1;
+    renderFormulaStep();
+}
+
+function renderFormulaStep() {
+    if (!currentFormula) return;
+
+    const stepKey = currentFormula.steps[formulaStepIndex];
+    const titleEl = document.getElementById('formulaStepTitle');
+    const gridEl = document.getElementById('formulaItemsGrid');
+    if (!titleEl || !gridEl) return;
+
+    const labelsFr = {
+        entree: 'Choisissez une entrée',
+        plat: 'Choisissez un plat',
+        dessert: 'Choisissez un dessert',
+        boisson: 'Choisissez une boisson'
+    };
+    const labelsEn = {
+        entree: 'Choose a starter',
+        plat: 'Choose a main dish',
+        dessert: 'Choose a dessert',
+        boisson: 'Choose a drink'
+    };
+    const labels = currentLanguage === 'fr' ? labelsFr : labelsEn;
+    titleEl.textContent = labels[stepKey] || stepKey;
+
+    const allowed = (COURSE_CATEGORY_MAPPING[stepKey] || []).map(normalizeCategoryForFormula);
+    const candidates = menuItems.filter(it => {
+        const cat = normalizeCategoryForFormula(it.category);
+        return allowed.includes(cat);
+    });
+
+    if (candidates.length === 0) {
+        gridEl.innerHTML = `
+            <div class="formula-empty">
+                ${currentLanguage === 'fr' ? 'Aucun article disponible pour cette étape.' : 'No items available for this step.'}
+            </div>
+        `;
+        return;
+    }
+
+    gridEl.innerHTML = candidates.map(it => `
+        <button class="formula-item" type="button" onclick="selectFormulaItem('${stepKey}', ${it.id})">
+            <div class="formula-item-name">${it.name}</div>
+            <div class="formula-item-price">${formatPrice(it.price)}</div>
+        </button>
+    `).join('');
+}
+
+function addToCartDirectlyWithMeta(item, quantity, meta) {
+    const existingItem = cart.find(i => i.id === item.id && i.comboId === meta.comboId);
+    if (existingItem) {
+        existingItem.quantity += quantity;
+    } else {
+        cart.push({
+            id: item.id,
+            name: item.name,
+            price: item.price,
+            quantity: quantity,
+            image: item.image,
+            category: item.category,
+            prepTime: item.prepTime,
+            optionIds: [],
+            siders: {},
+            comboId: meta.comboId,
+            course: meta.course,
+            formulaKey: meta.formulaKey
+        });
+    }
+
+    updateCartUI();
+    saveCart();
+}
+
+function selectFormulaItem(stepKey, itemId) {
+    if (!currentFormula) return;
+    const item = menuItems.find(i => i.id === itemId);
+    if (!item || !item.available) return;
+
+    formulaSelections[stepKey] = item;
+
+    if (formulaStepIndex < currentFormula.steps.length - 1) {
+        formulaStepIndex += 1;
+        renderFormulaStep();
+        return;
+    }
+
+    const comboId = `combo_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+    currentFormula.steps.forEach(k => {
+        const selected = formulaSelections[k];
+        if (!selected) return;
+        addToCartDirectlyWithMeta(selected, 1, { comboId, course: k, formulaKey: currentFormula.key });
+    });
+
+    closeFormulaModal();
+    showToast(currentLanguage === 'fr' ? 'Formule ajoutée au panier' : 'Formula added to cart', 'success');
+}
 
 function loadMenuFromAPI() {
     const menuGrid = document.getElementById('menuGrid');
@@ -431,7 +1028,7 @@ function convertAPIMenu(apiData) {
     for (const [category, items] of Object.entries(apiData)) {
         items.forEach(item => {
             converted.push({
-                id: id++,
+                id: (item.id !== undefined && item.id !== null) ? item.id : id++,
                 name: item.name,
                 description: item.description || '',
                 price: item.price,
@@ -700,9 +1297,31 @@ function removeFromCart(itemId) {
 }
 
 function updateCartTotals() {
-    const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const discount = computeFormulaDiscountForCart();
+    const total = Math.max(0, subtotal - discount);
 
-    document.getElementById('cartTotal').textContent = formatPrice(total);
+    const subtotalEl = document.getElementById('cartSubtotal');
+    if (subtotalEl) subtotalEl.textContent = formatPrice(subtotal);
+
+    const discountEl = document.getElementById('cartFormulaDiscount');
+    if (discountEl) discountEl.textContent = formatPrice(discount);
+
+    const totalEl = document.getElementById('cartTotal');
+    if (totalEl) totalEl.textContent = formatPrice(total);
+}
+
+function computeFormulaDiscountForCart() {
+    const comboMap = {};
+    cart.forEach(item => {
+        if (!item.comboId || !item.formulaKey) return;
+        comboMap[item.comboId] = item.formulaKey;
+    });
+
+    return Object.values(comboMap).reduce((sum, fk) => {
+        const v = formulaDiscounts && Object.prototype.hasOwnProperty.call(formulaDiscounts, fk) ? formulaDiscounts[fk] : 0;
+        return sum + (parseInt(v || 0) || 0);
+    }, 0);
 }
 
 function toggleCart() {
@@ -813,6 +1432,7 @@ function confirmOrder() {
         prep_time_minutes: totalPrepTime
     };
 
+<<<<<<< Updated upstream
     // Send to API
     fetch('/api/order', {
         method: 'POST',
@@ -841,6 +1461,72 @@ function confirmOrder() {
             updateCartUI();
         } else {
             showToast('Erreur: ' + (data.error || 'Échec de la commande'), 'error');
+=======
+    console.log('Modal and loader shown');
+
+    // Use setTimeout to ensure UI updates before fetch (guarantees loader is painted)
+    setTimeout(() => {
+        const pickupMinutes = parseInt(document.getElementById('pickupTime').value);
+
+        // Calculate pickup time
+        const pickupTime = new Date();
+        pickupTime.setMinutes(pickupTime.getMinutes() + pickupMinutes);
+
+        // Calculate total prep time
+        const totalPrepTime = Math.max(...cart.map(item => item.prepTime || 15));
+
+        // Format items for backend API
+        const orderItems = cart.map(item => ({
+            product_id: item.id,
+            quantity: item.quantity,
+            option_ids: item.optionIds || []
+        }));
+
+        const orderData = {
+            // Only include user_id if it exists (guest users have null ID)
+            ...(currentUser.id && { user_id: currentUser.id }),
+            items: orderItems,
+            payment_method: null,  // Handled at counter
+            pickup_time: pickupTime.toISOString(),
+            prep_time_minutes: totalPrepTime,
+            discount_amount: computeFormulaDiscountForCart()
+        };
+
+        // Send to API
+        fetch('/api/order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(orderData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success' || data.order_id) {
+                const formulaDiscount = computeFormulaDiscountForCart();
+                const subtotal = data.items ? data.items.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0) : 0;
+                const totalAmount = Math.max(0, subtotal - formulaDiscount);
+
+                // Update guest user with the assigned user_id from backend
+                if (currentUser && currentUser.isGuest && data.user_id) {
+                    currentUser.id = data.user_id;
+                    // Save updated user info to localStorage
+                    localStorage.setItem('zina_user', JSON.stringify(currentUser));
+                    sessionStorage.setItem('zina_user', JSON.stringify(currentUser));
+                    console.log('Guest user updated with ID:', data.user_id);
+
+                    // Show additional success message for guest users
+                    setTimeout(() => {
+                        showToast(currentLanguage === 'fr' ? 'Commande confirmée !' : 'Order confirmed!', 'success');
+                    }, 2000);
+                }
+
+                closeOrderModal();
+                showSuccess(data.order_id || Math.floor(Math.random() * 10000), pickupTime, totalPrepTime, data.items || [], totalAmount, formulaDiscount);
+                cart = [];
+                saveCart();  // Clear cart from localStorage
+                updateCartUI();
+            } else {
+            showToast(currentLanguage === 'fr' ? 'Erreur: ' + (data.error || '��chec de la commande') : 'Error: ' + (data.error || 'Order failed'), 'error');
+>>>>>>> Stashed changes
         }
     })
     .catch(error => {
@@ -849,13 +1535,41 @@ function confirmOrder() {
     });
 }
 
+<<<<<<< Updated upstream
 function showSuccess(orderId, pickupTime, prepTimeMinutes, orderItems, totalAmount) {
     document.getElementById('orderNumber').textContent = orderId;
+=======
+function showSuccess(orderId, pickupTime, prepTimeMinutes, orderItems, totalAmount, formulaDiscount = 0) {
+    console.log('showSuccess called with orderId:', orderId);
+
+    // Hide loading, show receipt
+    const orderLoading = document.getElementById('orderLoading');
+    const orderReceipt = document.getElementById('orderReceipt');
+
+    if (orderLoading) {
+        orderLoading.style.display = 'none';
+    }
+    if (orderReceipt) {
+        orderReceipt.style.display = 'block';
+    }
+
+    // Set order number
+    const orderNumberEl = document.getElementById('orderNumber');
+    console.log('orderNumberEl:', orderNumberEl);
+
+    if (orderNumberEl) {
+        orderNumberEl.textContent = orderId;
+        console.log('Order number set to:', orderId);
+    } else {
+        console.error('orderNumber element not found!');
+    }
+>>>>>>> Stashed changes
 
     // Format pickup time
     const pickupTimeStr = pickupTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
     const pickupDateStr = pickupTime.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
 
+<<<<<<< Updated upstream
     document.getElementById('successModal').querySelector('.order-details').innerHTML = `
         <div class="detail-row">
             <span>Heure de récupération:</span>
@@ -884,6 +1598,48 @@ function showSuccess(orderId, pickupTime, prepTimeMinutes, orderItems, totalAmou
                 <div style="display: flex; justify-content: space-between; padding: 0.25rem 0; font-size: 0.9rem;">
                     <span>${item.quantity}x ${item.product_name}</span>
                     <span>${formatPrice(item.unit_price * item.quantity)}</span>
+=======
+    // Update receipt fields
+    const receiptPickupTime = document.getElementById('receiptPickupTime');
+    if (receiptPickupTime) {
+        receiptPickupTime.textContent = pickupTimeStr;
+    }
+
+    const receiptPrepTime = document.getElementById('receiptPrepTime');
+    if (receiptPrepTime) {
+        receiptPrepTime.textContent = prepTimeMinutes + ' ' + (currentLanguage === 'fr' ? 'min' : 'min');
+    }
+
+    // Calculate subtotal
+    const subtotal = orderItems.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0);
+
+    // Update totals
+    const receiptSubtotal = document.getElementById('receiptSubtotal');
+    if (receiptSubtotal) {
+        receiptSubtotal.textContent = formatPrice(subtotal);
+    }
+
+    const receiptFormulaDiscount = document.getElementById('receiptFormulaDiscount');
+    if (receiptFormulaDiscount) {
+        receiptFormulaDiscount.textContent = formatPrice(formulaDiscount || 0);
+    }
+
+    const receiptTotal = document.getElementById('receiptTotal');
+    if (receiptTotal) {
+        receiptTotal.textContent = formatPrice(totalAmount);
+    }
+
+    // Render items list
+    const receiptItemsList = document.getElementById('receiptItemsList');
+    if (receiptItemsList && orderItems.length > 0) {
+        receiptItemsList.innerHTML = orderItems.map(item => `
+            <div class="receipt-item">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <span class="receipt-item-qty">${item.quantity}</span>
+                    <div class="receipt-item-details">
+                        <div class="receipt-item-name">${item.product_name}</div>
+                    </div>
+>>>>>>> Stashed changes
                 </div>
             `).join('')}
         </div>
@@ -960,3 +1716,29 @@ window.fetchUserOrders = fetchUserOrders;
 window.startScanner = function() {
     showToast('Fonctionnalité de scan QR à implémenter', 'info');
 };
+<<<<<<< Updated upstream
+=======
+
+// Meal Selection Modal functions
+window.openMealSelectionModal = openMealSelectionModal;
+window.closeMealSelectionModal = closeMealSelectionModal;
+window.updateSiderQuantity = updateSiderQuantity;
+window.nextStep = nextStep;
+window.previousStep = previousStep;
+window.confirmMealOrder = confirmMealOrder;
+window.updateCustomTime = updateCustomTime;
+window.enableCustomTime = enableCustomTime;
+window.updatePickupTime = updatePickupTime;
+window.showProfileModal = showProfileModal;
+window.closeProfileModal = closeProfileModal;
+window.editProfile = editProfile;
+window.cancelEdit = cancelEdit;
+window.saveProfile = saveProfile;
+
+window.openFormulaModal = openFormulaModal;
+window.closeFormulaModal = closeFormulaModal;
+window.startFormula = startFormula;
+window.formulaPrevStep = formulaPrevStep;
+window.formulaCancel = formulaCancel;
+window.selectFormulaItem = selectFormulaItem;
+>>>>>>> Stashed changes

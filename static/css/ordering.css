@@ -235,6 +235,12 @@
     z-index: 1000;
     justify-content: center;
     align-items: center;
+<<<<<<< Updated upstream
+=======
+    padding: 1rem;
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+>>>>>>> Stashed changes
 }
 
 .order-history-modal.active {
@@ -1023,6 +1029,139 @@ body {
 
 .menu-header {
     margin-bottom: 2rem;
+}
+
+.formula-bar {
+    margin-top: 0.75rem;
+}
+
+.formula-btn {
+    background: var(--primary-gradient);
+    color: var(--white);
+    border: none;
+    border-radius: 10px;
+    padding: 0.6rem 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+}
+
+.formula-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.formula-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+}
+
+.formula-modal.active {
+    display: flex;
+}
+
+.formula-content {
+    width: 100%;
+    max-width: 720px;
+    max-height: 85vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.formula-screen {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.formula-option {
+    width: 100%;
+    text-align: left;
+    border: 1px solid var(--light-gray);
+    background: var(--white);
+    border-radius: 12px;
+    padding: 0.9rem 1rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.formula-option:hover {
+    border-color: var(--primary);
+}
+
+.formula-step-title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--dark-gray);
+}
+
+.formula-items-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+    overflow: auto;
+    max-height: 55vh;
+    padding-right: 0.25rem;
+}
+
+.formula-item {
+    border: 1px solid var(--light-gray);
+    background: var(--white);
+    border-radius: 12px;
+    padding: 0.85rem;
+    cursor: pointer;
+    text-align: left;
+}
+
+.formula-item:hover {
+    border-color: var(--primary);
+}
+
+.formula-item-name {
+    font-weight: 700;
+    color: var(--dark-gray);
+    margin-bottom: 0.25rem;
+}
+
+.formula-item-price {
+    font-weight: 600;
+    color: var(--primary);
+}
+
+.formula-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+    margin-top: 0.5rem;
+}
+
+.formula-action {
+    border: 1px solid var(--light-gray);
+    background: var(--white);
+    border-radius: 10px;
+    padding: 0.6rem 0.9rem;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.formula-action:hover {
+    border-color: var(--primary);
+}
+
+@media (max-width: 480px) {
+    .formula-items-grid {
+        grid-template-columns: 1fr;
+        max-height: 60vh;
+    }
 }
 
 .menu-header h2 {
@@ -1861,6 +2000,291 @@ body {
     color: var(--dark-gray);
 }
 
+<<<<<<< Updated upstream
+=======
+/* Dark mode toast styling */
+[data-theme="dark"] .toast {
+    background: rgba(255, 255, 255, 0.15);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    color: var(--white);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+[data-theme="dark"] .toast.success {
+    background: rgba(0, 184, 148, 0.3);
+    border-color: var(--success);
+}
+
+[data-theme="dark"] .toast.error {
+    background: rgba(214, 48, 49, 0.3);
+    border-color: var(--danger);
+}
+
+[data-theme="dark"] .toast.warning {
+    background: rgba(253, 203, 110, 0.3);
+    border-color: var(--warning);
+    color: var(--white);
+}
+
+[data-theme="dark"] .toast.info {
+    background: rgba(9, 132, 227, 0.3);
+    border-color: var(--info);
+}
+
+/* ========================================
+   User Profile Modal - Mobile Optimized
+   ======================================== */
+.profile-modal {
+    display: none !important;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+    padding: 1rem;
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+}
+
+.profile-modal.active {
+    display: flex !important;
+}
+
+.profile-content {
+    max-width: 500px;
+    width: 100%;
+    border-radius: 20px;
+    max-height: 90vh;
+    overflow: hidden;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    display: flex;
+    flex-direction: column;
+}
+
+.profile-content .modal-header {
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    color: var(--white);
+    padding: 1.5rem;
+    border-radius: 20px 20px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.profile-content .modal-header h2 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.profile-content .modal-header i {
+    color: var(--black);
+    font-size: 1.25rem;
+}
+
+.profile-content .btn-close {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: var(--white);
+    font-size: 1.25rem;
+    cursor: pointer;
+    padding: 0.75rem;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+}
+
+.profile-content .btn-close:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.05);
+}
+
+.profile-content .modal-body {
+    padding: 1.5rem;
+    max-height: calc(90vh - 80px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.profile-info-item {
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--light-gray);
+    transition: all 0.3s ease;
+}
+
+.profile-info-item:hover {
+    background: var(--off-white);
+    margin: 0 -0.5rem;
+    padding: 1rem 0.5rem;
+    border-radius: 8px;
+}
+
+.profile-info-item:last-child {
+    border-bottom: none;
+}
+
+.profile-info-item label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--medium-gray);
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.profile-info-item p {
+    font-size: 1rem;
+    margin: 0;
+    font-weight: 500;
+    word-break: break-word;
+}
+
+.profile-actions {
+    padding: 0.2rem 0;
+    text-align: center;
+}
+
+.btn-edit {
+    background: var(--primary-gradient);
+    color: var(--white);
+    border: none;
+    border-radius: 0.5rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    padding:10px;
+}
+
+.btn-edit:hover {
+    background: var(--primary-dark);
+    box-shadow: 0 4px 12px rgba(26, 188, 156, 0.3);
+    transform: translateY(-2px);
+}
+
+.btn-edit:active {
+    transform: translateY(0);
+}
+
+.profile-edit {
+    padding: 1.5rem 0;
+}
+
+.profile-edit .form-group {
+    margin-bottom: 1.5rem;
+}
+
+.profile-edit .form-group label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+}
+
+.profile-edit .form-group input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 0.5rem;
+    font-size: 0.95rem;
+    background: var(--white);
+    color: var(--text-primary);
+    transition: all 0.3s ease;
+}
+
+.profile-edit .form-group input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(26, 188, 156, 0.1);
+}
+
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+.form-actions button {
+    flex: 1;
+    padding: 0.75rem;
+    border: none;
+    border-radius: 0.5rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.form-actions .btn-cancel {
+    background: rgba(0, 0, 0, 0.1);
+    color: var(--text-primary);
+}
+
+.form-actions .btn-cancel:hover {
+    background: rgba(0, 0, 0, 0.15);
+}
+
+.form-actions .btn-confirm {
+    background: var(--primary);
+    color: var(--white);
+}
+
+.form-actions .btn-confirm:hover {
+    background: var(--primary-dark);
+    box-shadow: 0 4px 12px rgba(26, 188, 156, 0.3);
+}
+
+/* Dark Mode */
+[data-theme="dark"] .profile-info-item {
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .profile-info-item label {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+[data-theme="dark"] .profile-info-item p {
+    color: var(--black);
+}
+
+[data-theme="dark"] .profile-edit .form-group input {
+    background: var(--dark-input);
+    color: var(--white);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .profile-edit .form-group input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(26, 188, 156, 0.2);
+}
+
+[data-theme="dark"] .form-actions .btn-cancel {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--white);
+}
+
+[data-theme="dark"] .form-actions .btn-cancel:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+>>>>>>> Stashed changes
 /* ========================================
    Animations
    ======================================== */

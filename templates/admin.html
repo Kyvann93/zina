@@ -558,6 +558,32 @@
                             </label>
                         </div>
                     </div>
+
+                    <div class="settings-card">
+                        <h3>Formules (Remises)</h3>
+                        <form id="formulasSettings" onsubmit="saveFormulasSettings(event)">
+                            <div class="form-group">
+                                <label>Entrée + Plat (EP) - Remise (FCFA)</label>
+                                <input type="number" id="discountEP" value="0" min="0" step="50">
+                            </div>
+                            <div class="form-group">
+                                <label>Plat + Dessert (PD) - Remise (FCFA)</label>
+                                <input type="number" id="discountPD" value="0" min="0" step="50">
+                            </div>
+                            <div class="form-group">
+                                <label>Entrée + Plat + Dessert (EPD) - Remise (FCFA)</label>
+                                <input type="number" id="discountEPD" value="0" min="0" step="50">
+                            </div>
+                            <div class="form-group">
+                                <label>Entrée + Plat + Dessert + Boisson (EPDB) - Remise (FCFA)</label>
+                                <input type="number" id="discountEPDB" value="0" min="0" step="50">
+                            </div>
+                            <button type="submit" class="btn-primary">
+                                <i class="fas fa-save"></i>
+                                <span>Enregistrer</span>
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </section>
         </main>

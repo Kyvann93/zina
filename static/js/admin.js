@@ -16,16 +16,78 @@ let currentSection = 'dashboard';
 // Page Loader
 // ========================================
 let loadProgress = 0;
+let progressInterval;
+
+let adminOrdersInFlight = null;
+let adminOrdersCache = null;
+let adminOrdersCacheAt = 0;
+let adminOrdersCooldownUntil = 0;
+
+async function fetchAdminOrders({ force = false } = {}) {
+    const now = Date.now();
+    if (!force && adminOrdersCache && (now - adminOrdersCacheAt) < 10000) {
+        return adminOrdersCache;
+    }
+
+    if (!force && now < adminOrdersCooldownUntil) {
+        throw new Error('Orders fetch temporarily suspended');
+    }
+
+    if (!force && adminOrdersInFlight) {
+        return adminOrdersInFlight;
+    }
+
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        adminOrdersCooldownUntil = now + 15000;
+        throw new Error('Offline');
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+    adminOrdersInFlight = fetch('/api/admin/orders', { signal: controller.signal })
+        .then(async (response) => {
+            const data = await response.json().catch(() => null);
+            if (!response.ok) {
+                const msg = data && data.error ? data.error : `Erreur HTTP ${response.status}`;
+                throw new Error(msg);
+            }
+            if (!Array.isArray(data)) {
+                const msg = data && data.error ? data.error : 'Réponse invalide du serveur';
+                throw new Error(msg);
+            }
+            adminOrdersCache = data;
+            adminOrdersCacheAt = Date.now();
+            return data;
+        })
+        .catch((err) => {
+            adminOrdersCooldownUntil = Date.now() + 15000;
+            throw err;
+        })
+        .finally(() => {
+            clearTimeout(timeoutId);
+            adminOrdersInFlight = null;
+        });
+
+    return adminOrdersInFlight;
+}
+
 let loaderFill = null;
 let loaderProgress = null;
 let pageLoader = null;
-let progressInterval = null;
 
 function initLoader() {
     loaderFill = document.getElementById('loaderFill');
     loaderProgress = document.getElementById('loaderProgress');
     pageLoader = document.getElementById('pageLoader');
 }
+
+window.addEventListener('online', () => {
+    if (typeof currentSection !== 'undefined' && currentSection === 'orders') {
+        showSectionDataLoader('orders');
+        loadOrders();
+    }
+});
 
 function startLoader() {
     initLoader();
@@ -160,6 +222,8 @@ window.addEventListener('load', function() {
             }
             document.getElementById('adminWrapper').style.display = 'flex';
             loadDashboardData();
+            const section = getSectionFromHash() || localStorage.getItem('adminCurrentSection') || 'menu';
+            showSection(section);
         } else {
             // Show login overlay
             const loginOverlay = document.getElementById('loginOverlay');
@@ -174,22 +238,32 @@ window.addEventListener('load', function() {
 // ========================================
 // Initialize Dashboard
 // ========================================
+function getSectionFromHash() {
+    const hash = (window.location.hash || '').replace('#', '').trim();
+    const allowed = new Set(['menu', 'categories', 'orders', 'users', 'settings']);
+    return allowed.has(hash) ? hash : null;
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     startLoader();
+
+    // React to hash navigation (e.g. /admin#orders)
+    window.addEventListener('hashchange', () => {
+        const section = getSectionFromHash();
+        if (section) {
+            showSection(section);
+        }
+    });
     
-    // Restore last section from localStorage
+    // Prefer URL hash over localStorage
+    const hashSection = getSectionFromHash();
     const savedSection = localStorage.getItem('adminCurrentSection');
-    if (savedSection) {
-        // Small delay to ensure DOM is ready
-        setTimeout(() => {
-            showSection(savedSection);
-        }, 100);
-    } else {
-        // Default to menu section if no saved section
-        setTimeout(() => {
-            showSection('menu');
-        }, 100);
-    }
+    const initialSection = hashSection || savedSection || 'menu';
+
+    // Small delay to ensure DOM is ready
+    setTimeout(() => {
+        showSection(initialSection);
+    }, 100);
 });
 
 // ========================================
@@ -226,6 +300,8 @@ function handleAdminLogin(event) {
             if (loginOverlay) loginOverlay.style.display = 'none';
             if (adminWrapper) adminWrapper.style.display = 'flex';
             loadDashboardData();
+            const section = getSectionFromHash() || localStorage.getItem('adminCurrentSection') || 'menu';
+            showSection(section);
             showToast('Connexion réussie !', 'success');
         }, 300);
     } else {
@@ -299,6 +375,9 @@ function showSection(section) {
                 showSectionDataLoader('users');
                 loadUsers();
                 break;
+            case 'settings':
+                loadFormulasSettings();
+                break;
         }
     }, 100);
 
@@ -340,9 +419,14 @@ function loadDashboardData() {
     // Load categories from API
     loadCategoriesFromBackend();
 
+<<<<<<< Updated upstream
     // Load orders from API (placeholder - implement when orders API is ready)
     fetch('/api/admin/orders')
         .then(response => response.json())
+=======
+    // Load orders from API
+    fetchAdminOrders()
+>>>>>>> Stashed changes
         .then(data => {
             orders = data.length > 0 ? data : [];
         })
@@ -838,68 +922,89 @@ function deleteCategory(id) {
 // ========================================
 // Orders Management
 // ========================================
-function loadOrders() {
+async function loadOrders() {
     const tbody = document.getElementById('ordersTableBody');
     const filter = document.getElementById('ordersFilter').value;
 
-    // Fetch orders from API
-    fetch('/api/admin/orders')
-        .then(response => response.json())
-        .then(apiOrders => {
-            // Convert API orders to our format
-            orders = apiOrders.map(order => ({
-                id: order.order_id,
-                client: order.user_id || 'Client',
-                items: order.items || [],
-                itemsCount: (order.items || []).length,
-                total: order.total_amount,
-                payment: order.payment?.payment_method || 'Non spécifié',
-                status: order.order_status,
-                time: order.created_at ? new Date(order.created_at).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'}) : 'N/A',
-                pickup_time: order.pickup_time,
-                prep_time_minutes: order.prep_time_minutes || 15
-            }));
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-            let filteredOrders = orders;
+    try {
+        const response = await fetch('/api/admin/orders', { signal: controller.signal });
+        const data = await response.json().catch(() => null);
 
-            if (filter !== 'all') {
-                filteredOrders = orders.filter(o => o.status === filter);
-            }
+        if (!response.ok) {
+            const msg = data && data.error ? data.error : `Erreur HTTP ${response.status}`;
+            tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><i class="fas fa-exclamation-triangle"></i><h3>Erreur de chargement</h3><p>${msg}</p></div></td></tr>`;
+            return;
+        }
 
-            if (filteredOrders.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><i class="fas fa-shopping-cart"></i><h3>Aucune commande</h3><p>Aucune commande trouvée</p></div></td></tr>';
-            } else {
-                tbody.innerHTML = filteredOrders.map(order => `
-                    <tr>
-                        <td>#${order.id}</td>
-                        <td>${order.client}</td>
-                        <td>${order.itemsCount} articles</td>
-                        <td><strong>${order.total.toLocaleString('fr-FR')} FCFA</strong></td>
-                        <td>${order.payment}</td>
-                        <td>
-                            <span class="status-badge ${order.status}">
-                                ${order.status === 'completed' ? 'Complété' :
-                                  order.status === 'processing' ? 'En cours' :
-                                  order.status === 'pending' ? 'En attente' : 'Annulé'}
-                            </span>
-                        </td>
-                        <td>${order.time}</td>
-                        <td>
-                            <button class="action-btn edit" onclick="viewOrderDetails(${order.id})">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `).join('');
-            }
+        if (!Array.isArray(data)) {
+            const msg = data && data.error ? data.error : 'Réponse invalide du serveur';
+            tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><i class="fas fa-exclamation-triangle"></i><h3>Erreur de chargement</h3><p>${msg}</p></div></td></tr>`;
+            return;
+        }
 
-            hideSectionDataLoader('orders');
-        })
-        .catch(error => {
+        // Convert API orders to our format
+        orders = data.map(order => ({
+            id: order.order_id,
+            client: order.user_id || 'Client',
+            items: order.items || [],
+            itemsCount: (order.items || []).length,
+            total: Number(order.total_amount || 0),
+            payment: order.payment?.payment_method || 'Non spécifié',
+            status: order.order_status,
+            time: order.created_at ? new Date(order.created_at).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'}) : 'N/A',
+            pickup_time: order.pickup_time,
+            prep_time_minutes: order.prep_time_minutes || 15
+        }));
+
+        let filteredOrders = orders;
+
+        if (filter !== 'all') {
+            filteredOrders = orders.filter(o => o.status === filter);
+        }
+
+        if (filteredOrders.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><i class="fas fa-shopping-cart"></i><h3>Aucune commande</h3><p>Aucune commande trouvée</p></div></td></tr>';
+        } else {
+            tbody.innerHTML = filteredOrders.map(order => `
+                <tr>
+                    <td>#${order.id}</td>
+                    <td>${order.client}</td>
+                    <td>${order.itemsCount} articles</td>
+                    <td><strong>${order.total.toLocaleString('fr-FR')} FCFA</strong></td>
+                    <td>${order.payment}</td>
+                    <td>
+                        <span class="status-badge ${order.status}">
+                            ${order.status === 'completed' ? 'Complété' :
+                              order.status === 'processing' ? 'En cours' :
+                              order.status === 'pending' ? 'En attente' : 'Annulé'}
+                        </span>
+                    </td>
+                    <td>${order.time}</td>
+                    <td>
+                        <button class="action-btn edit" onclick="viewOrderDetails(${order.id})">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+    } catch (error) {
+        const isTimeout = error && error.name === 'AbortError';
+        if (!isTimeout) {
             console.error('Error loading orders:', error);
-            tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><i class="fas fa-exclamation-triangle"></i><h3>Erreur de chargement</h3><p>Impossible de charger les commandes</p></div></td></tr>';
-            hideSectionDataLoader('orders');
-        });
+        }
+
+        const msg = isTimeout
+            ? 'Le chargement des commandes a pris trop de temps. Vérifiez votre connexion ou réessayez.'
+            : 'Impossible de charger les commandes';
+        tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><i class="fas fa-exclamation-triangle"></i><h3>Erreur de chargement</h3><p>${msg}</p></div></td></tr>`;
+    } finally {
+        clearTimeout(timeoutId);
+        hideSectionDataLoader('orders');
+    }
 }
 
 function viewOrderDetails(id) {
@@ -987,6 +1092,8 @@ function viewOrderDetails(id) {
                 </div>
             `;
 
+            // Store order ID in modal for update function
+            document.getElementById('orderDetailsModal').dataset.orderId = order.order_id;
             document.getElementById('orderDetailsModal').classList.add('active');
         })
         .catch(error => {
@@ -1000,9 +1107,33 @@ function closeOrderDetails() {
 }
 
 function updateOrderStatus() {
-    showToast('Statut de la commande mis à jour', 'success');
-    closeOrderDetails();
-    loadOrders();
+    const orderId = document.querySelector('#orderDetailsModal').dataset.orderId;
+    const newStatus = document.getElementById('orderStatusUpdate').value;
+
+    if (!orderId || !newStatus) {
+        showToast('Erreur lors de la mise à jour', 'error');
+        return;
+    }
+
+    fetch(`/api/admin/orders/${orderId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            showToast('Statut de la commande mis à jour', 'success');
+            closeOrderDetails();
+            loadOrders();
+        } else {
+            showToast('Erreur lors de la mise à jour', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error updating order status:', error);
+        showToast('Erreur lors de la mise à jour', 'error');
+    });
 }
 
 // ========================================
@@ -1060,6 +1191,60 @@ function saveFeesSettings(event) {
     showToast('Frais enregistrés', 'success');
 }
 
+function loadFormulasSettings() {
+    fetch('/api/admin/formulas')
+        .then(r => r.json())
+        .then(data => {
+            const discounts = (data && data.discounts) ? data.discounts : {};
+            const ep = document.getElementById('discountEP');
+            const pd = document.getElementById('discountPD');
+            const epd = document.getElementById('discountEPD');
+            const epdb = document.getElementById('discountEPDB');
+            if (ep) ep.value = parseInt(discounts.EP || 0);
+            if (pd) pd.value = parseInt(discounts.PD || 0);
+            if (epd) epd.value = parseInt(discounts.EPD || 0);
+            if (epdb) epdb.value = parseInt(discounts.EPDB || 0);
+        })
+        .catch(() => {
+            // ignore
+        });
+}
+
+function saveFormulasSettings(event) {
+    event.preventDefault();
+
+    const ep = parseInt(document.getElementById('discountEP')?.value || 0);
+    const pd = parseInt(document.getElementById('discountPD')?.value || 0);
+    const epd = parseInt(document.getElementById('discountEPD')?.value || 0);
+    const epdb = parseInt(document.getElementById('discountEPDB')?.value || 0);
+
+    const payload = {
+        discounts: {
+            EP: Math.max(0, ep || 0),
+            PD: Math.max(0, pd || 0),
+            EPD: Math.max(0, epd || 0),
+            EPDB: Math.max(0, epdb || 0)
+        }
+    };
+
+    fetch('/api/admin/formulas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+        .then(r => r.json())
+        .then(data => {
+            if (data && data.status === 'success') {
+                showToast('Remises formules enregistrées', 'success');
+            } else {
+                showToast('Erreur lors de l\'enregistrement', 'error');
+            }
+        })
+        .catch(() => {
+            showToast('Erreur lors de l\'enregistrement', 'error');
+        });
+}
+
 // ========================================
 // Utilities
 // ========================================
@@ -1067,6 +1252,69 @@ function formatPrice(price) {
     return new Intl.NumberFormat('fr-FR').format(price) + ' FCFA';
 }
 
+<<<<<<< Updated upstream
+=======
+function formatDate(dateString) {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('fr-FR', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric'
+    });
+}
+
+function loadUserOrderCounts() {
+    // Fetch all orders and count by user_id
+    fetchAdminOrders()
+        .then(orders => {
+            console.log('Loaded orders:', orders);
+            console.log('Current users:', users);
+            
+            if (orders && orders.length > 0) {
+                // Count orders per user - normalize UUIDs by removing hyphens and converting to lowercase
+                const orderCounts = {};
+                orders.forEach(order => {
+                    const userId = order.user_id;
+                    if (userId) {
+                        // Normalize UUID: remove hyphens, convert to lowercase for consistent comparison
+                        const userIdNormalized = String(userId).replace(/-/g, '').toLowerCase();
+                        orderCounts[userIdNormalized] = (orderCounts[userIdNormalized] || 0) + 1;
+                    }
+                });
+
+                console.log('Order counts by user (normalized):', orderCounts);
+
+                // Update users with order counts
+                users.forEach(user => {
+                    if (user.userId) {
+                        // Normalize UUID for comparison
+                        const userIdNormalized = String(user.userId).replace(/-/g, '').toLowerCase();
+                        const count = orderCounts[userIdNormalized] || 0;
+                        user.orders = count;
+                        console.log(`User ${user.name} (${user.userId} -> ${userIdNormalized}): ${count} orders`);
+                    }
+                });
+
+                console.log('Users after order count update:', users);
+
+                // Hide loader and reload users table with updated order counts
+                hideSectionDataLoader('users');
+                loadUsers();
+            } else {
+                // No orders, hide loader and load users
+                hideSectionDataLoader('users');
+                loadUsers();
+            }
+        })
+        .catch(error => {
+            console.error('Error loading order counts:', error);
+            hideSectionDataLoader('users');
+            loadUsers();
+        });
+}
+
+>>>>>>> Stashed changes
 function showToast(message, type = 'info') {
     const container = document.getElementById('toastContainer');
     const toast = document.createElement('div');
@@ -1149,3 +1397,5 @@ window.viewUser = viewUser;
 window.saveGeneralSettings = saveGeneralSettings;
 window.saveHoursSettings = saveHoursSettings;
 window.saveFeesSettings = saveFeesSettings;
+window.saveFormulasSettings = saveFormulasSettings;
+window.loadFormulasSettings = loadFormulasSettings;

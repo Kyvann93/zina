@@ -86,6 +86,7 @@ class CreateOrderRequest:
     items: List['OrderItemRequest']
     pickup_time: Optional[datetime] = None
     prep_time_minutes: int = 15
+    discount_amount: int = 0
 
 
 @dataclass

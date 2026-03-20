@@ -41,6 +41,7 @@ class DatabaseService:
             print(f"[DEBUG] get_products: found {len(response.data)} products (available_only={available_only})")
 
             products = []
+            print(f'[DEBUG]{response.data}')
             for item in response.data:
                 # Get category info
                 category_response = self.supabase.table('categories').select('category_name').eq('category_id', item['category_id']).execute()
@@ -69,11 +70,81 @@ class DatabaseService:
             return []
 
     async def get_product_by_id(self, product_id: int) -> Optional[ProductResponse]:
-        products = await self.get_products()
-        for product in products:
-            if product.product_id == product_id:
-                return product
-        return None
+        try:
+            response = self.supabase.table('products').select('*').eq('product_id', product_id).limit(1).execute()
+            if not response.data:
+                return None
+
+            item = response.data[0]
+
+            category_name = None
+            try:
+                category_response = self.supabase.table('categories').select('category_name').eq('category_id', item['category_id']).limit(1).execute()
+                category_name = category_response.data[0]['category_name'] if category_response.data else None
+            except Exception:
+                category_name = None
+
+            options_response = self.supabase.table('product_options').select('*').eq('product_id', item['product_id']).execute()
+            options = [ProductOption(**opt) for opt in options_response.data] if options_response.data else []
+
+            return ProductResponse(
+                product_id=item['product_id'],
+                category_id=item['category_id'],
+                product_name=item['product_name'],
+                description=item.get('description'),
+                price=Decimal(str(item['price'])),
+                image_url=item.get('image_url'),
+                is_available=item.get('is_available', True),
+                category_name=category_name,
+                options=options,
+            )
+        except Exception as e:
+            print(f"Error fetching product by id {product_id}: {e}")
+            return None
+
+    async def get_products_by_ids(self, product_ids: List[int]) -> List[ProductResponse]:
+        """Batch-load products + options for a list of product_ids.
+
+        This avoids repeated calls to get_products() and helps prevent upstream 502s.
+        """
+        if not product_ids:
+            return []
+
+        unique_ids = sorted({int(pid) for pid in product_ids if pid is not None})
+        if not unique_ids:
+            return []
+
+        try:
+            products_resp = self.supabase.table('products').select('*').in_('product_id', unique_ids).execute()
+            product_rows = products_resp.data or []
+
+            options_resp = self.supabase.table('product_options').select('*').in_('product_id', unique_ids).execute()
+            option_rows = options_resp.data or []
+
+            options_by_product_id = {}
+            for opt in option_rows:
+                options_by_product_id.setdefault(opt.get('product_id'), []).append(ProductOption(**opt))
+
+            products: List[ProductResponse] = []
+            for row in product_rows:
+                products.append(
+                    ProductResponse(
+                        product_id=row['product_id'],
+                        category_id=row['category_id'],
+                        product_name=row['product_name'],
+                        description=row.get('description'),
+                        price=Decimal(str(row['price'])),
+                        image_url=row.get('image_url'),
+                        is_available=row.get('is_available', True),
+                        category_name=None,
+                        options=options_by_product_id.get(row['product_id'], []),
+                    )
+                )
+
+            return products
+        except Exception as e:
+            print(f"Error batch fetching products by ids: {e}")
+            return []
 
     # Category operations
     async def get_categories(self) -> List[CategoryResponse]:
@@ -126,9 +197,13 @@ class DatabaseService:
 
             print(f"[DEBUG] Creating order with {len(order_request.items)} items")
 
+            requested_product_ids = [item.product_id for item in (order_request.items or [])]
+            products = await self.get_products_by_ids(requested_product_ids)
+            product_by_id = {p.product_id: p for p in products}
+
             for item_request in order_request.items:
                 print(f"[DEBUG] Processing item: product_id={item_request.product_id}, quantity={item_request.quantity}")
-                product = await self.get_product_by_id(item_request.product_id)
+                product = product_by_id.get(item_request.product_id)
 
                 if not product:
                     print(f"[WARNING] Product {item_request.product_id} not found in database")
@@ -175,6 +250,20 @@ class DatabaseService:
                     'quantity': item_request.quantity,
                     'unit_price': float(unit_price)
                 })
+
+            discount_amount = getattr(order_request, 'discount_amount', 0) or 0
+            try:
+                discount_amount_int = int(discount_amount)
+            except (ValueError, TypeError):
+                discount_amount_int = 0
+
+            if discount_amount_int < 0:
+                discount_amount_int = 0
+
+            if discount_amount_int:
+                total_amount -= Decimal(str(discount_amount_int))
+                if total_amount < 0:
+                    total_amount = Decimal('0')
 
             print(f"[DEBUG] Final total_amount: {total_amount}")
             print(f"[DEBUG] Order items data: {order_items_data}")
@@ -406,21 +495,26 @@ class DatabaseService:
                 user_id = uuid.UUID(order_data['user_id'])
             except (ValueError, TypeError) as uuid_error:
                 print(f"Invalid UUID format for user_id: {order_data.get('user_id')}, error: {uuid_error}")
-                return None
+                user_id = uuid.uuid4()
 
             # Get order items if table exists
             items = []
             try:
                 items_response = self.supabase.table('order_items').select('*').eq('order_id', order_id).execute()
                 if items_response.data:
+                    product_ids = [it.get('product_id') for it in items_response.data if it.get('product_id') is not None]
+                    products = await self.get_products_by_ids([int(pid) for pid in product_ids])
+                    product_by_id = {p.product_id: p for p in (products or [])}
+
                     for item in items_response.data:
-                        product = await self.get_product_by_id(item['product_id'])
+                        pid = item.get('product_id')
+                        product = product_by_id.get(pid)
                         if product:
                             items.append({
                                 'product_id': product.product_id,
                                 'product_name': product.product_name,
-                                'quantity': item['quantity'],
-                                'unit_price': Decimal(str(item['unit_price'])),
+                                'quantity': item.get('quantity'),
+                                'unit_price': Decimal(str(item.get('unit_price', 0))),
                                 'options': product.options
                             })
             except Exception as items_error:
@@ -503,9 +597,6 @@ class DatabaseService:
             
             orders = []
             for order_data in response.data:
-                # Payment handled at counter - no payment record during order creation
-                payment = None
-
                 # Get order items if table exists
                 items = []
                 try:
@@ -572,4 +663,16 @@ class DatabaseService:
             return len(response.data) > 0
         except Exception as e:
             print(f"Error updating payment status: {e}")
+            return False
+
+    async def update_order_status(self, order_id: int, new_status: str) -> bool:
+        """Update order status"""
+        try:
+            response = self.supabase.table('orders')\
+                .update({'order_status': new_status})\
+                .eq('order_id', order_id)\
+                .execute()
+            return len(response.data) > 0
+        except Exception as e:
+            print(f"Error updating order status: {e}")
             return False
