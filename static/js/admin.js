@@ -538,7 +538,7 @@ function renderMenuGrid(items) {
     const card = document.createElement('div');
     card.className = 'menu-card';
     const imgHTML = m.image
-      ? `<img class="menu-card-img" src="${m.image}" alt="${m.name}" onerror="this.style.display='none';this.nextSibling.style.display='flex'">
+      ? `<img class="menu-card-img" src="${m.image}" alt="${m.name}" onerror="this.style.display='none';var p=this.nextElementSibling;if(p)p.style.display='flex'">
          <div class="menu-card-img-placeholder" style="display:none;">🍽️</div>`
       : `<div class="menu-card-img-placeholder">🍽️</div>`;
     card.innerHTML = `

@@ -800,9 +800,9 @@ async def create_product():
                 # Save to static/images/food directory
                 save_path = Path('static/images/food') / new_filename
                 save_path.parent.mkdir(parents=True, exist_ok=True)
-                
+
                 file.save(str(save_path))
-                image_url = f"static/images/food/{new_filename}"
+                image_url = f"/static/images/food/{new_filename}"
         
         # Get next product ID
         db = get_db_service()
@@ -887,7 +887,7 @@ async def upload_product_image(product_id):
         file.save(str(save_path))
         
         # Update product in database with new image URL
-        image_url = f"static/images/food/{new_filename}"
+        image_url = f"/static/images/food/{new_filename}"
         
         try:
             # Update product image_url in database
@@ -950,9 +950,9 @@ async def create_category():
                 # Save to static/images/food directory
                 save_path = Path('static/images/food') / new_filename
                 save_path.parent.mkdir(parents=True, exist_ok=True)
-                
+
                 file.save(str(save_path))
-                image_url = f"static/images/food/{new_filename}"
+                image_url = f"/static/images/food/{new_filename}"
         
         # Get next category ID
         db = get_db_service()
