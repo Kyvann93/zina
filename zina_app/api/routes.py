@@ -5,16 +5,9 @@ Handles menu, categories, products, orders, and company info endpoints
 
 import uuid
 from datetime import datetime
-from decimal import Decimal
-<<<<<<< Updated upstream
 from flask import jsonify, request, current_app
-
-=======
-from flask import jsonify, request, current_app, redirect, url_for, flash, session
-import random
 import json
 from pathlib import Path
->>>>>>> Stashed changes
 from zina_app.api import api_bp
 from zina_app.services import DatabaseService
 from zina_app.models import CreateOrderRequest, OrderItemRequest
@@ -207,10 +200,18 @@ def register_user():
             current_app.config['SUPABASE_URL'],
             current_app.config['SUPABASE_KEY']
         )
-<<<<<<< Updated upstream
-        
+        # Check for existing user by email or employee_id
+        existing_user = supabase.table('users').select('user_id').or_(
+            f'email.eq.{data["email"]},employee_id.eq.{data["employee_id"]}'
+        ).limit(1).execute()
+
+        if existing_user.data:
+            print("Utilisateur deja existant", existing_user.data)
+            return jsonify({"error": "Vous avez déjà un compte ! Veuillez vous connecter."}), 409
+
         response = supabase.table('users').insert(user_data).execute()
-        
+        print("Utilisateur créé", response)
+
         if response.data:
             return jsonify({
                 "status": "success",
@@ -220,33 +221,6 @@ def register_user():
             })
         else:
             return jsonify({"error": "Échec de l'inscription"}), 500
-=======
-        #retrieving existing user
-        existing_user = supabase.table('users').select().or_(f'email.eq.{data["email"]},phone.eq.{data["phone"]}').limit(1).execute()
-        
-        
-        try:
-            if not existing_user.data :
-                response = supabase.table('users').insert(user_data).execute()
-                print("Utilisateur crée",response)
-                if response.data:
-                    # Redirect to login page with success message
-                    
-                    flash('Inscription réussie ! Vous pouvez maintenant vous connecter.', 'success')
-                    return redirect(url_for('main.login'))
-                else:
-                    flash('Échec de l\'inscription', 'error')
-                    return redirect(url_for('main.register'))
-            else :
-                print("Utilisateur deja existant", existing_user.data)
-                flash("Vous avez deja un compte ! Veuillez vous connecter","error")
-                return redirect(url_for('main.register'))
-        except Exception as db_error:
-            print(f"Database error during registration: {db_error}")
-            flash("Une erreur est survenue lors de l'inscription. Veuillez réessayer.", 'error')
-            return redirect(url_for('main.register'))
-        
->>>>>>> Stashed changes
 
     except Exception as e:
         print(f"Registration error: {str(e)}")
