@@ -11,6 +11,7 @@ let categories = [];
 let orders = [];
 let users = [];
 let currentSection = 'dashboard';
+let editingCategoryId = null;
 
 // ========================================
 // Page Loader
@@ -384,18 +385,18 @@ function loadDashboardData() {
         })
         .then(data => {
             if (data && data.length > 0) {
-                // Map API data to frontend format
+                // Map API data to frontend format (order_count comes from backend)
                 users = data.map(user => ({
                     matricule: user.employee_id || user.user_id || '-',
                     name: user.full_name || 'Utilisateur sans nom',
                     email: user.email || '-',
                     phone: user.phone || '-',
                     joined: user.created_at ? formatDate(user.created_at) : '-',
-                    orders: 0, // Will be loaded separately
-                    userId: user.user_id // Keep original ID for reference
+                    orders: user.order_count || 0,
+                    userId: user.user_id
                 }));
-                // Load order counts for users
-                loadUserOrderCounts();
+                hideSectionDataLoader('users');
+                loadUsers();
             } else {
                 users = [];
                 hideSectionDataLoader('users');
@@ -1062,10 +1063,12 @@ function openCategoryModal(catId = null) {
     const form = document.getElementById('categoryForm');
 
     form.reset();
+    editingCategoryId = null;
 
     if (catId) {
         const cat = categories.find(c => c.id === catId);
         if (cat) {
+            editingCategoryId = catId;
             document.getElementById('categoryModalTitle').textContent = 'Modifier une Catégorie';
             document.getElementById('categoryName').value = cat.name;
             document.getElementById('categoryDescription').value = cat.description || '';
@@ -1106,11 +1109,13 @@ function saveCategory(event) {
 
     const saveBtn = document.querySelector('#categoryModal .btn-confirm');
     setButtonLoading(saveBtn, 'Enregistrement...');
+    const catIdToUpdate = editingCategoryId;
     closeCategoryModal();
     showSectionDataLoader('categories');
 
-    fetch('/api/admin/categories', {
-        method: 'POST',
+    const url = catIdToUpdate ? `/api/admin/categories/${catIdToUpdate}` : '/api/admin/categories';
+    fetch(url, {
+        method: catIdToUpdate ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(categoryData)
     })

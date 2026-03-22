@@ -184,6 +184,19 @@ def create_category():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
     
+@admin_bp.route('/categories/<int:category_id>', methods=['PUT'])
+def update_category(category_id):
+    """Update an existing category"""
+    try:
+        data = request.json
+        data.pop('category_id', None)  # prevent overwriting PK
+        supabase = get_supabase()
+        supabase.table('categories').update(data).eq('category_id', category_id).execute()
+        return jsonify({'status': 'success', 'message': 'Catégorie mise à jour'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
 @admin_bp.route('/categories/<int:category_id>',methods=['DELETE'])
 def delete_categories(category_id):
     try:
@@ -221,26 +234,36 @@ def get_admin_orders():
 
 @admin_bp.route('/users', methods=['GET'])
 def get_admin_users():
-    """Get all users for admin"""
+    """Get all users for admin with their order counts"""
     try:
         supabase = get_supabase()
         response = supabase.table('users').select('*').execute()
 
-        if response.data:
-            users = []
-            for user in response.data:
-                users.append({
-                    'user_id': user.get('user_id'),
-                    'full_name': user.get('full_name'),
-                    'email': user.get('email'),
-                    'phone': user.get('phone'),
-                    'department': user.get('department'),
-                    'employee_id': user.get('employee_id'),
-                    'created_at': user.get('created_at')
-                })
-            return jsonify(users)
-        else:
+        if not response.data:
             return jsonify([])
+
+        # Count orders per user in a single query
+        orders_response = supabase.table('orders').select('user_id').execute()
+        order_counts = {}
+        for order in (orders_response.data or []):
+            uid = order.get('user_id')
+            if uid:
+                order_counts[uid] = order_counts.get(uid, 0) + 1
+
+        users = []
+        for user in response.data:
+            uid = user.get('user_id')
+            users.append({
+                'user_id': uid,
+                'full_name': user.get('full_name'),
+                'email': user.get('email'),
+                'phone': user.get('phone'),
+                'department': user.get('department'),
+                'employee_id': user.get('employee_id'),
+                'created_at': user.get('created_at'),
+                'order_count': order_counts.get(uid, 0)
+            })
+        return jsonify(users)
     except Exception as e:
         return jsonify([{'error': str(e)}])
 
