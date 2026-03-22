@@ -3,11 +3,48 @@ ZINA Cantine BAD - Admin API Routes
 Handles admin endpoints for menus, categories, orders, and settings
 """
 
-from flask import jsonify, request, current_app
+from flask import jsonify, request, current_app, session
+
 from supabase import create_client
 
 from zina_app.api.admin import admin_bp
+from zina_app.api.constants import CATEGORY_EMOJIS, CATEGORY_DEFAULT_IMAGES, CATEGORY_DEFAULT_IMAGE_FALLBACK
 from zina_app.services import DatabaseService
+
+# ── Auth guard ───────────────────────────────────────────────────────────────
+# Routes that are accessible without a session
+_PUBLIC_ENDPOINTS = {'admin.admin_login', 'admin.admin_logout'}
+
+@admin_bp.before_request
+def require_admin_session():
+    if request.endpoint in _PUBLIC_ENDPOINTS:
+        return None
+    if not session.get('zina_admin'):
+        return jsonify({'status': 'error', 'message': 'Non autorisé'}), 401
+
+
+@admin_bp.route('/login', methods=['POST'])
+def admin_login():
+    """Authenticate admin and create a server-side session"""
+    data = request.json or {}
+    username = data.get('username', '').strip()
+    password = data.get('password', '').strip()
+
+    expected_user = current_app.config.get('ADMIN_USERNAME', 'admin')
+    expected_pass = current_app.config.get('ADMIN_PASSWORD', 'admin123')
+
+    if username == expected_user and password == expected_pass:
+        session['zina_admin'] = True
+        session.permanent = False
+        return jsonify({'status': 'success', 'message': 'Connexion réussie'})
+    return jsonify({'status': 'error', 'message': 'Identifiant ou mot de passe incorrect'}), 401
+
+
+@admin_bp.route('/logout', methods=['POST'])
+def admin_logout():
+    """Clear admin session"""
+    session.pop('zina_admin', None)
+    return jsonify({'status': 'success'})
 
 
 def get_supabase():
@@ -25,72 +62,18 @@ def get_db_service():
         current_app.config['SUPABASE_KEY']
     )
     return DatabaseService(supabase)
-local_path : str= "static/images/food"
-bucket_name : str = 'menu_picture'
-supabase_file_path : str = 'storage/files/buckets/menu_picture'
-
-def upload_image_to_supabase(local_path,remote_path):
-    try:
-        with open(local_path,'rb') as f:
-            file_body= f.read()
-        response = get_db_service.storage.from_(bucket_name).upload(
-            file = file_body,
-            path = remote_path,
-        )
-        if response.get("error"):
-            raise Exception(response["error"].get("message"))
-        print(f"Successfully uploaded {local_path} to {remote_path}")
-        public_url_response = get_db_service.storage.from_(bucket_name).get_public_url(remote_path)
-        print(f"Public URL: {public_url_response}")
-    except FileNotFoundError:
-        print(f"Error: the file {local_path} was not found.")
-
-def get_supabase():
-    """Get Supabase client from Flask app config"""
-    return create_client(
-        current_app.config['SUPABASE_URL'],
-        current_app.config['SUPABASE_KEY']
-    )
 
 
 @admin_bp.route('/menus', methods=['GET'])
 async def get_admin_menus():
     """Get all menus for admin"""
-    # Default images by category - using Unsplash source URLs
-    DEFAULT_IMAGES = {
-        'petit_déjeuner': 'https://images.unsplash.com/photo-1533089862017-5614ec45e25a?w=400&h=300&fit=crop',
-        'petit-déjeuner': 'https://images.unsplash.com/photo-1533089862017-5614ec45e25a?w=400&h=300&fit=crop',
-        'déjeuner': 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop',
-        'dejeuner': 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop',
-        'snacks': 'https://images.unsplash.com/photo-1566478989037-eec170784d0b?w=400&h=300&fit=crop',
-        'salades': 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&h=300&fit=crop',
-        'salade': 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&h=300&fit=crop',
-        'boissons': 'https://images.unsplash.com/photo-1544145945-f90425340c7e?w=400&h=300&fit=crop',
-        'desserts': 'https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?w=400&h=300&fit=crop',
-        'dessert': 'https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?w=400&h=300&fit=crop',
-        'dîner': 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&h=300&fit=crop',
-        'diner': 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&h=300&fit=crop',
-        'entrées': 'https://images.unsplash.com/photo-1541544741938-0af808871cc0?w=400&h=300&fit=crop',
-        'entrees': 'https://images.unsplash.com/photo-1541544741938-0af808871cc0?w=400&h=300&fit=crop',
-        'soupes': 'https://images.unsplash.com/photo-1547592166-23acbe346499?w=400&h=300&fit=crop',
-        'soupe': 'https://images.unsplash.com/photo-1547592166-23acbe346499?w=400&h=300&fit=crop',
-        'spécialités': 'https://images.unsplash.com/photo-1559339352-11d035aa65de?w=400&h=300&fit=crop',
-        'specialites': 'https://images.unsplash.com/photo-1559339352-11d035aa65de?w=400&h=300&fit=crop',
-        'breakfast': 'https://images.unsplash.com/photo-1533089862017-5614ec45e25a?w=400&h=300&fit=crop',
-        'lunch': 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop',
-        'dinner': 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&h=300&fit=crop',
-        'appetizers': 'https://images.unsplash.com/photo-1541544741938-0af808871cc0?w=400&h=300&fit=crop',
-        'soups': 'https://images.unsplash.com/photo-1547592166-23acbe346499?w=400&h=300&fit=crop',
-        'specials': 'https://images.unsplash.com/photo-1559339352-11d035aa65de?w=400&h=300&fit=crop'
-    }
-    
     try:
         db = get_db_service()
         categories = await db.get_categories()
         menus = []
         for cat in categories:
             category_key = cat.category_name.lower().replace(' ', '_').replace('-', '_')
-            default_image = DEFAULT_IMAGES.get(category_key, 'https://images.unsplash.com/photo-1544025162-d76690b67f14?w=400&h=300&fit=crop')
+            default_image = CATEGORY_DEFAULT_IMAGES.get(category_key, CATEGORY_DEFAULT_IMAGE_FALLBACK)
             
             for product in (cat.products or []):
                 product_image = product.image_url
@@ -165,34 +148,6 @@ def delete_menu(menu_id):
 @admin_bp.route('/categories', methods=['GET'])
 async def get_admin_categories():
     """Get all categories for admin"""
-    # Emoji icons by category
-    CATEGORY_EMOJIS = {
-        'petit_déjeuner': '🥐',
-        'petit-déjeuner': '🥐',
-        'déjeuner': '🍽️',
-        'dejeuner': '🍽️',
-        'snacks': '🍟',
-        'salades': '🥗',
-        'salade': '🥗',
-        'boissons': '🥤',
-        'desserts': '🍰',
-        'dessert': '🍰',
-        'dîner': '🍲',
-        'diner': '🍲',
-        'entrées': '🥖',
-        'entrees': '🥖',
-        'soupes': '🍜',
-        'soupe': '🍜',
-        'spécialités': '🌟',
-        'specialites': '🌟',
-        'breakfast': '🥐',
-        'lunch': '🍽️',
-        'dinner': '🍲',
-        'appetizers': '🥖',
-        'soups': '🍜',
-        'specials': '🌟'
-    }
-    
     try:
         db = get_db_service()
         categories = await db.get_categories()
@@ -270,12 +225,12 @@ def get_admin_users():
     try:
         supabase = get_supabase()
         response = supabase.table('users').select('*').execute()
-        
+
         if response.data:
             users = []
             for user in response.data:
                 users.append({
-                    'id': user.get('id'),
+                    'user_id': user.get('user_id'),
                     'full_name': user.get('full_name'),
                     'email': user.get('email'),
                     'phone': user.get('phone'),
@@ -296,7 +251,11 @@ def update_order_status(order_id):
     try:
         data = request.json
         new_status = data.get('status')
-        return jsonify({'status': 'success', 'message': f'Order {order_id} updated to {new_status}'})
+        if not new_status:
+            return jsonify({'status': 'error', 'message': 'Missing status field'}), 400
+        supabase = get_supabase()
+        supabase.table('orders').update({'order_status': new_status}).eq('order_id', order_id).execute()
+        return jsonify({'status': 'success', 'message': f'Commande #{order_id} mise à jour : {new_status}'})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 

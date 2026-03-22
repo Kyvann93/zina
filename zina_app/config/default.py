@@ -18,6 +18,13 @@ class DefaultConfig:
     # Supabase
     SUPABASE_URL = os.environ.get('SUPABASE_URL')
     SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
+
+    # Wave Mobile Money (Côte d'Ivoire)
+    WAVE_API_KEY = os.environ.get('WAVE_API_KEY')
+
+    # Admin credentials (override via env in production)
+    ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
+    ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'admin123')
     
     # App Info
     APP_NAME = 'ZINA - Cantine BAD'

@@ -9,30 +9,44 @@
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Custom CSS -->
+
+    <!-- Tailwind + Flowbite CDN -->
+    <script>
+      tailwind.config = {
+        corePlugins: { preflight: false },
+        theme: {
+          extend: {
+            colors: {
+              primary: { DEFAULT: '#581b1f', light: '#a0656b', dark: '#3d1215' }
+            },
+            fontFamily: {
+              sans: ['Inter', 'Poppins', 'ui-sans-serif', 'system-ui']
+            }
+          }
+        }
+      }
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.3.0/flowbite.min.css" rel="stylesheet"/>
+
+    <!-- Shared + Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/shared.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
 </head>
 <body>
     <!-- Page Loader -->
-    <div class="page-loader" id="pageLoader">
-        <div class="loader-logo-container">
-            <div class="loader-logo-wrapper">
-                <div class="loader-logo-fill-container">
-                    <div class="loader-logo-fill" id="loaderFill"></div>
-                </div>
-                <img src="{{ url_for('static', filename='images/logo.PNG') }}" alt="ZINA Logo" class="loader-logo">
+    <div class="zina-loader" id="pageLoader">
+        <div class="zl-inner">
+            <div class="zl-logo-wrap">
+                <div class="zl-ring"></div>
+                <img src="{{ url_for('static', filename='images/logo.PNG') }}" alt="ZINA" class="zl-logo">
             </div>
-            <div class="loader-text">
-                <p>Chargement...</p>
-                <div class="loader-progress-bar">
-                    <div class="loader-progress" id="loaderProgress"></div>
-                </div>
-            </div>
+            <p class="zl-text">Chargement...</p>
+            <div class="zl-dots"><span></span><span></span><span></span></div>
         </div>
     </div>
 
@@ -88,29 +102,38 @@
                 </button>
             </div>
             
+            <div class="sidebar-status">
+                <span class="status-dot"></span>
+                <span class="status-text">Cantine Opérationnelle</span>
+            </div>
+
             <nav class="sidebar-nav">
+                <div class="nav-group-label">Principal</div>
                 <a href="#dashboard" class="nav-item active" onclick="showSection('dashboard')">
-                    <i class="fas fa-tachometer-alt"></i>
+                    <i class="fas fa-chart-line"></i>
                     <span>Tableau de Bord</span>
-                </a>
-                <a href="#menu" class="nav-item" onclick="showSection('menu')">
-                    <i class="fas fa-hamburger"></i>
-                    <span>Menu / Plats</span>
-                </a>
-                <a href="#categories" class="nav-item" onclick="showSection('categories')">
-                    <i class="fas fa-tags"></i>
-                    <span>Catégories</span>
+                    <span class="nav-badge-count" id="navPendingCount" style="display:none"></span>
                 </a>
                 <a href="#orders" class="nav-item" onclick="showSection('orders')">
                     <i class="fas fa-receipt"></i>
                     <span>Commandes</span>
                 </a>
+                <div class="nav-group-label">Catalogue</div>
+                <a href="#menu" class="nav-item" onclick="showSection('menu')">
+                    <i class="fas fa-utensils"></i>
+                    <span>Plats & Menus</span>
+                </a>
+                <a href="#categories" class="nav-item" onclick="showSection('categories')">
+                    <i class="fas fa-layer-group"></i>
+                    <span>Catégories</span>
+                </a>
+                <div class="nav-group-label">Administration</div>
                 <a href="#users" class="nav-item" onclick="showSection('users')">
-                    <i class="fas fa-users"></i>
-                    <span>Utilisateurs</span>
+                    <i class="fas fa-id-card"></i>
+                    <span>Employés</span>
                 </a>
                 <a href="#settings" class="nav-item" onclick="showSection('settings')">
-                    <i class="fas fa-cog"></i>
+                    <i class="fas fa-sliders-h"></i>
                     <span>Paramètres</span>
                 </a>
             </nav>
@@ -131,45 +154,23 @@
                     <button class="mobile-toggle" onclick="toggleSidebar()">
                         <i class="fas fa-bars"></i>
                     </button>
-                    <h1 id="pageTitle">Tableau de Bord</h1>
+                    <div class="header-breadcrumb">
+                        <span class="breadcrumb-root"><i class="fas fa-store"></i> ZINA Cantine</span>
+                        <i class="fas fa-chevron-right breadcrumb-sep"></i>
+                        <h1 id="pageTitle">Tableau de Bord</h1>
+                    </div>
                 </div>
                 <div class="header-right">
-                    <div class="notifications">
-                        <button class="notif-btn" onclick="toggleNotifs()">
-                            <i class="fas fa-bell"></i>
-                            <span class="notif-count" id="notifCount">3</span>
-                        </button>
-                        <div class="notif-dropdown" id="notifDropdown">
-                            <div class="notif-header">Notifications</div>
-                            <div class="notif-list">
-                                <div class="notif-item">
-                                    <i class="fas fa-shopping-cart"></i>
-                                    <div>
-                                        <strong>Nouvelle commande #4827</strong>
-                                        <p>Il y a 5 minutes</p>
-                                    </div>
-                                </div>
-                                <div class="notif-item">
-                                    <i class="fas fa-user-plus"></i>
-                                    <div>
-                                        <strong>Nouvel utilisateur inscrit</strong>
-                                        <p>Il y a 15 minutes</p>
-                                    </div>
-                                </div>
-                                <div class="notif-item">
-                                    <i class="fas fa-exclamation-triangle"></i>
-                                    <div>
-                                        <strong>Stock faible: Eau Minérale</strong>
-                                        <p>Il y a 1 heure</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                    <div class="header-clock">
+                        <i class="fas fa-clock"></i>
+                        <span id="liveClock">--:--</span>
+                        <span id="liveDate" class="header-date"></span>
                     </div>
+                    <button class="header-refresh-btn" onclick="refreshDashboard()" title="Actualiser les données">
+                        <i class="fas fa-sync-alt" id="refreshIcon"></i>
+                    </button>
                     <div class="admin-user">
-                        <div class="user-avatar">
-                            <i class="fas fa-user-circle"></i>
-                        </div>
+                        <div class="user-avatar-circle">A</div>
                         <div class="user-info">
                             <span class="user-name" id="adminName">Administrateur</span>
                             <span class="user-role">Super Admin</span>
@@ -180,77 +181,139 @@
 
             <!-- Dashboard Section -->
             <section class="admin-section active" id="dashboardSection">
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                            <i class="fas fa-hamburger"></i>
+
+                <!-- Ligne 1 : KPIs Primaires -->
+                <div class="kpi-primary-grid">
+                    <div class="kpi-card kpi-revenue">
+                        <div class="kpi-icon-wrap">
+                            <i class="fas fa-cash-register"></i>
                         </div>
-                        <div class="stat-details">
-                            <h3 id="totalMenus">65</h3>
-                            <p>Menus Totaux</p>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-                            <i class="fas fa-shopping-cart"></i>
-                        </div>
-                        <div class="stat-details">
-                            <h3 id="todayOrders">24</h3>
-                            <p>Commandes du Jour</p>
+                        <div class="kpi-body">
+                            <span class="kpi-label">Chiffre d'Affaires du Jour</span>
+                            <span class="kpi-value" id="todayRevenue">—</span>
+                            <span class="kpi-unit">FCFA</span>
                         </div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-icon" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-                            <i class="fas fa-users"></i>
+                    <div class="kpi-card kpi-orders">
+                        <div class="kpi-icon-wrap">
+                            <i class="fas fa-receipt"></i>
                         </div>
-                        <div class="stat-details">
-                            <h3 id="totalUsers">156</h3>
-                            <p>Utilisateurs</p>
+                        <div class="kpi-body">
+                            <span class="kpi-label">Commandes Aujourd'hui</span>
+                            <span class="kpi-value" id="todayOrders">—</span>
+                            <span class="kpi-unit" id="todayOrdersSub">commandes enregistrées</span>
                         </div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-icon" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
-                            <i class="fas fa-coins"></i>
+                    <div class="kpi-card kpi-ticket">
+                        <div class="kpi-icon-wrap">
+                            <i class="fas fa-tag"></i>
                         </div>
-                        <div class="stat-details">
-                            <h3 id="todayRevenue">125000</h3>
-                            <p>Revenu du Jour (FCFA)</p>
+                        <div class="kpi-body">
+                            <span class="kpi-label">Ticket Moyen</span>
+                            <span class="kpi-value" id="avgTicket">—</span>
+                            <span class="kpi-unit">FCFA / commande</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card kpi-completion">
+                        <div class="kpi-icon-wrap">
+                            <i class="fas fa-check-double"></i>
+                        </div>
+                        <div class="kpi-body">
+                            <span class="kpi-label">Taux de Complétion</span>
+                            <span class="kpi-value" id="completionRate">—</span>
+                            <span class="kpi-unit">commandes livrées</span>
+                        </div>
+                        <div class="kpi-progress-bar"><div class="kpi-progress-fill" id="completionBar" style="width:0%"></div></div>
+                    </div>
+                </div>
+
+                <!-- Ligne 2 : KPIs Secondaires -->
+                <div class="kpi-secondary-grid">
+                    <div class="kpi-mini pending-card">
+                        <div class="kpi-mini-icon"><i class="fas fa-hourglass-half"></i></div>
+                        <div class="kpi-mini-body">
+                            <span class="kpi-mini-value" id="pendingOrders">—</span>
+                            <span class="kpi-mini-label">En Attente</span>
+                        </div>
+                    </div>
+                    <div class="kpi-mini">
+                        <div class="kpi-mini-icon" style="background:rgba(0,184,148,0.1);color:#00b894"><i class="fas fa-utensils"></i></div>
+                        <div class="kpi-mini-body">
+                            <span class="kpi-mini-value" id="availableMenus">—</span>
+                            <span class="kpi-mini-label">Plats Disponibles</span>
+                        </div>
+                    </div>
+                    <div class="kpi-mini">
+                        <div class="kpi-mini-icon" style="background:rgba(9,132,227,0.1);color:#0984e3"><i class="fas fa-id-badge"></i></div>
+                        <div class="kpi-mini-body">
+                            <span class="kpi-mini-value" id="totalUsers">—</span>
+                            <span class="kpi-mini-label">Employés Inscrits</span>
+                        </div>
+                    </div>
+                    <div class="kpi-mini">
+                        <div class="kpi-mini-icon" style="background:rgba(108,92,231,0.1);color:#6c5ce7"><i class="fas fa-calendar-alt"></i></div>
+                        <div class="kpi-mini-body">
+                            <span class="kpi-mini-value" id="monthOrders">—</span>
+                            <span class="kpi-mini-label">Commandes ce Mois</span>
+                        </div>
+                    </div>
+                    <div class="kpi-mini">
+                        <div class="kpi-mini-icon" style="background:rgba(88,27,31,0.1);color:var(--primary)"><i class="fas fa-hamburger"></i></div>
+                        <div class="kpi-mini-body">
+                            <span class="kpi-mini-value" id="totalMenus">—</span>
+                            <span class="kpi-mini-label">Total Menus</span>
                         </div>
                     </div>
                 </div>
 
+                <!-- Ligne 3 : Tableaux -->
                 <div class="dashboard-grid">
                     <div class="dashboard-card">
                         <div class="card-header">
-                            <h3>Commandes Récentes</h3>
-                            <a href="#orders" onclick="showSection('orders')" class="view-all">Voir tout</a>
+                            <div class="card-header-left">
+                                <h3><i class="fas fa-list-alt"></i> Commandes Récentes</h3>
+                            </div>
+                            <a href="#orders" onclick="showSection('orders')" class="view-all">
+                                Voir tout <i class="fas fa-arrow-right"></i>
+                            </a>
                         </div>
                         <div class="card-body">
                             <table class="data-table">
                                 <thead>
                                     <tr>
-                                        <th>Commande #</th>
+                                        <th>#</th>
                                         <th>Client</th>
                                         <th>Montant</th>
                                         <th>Statut</th>
                                         <th>Heure</th>
                                     </tr>
                                 </thead>
-                                <tbody id="ordersTableBody">
-                                    <!-- Orders will be populated by JavaScript -->
-                                </tbody>
+                                <tbody id="dashboardOrdersBody"></tbody>
                             </table>
                         </div>
                     </div>
 
-                    <div class="dashboard-card">
-                        <div class="card-header">
-                            <h3>Plats Populaires</h3>
-                            <a href="#menu" onclick="showSection('menu')" class="view-all">Gérer</a>
+                    <div style="display:flex;flex-direction:column;gap:1.5rem;">
+                        <div class="dashboard-card">
+                            <div class="card-header">
+                                <div class="card-header-left">
+                                    <h3><i class="fas fa-fire-alt"></i> Top Plats</h3>
+                                </div>
+                                <a href="#menu" onclick="showSection('menu')" class="view-all">Gérer <i class="fas fa-arrow-right"></i></a>
+                            </div>
+                            <div class="card-body">
+                                <div class="popular-list" id="popularItemsList"></div>
+                            </div>
                         </div>
-                        <div class="card-body">
-                            <div class="popular-list" id="popularItemsList">
-                                <!-- Popular items will be populated by JavaScript -->
+
+                        <div class="dashboard-card">
+                            <div class="card-header">
+                                <div class="card-header-left">
+                                    <h3><i class="fas fa-chart-bar"></i> Statuts des Commandes</h3>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div id="statusBreakdown" class="status-breakdown"></div>
                             </div>
                         </div>
                     </div>
@@ -285,14 +348,14 @@
                 </div>
 
                 <div class="menu-grid" id="menuGrid">
-                    <div class="section-loader-container" id="menuLoaderContainer">
-                        <div class="loader-logo-container-small">
-                            <div class="loader-logo-wrapper-small">
-                                <div class="loader-logo-fill-container-small">
-                                    <div class="loader-logo-fill-small" id="menuLoaderFill"></div>
-                                </div>
-                                <img src="{{ url_for('static', filename='images/logo.PNG') }}" alt="ZINA Logo" class="loader-logo-small">
+                    <div class="zina-loader zina-loader--inline" id="menuLoaderContainer">
+                        <div class="zl-inner">
+                            <div class="zl-logo-wrap">
+                                <div class="zl-ring"></div>
+                                <img src="{{ url_for('static', filename='images/logo.PNG') }}" alt="ZINA" class="zl-logo">
                             </div>
+                            <p class="zl-text">Chargement des menus...</p>
+                            <div class="zl-dots"><span></span><span></span><span></span></div>
                         </div>
                     </div>
                 </div>
@@ -309,14 +372,14 @@
                 </div>
 
                 <div class="categories-grid" id="categoriesGrid">
-                    <div class="section-loader-container" id="categoriesLoaderContainer">
-                        <div class="loader-logo-container-small">
-                            <div class="loader-logo-wrapper-small">
-                                <div class="loader-logo-fill-container-small">
-                                    <div class="loader-logo-fill-small" id="categoriesLoaderFill"></div>
-                                </div>
-                                <img src="{{ url_for('static', filename='images/logo.PNG') }}" alt="ZINA Logo" class="loader-logo-small">
+                    <div class="zina-loader zina-loader--inline" id="categoriesLoaderContainer">
+                        <div class="zl-inner">
+                            <div class="zl-logo-wrap">
+                                <div class="zl-ring"></div>
+                                <img src="{{ url_for('static', filename='images/logo.PNG') }}" alt="ZINA" class="zl-logo">
                             </div>
+                            <p class="zl-text">Chargement des catégories...</p>
+                            <div class="zl-dots"><span></span><span></span><span></span></div>
                         </div>
                     </div>
                 </div>
@@ -353,13 +416,15 @@
                         </thead>
                         <tbody id="ordersTableBody">
                             <tr class="section-loader-row" id="ordersLoaderRow">
-                                <td colspan="8">
-                                    <div class="loader-logo-container-small">
-                                        <div class="loader-logo-wrapper-small">
-                                            <div class="loader-logo-fill-container-small">
-                                                <div class="loader-logo-fill-small" id="ordersLoaderFill"></div>
+                                <td colspan="7">
+                                    <div class="zina-loader zina-loader--inline">
+                                        <div class="zl-inner">
+                                            <div class="zl-logo-wrap">
+                                                <div class="zl-ring"></div>
+                                                <img src="{{ url_for('static', filename='images/logo.PNG') }}" alt="ZINA" class="zl-logo">
                                             </div>
-                                            <img src="{{ url_for('static', filename='images/logo.PNG') }}" alt="ZINA Logo" class="loader-logo-small">
+                                            <p class="zl-text">Chargement des commandes...</p>
+                                            <div class="zl-dots"><span></span><span></span><span></span></div>
                                         </div>
                                     </div>
                                 </td>
@@ -375,7 +440,7 @@
                     <h2>Gestion des Utilisateurs</h2>
                     <div class="search-box">
                         <i class="fas fa-search"></i>
-                        <input type="text" placeholder="Rechercher un utilisateur..." onkeyup="filterUsers()">
+                        <input type="text" id="userSearchInput" placeholder="Rechercher un utilisateur..." onkeyup="filterUsers()">
                     </div>
                 </div>
 
@@ -394,12 +459,14 @@
                         <tbody id="usersTableBody">
                             <tr class="section-loader-row" id="usersLoaderRow">
                                 <td colspan="6">
-                                    <div class="loader-logo-container-small">
-                                        <div class="loader-logo-wrapper-small">
-                                            <div class="loader-logo-fill-container-small">
-                                                <div class="loader-logo-fill-small" id="usersLoaderFill"></div>
+                                    <div class="zina-loader zina-loader--inline">
+                                        <div class="zl-inner">
+                                            <div class="zl-logo-wrap">
+                                                <div class="zl-ring"></div>
+                                                <img src="{{ url_for('static', filename='images/logo.PNG') }}" alt="ZINA" class="zl-logo">
                                             </div>
-                                            <img src="{{ url_for('static', filename='images/logo.PNG') }}" alt="ZINA Logo" class="loader-logo-small">
+                                            <p class="zl-text">Chargement des utilisateurs...</p>
+                                            <div class="zl-dots"><span></span><span></span><span></span></div>
                                         </div>
                                     </div>
                                 </td>
@@ -632,22 +699,40 @@
 
     <!-- Order Details Modal -->
     <div class="modal" id="orderDetailsModal">
-        <div class="modal-content">
+        <div class="modal-content large">
             <div class="modal-header">
-                <h2>Détails de la Commande</h2>
+                <h2><i class="fas fa-receipt"></i> Détails de la Commande</h2>
                 <button class="modal-close" onclick="closeOrderDetails()">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
+            <input type="hidden" id="currentOrderId">
             <div class="modal-body" id="orderDetailsContent">
                 <!-- Order details will be loaded here -->
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn-cancel" onclick="closeOrderDetails()">Fermer</button>
-                <button type="button" class="btn-primary" onclick="updateOrderStatus()">
+                <button type="button" class="btn-primary" id="updateStatusBtn" onclick="updateOrderStatus()">
                     <i class="fas fa-check"></i>
-                    <span>Mettre à Jour</span>
+                    <span>Mettre à Jour le Statut</span>
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Details Modal -->
+    <div class="modal" id="userDetailsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-user"></i> Détails Utilisateur</h2>
+                <button class="modal-close" onclick="document.getElementById('userDetailsModal').classList.remove('active')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="userDetailsContent">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" onclick="document.getElementById('userDetailsModal').classList.remove('active')">Fermer</button>
             </div>
         </div>
     </div>
@@ -678,6 +763,8 @@
     <div class="toast-container" id="toastContainer"></div>
 
     <!-- JavaScript -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.3.0/flowbite.min.js"></script>
+    <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
     <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
 </body>
 </html>

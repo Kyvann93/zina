@@ -1,0 +1,422 @@
+/**
+ * ZINA Cantine BAD - Shared Component Styles
+ * Used by both ordering.css and admin.css.
+ * Load this file BEFORE any page-specific CSS.
+ *
+ * All values reference CSS custom properties that each page defines,
+ * so colours and fonts adapt automatically to the page theme.
+ */
+
+/* ========================================
+   Shared Animations
+   ======================================== */
+@keyframes sharedSlideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes sharedSlideIn {
+    from { opacity: 0; transform: translateX(20px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ========================================
+   Toast Notifications
+   ======================================== */
+.toast-container {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    pointer-events: none;
+}
+
+.toast {
+    background: var(--dark-gray, #343a40);
+    color: var(--white, #fff);
+    padding: 0.875rem 1.5rem;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+    animation: sharedSlideIn 0.3s ease;
+    min-width: 260px;
+    max-width: 380px;
+    pointer-events: auto;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.toast i {
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.toast.success {
+    background: var(--success, #10b981);
+    color: #fff;
+}
+
+.toast.error {
+    background: var(--danger, #ef4444);
+    color: #fff;
+}
+
+.toast.warning {
+    background: var(--warning, #f59e0b);
+    color: #1a1a1a;
+}
+
+.toast.info {
+    background: var(--info, #3b82f6);
+    color: #fff;
+}
+
+/* ========================================
+   Modal Base
+   ======================================== */
+.modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.65);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.25s ease, visibility 0.25s ease;
+}
+
+.modal.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal-content {
+    background: var(--white, #fff);
+    border-radius: 20px;
+    width: 90%;
+    max-width: 520px;
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: sharedSlideUp 0.3s ease;
+}
+
+.modal-content.large {
+    max-width: 720px;
+}
+
+.modal-header {
+    background: var(--primary-gradient, linear-gradient(135deg, #581b1f, #a0656b));
+    color: var(--white, #fff);
+    padding: 1.25rem 1.75rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-radius: 20px 20px 0 0;
+}
+
+.modal-header h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    color: var(--white, #fff);
+    font-size: 1.25rem;
+    cursor: pointer;
+    opacity: 0.85;
+    transition: transform 0.2s, opacity 0.2s;
+    line-height: 1;
+}
+
+.modal-close:hover {
+    transform: rotate(90deg);
+    opacity: 1;
+}
+
+.modal-body {
+    padding: 1.75rem;
+}
+
+.modal-footer {
+    padding: 1.25rem 1.75rem;
+    border-top: 1px solid var(--light-gray, #e9ecef);
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+}
+
+/* ========================================
+   Status Badges
+   ======================================== */
+.status-badge {
+    display: inline-block;
+    padding: 0.3rem 0.7rem;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+
+.status-badge.pending,
+.status-badge.info {
+    background: rgba(59, 130, 246, 0.12);
+    color: #1d4ed8;
+}
+
+.status-badge.confirmed,
+.status-badge.processing,
+.status-badge.preparing {
+    background: rgba(245, 158, 11, 0.15);
+    color: #b45309;
+}
+
+.status-badge.ready {
+    background: rgba(16, 185, 129, 0.12);
+    color: #065f46;
+}
+
+.status-badge.completed,
+.status-badge.success {
+    background: rgba(16, 185, 129, 0.12);
+    color: #065f46;
+}
+
+.status-badge.cancelled,
+.status-badge.danger {
+    background: rgba(239, 68, 68, 0.12);
+    color: #b91c1c;
+}
+
+.status-badge.warning {
+    background: rgba(245, 158, 11, 0.15);
+    color: #b45309;
+}
+
+/* ========================================
+   Shared Button Utilities
+   ======================================== */
+.btn-primary {
+    background: var(--primary-gradient, linear-gradient(135deg, #581b1f, #a0656b));
+    color: #fff;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 50px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.18);
+}
+
+.btn-cancel {
+    background: var(--light-gray, #e9ecef);
+    color: var(--dark-gray, #343a40);
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 50px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: background 0.2s, color 0.2s;
+}
+
+.btn-cancel:hover {
+    background: var(--medium-gray, #6c757d);
+    color: #fff;
+}
+
+.btn-danger {
+    background: var(--danger, #ef4444);
+    color: #fff;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 50px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: background 0.2s, transform 0.2s, box-shadow 0.2s;
+}
+
+.btn-danger:hover {
+    background: #c0392b;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(239,68,68,0.3);
+}
+
+/* ========================================
+   ZINA Unified Loader
+   Two variants:
+     Full-page:  <div class="zina-loader" id="pageLoader">
+     Inline:     <div class="zina-loader zina-loader--inline">
+   Hide:         add class "hidden" or "zl-hidden"
+   ======================================== */
+
+@keyframes zl-spin {
+    to { transform: rotate(360deg); }
+}
+@keyframes zl-pulse {
+    0%, 100% { transform: scale(1); }
+    50%       { transform: scale(1.07); }
+}
+@keyframes zl-bounce {
+    0%, 80%, 100% { transform: translateY(0);   opacity: 0.35; }
+    40%           { transform: translateY(-5px); opacity: 1;    }
+}
+
+/* ── Full-page variant ── */
+.zina-loader {
+    position: fixed;
+    inset: 0;
+    background: linear-gradient(150deg,
+        var(--primary, #581b1f) 0%,
+        var(--primary-dark, #3d1215) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 99999;
+    transition: opacity 0.5s ease, visibility 0.5s ease;
+}
+
+.zina-loader.hidden,
+.zina-loader.zl-hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+/* ── Inline variant (grid / table cell / modal) ── */
+.zina-loader--inline {
+    position: static;
+    background: transparent;
+    min-height: 200px;
+    grid-column: 1 / -1;   /* spans full CSS Grid width automatically */
+    z-index: 1;
+    transition: none;
+}
+.zina-loader--inline.hidden,
+.zina-loader--inline.zl-hidden {
+    display: none;
+}
+
+/* ── Inner flex column ── */
+.zl-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.9rem;
+}
+
+/* ── Logo + spinning ring ── */
+.zl-logo-wrap {
+    position: relative;
+    width: 108px;
+    height: 108px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.zina-loader--inline .zl-logo-wrap {
+    width: 68px;
+    height: 68px;
+}
+
+.zl-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 3px solid rgba(212, 175, 55, 0.18);
+    border-top-color:   var(--accent, #d4af37);
+    border-right-color: rgba(212, 175, 55, 0.5);
+    animation: zl-spin 0.85s linear infinite;
+    will-change: transform;
+}
+.zina-loader--inline .zl-ring {
+    border-width: 2.5px;
+}
+
+.zl-logo {
+    width: 76px;
+    height: 76px;
+    object-fit: contain;
+    border-radius: 12px;
+    position: relative;
+    z-index: 2;
+    animation: zl-pulse 2s ease-in-out infinite;
+    will-change: transform;
+    filter: brightness(1.05) drop-shadow(0 2px 10px rgba(0,0,0,0.35));
+}
+.zina-loader--inline .zl-logo {
+    width: 46px;
+    height: 46px;
+    border-radius: 8px;
+    filter: none;
+    animation: zl-pulse 2s ease-in-out infinite;
+    will-change: transform;
+}
+
+/* ── Label ── */
+.zl-text {
+    font-family: var(--font-primary, 'Poppins', sans-serif);
+    font-size: 0.85rem;
+    font-weight: 500;
+    letter-spacing: 0.4px;
+    color: rgba(255, 255, 255, 0.82);
+    margin: 0;
+}
+.zina-loader--inline .zl-text {
+    color: var(--medium-gray, #6c757d);
+    font-size: 0.78rem;
+}
+
+/* ── Bouncing dots ── */
+.zl-dots {
+    display: flex;
+    gap: 0.32rem;
+}
+.zl-dots span {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent, #d4af37);
+    animation: zl-bounce 1.1s ease-in-out infinite;
+    will-change: transform, opacity;
+}
+.zl-dots span:nth-child(2) { animation-delay: 0.18s; }
+.zl-dots span:nth-child(3) { animation-delay: 0.36s; }
+.zina-loader--inline .zl-dots span {
+    background: var(--primary-light, #a0656b);
+}
+
+/* Table row loader (section-loader-row unchanged) */
+.section-loader-row        { display: none; }
+.section-loader-row.show   { display: table-row; }
+.section-loader-row td     { text-align: center; padding: 2rem; }

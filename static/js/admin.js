@@ -74,73 +74,25 @@ function showSectionLoader() {
 }
 
 function showSectionDataLoader(sectionName) {
-    // Show the inline loader for the section
-    const loaderElement = document.getElementById(`${sectionName}LoaderContainer`) ||
-                         document.getElementById(`${sectionName}LoaderRow`) ||
-                         document.getElementById(`${sectionName}LoaderFill`);
-    
-    if (loaderElement) {
-        if (loaderElement.tagName === 'TR') {
-            // For table rows, use the show class
-            loaderElement.classList.add('show');
-        } else {
-            loaderElement.style.display = 'flex';
-        }
-    }
-    
-    const loaderFill = document.getElementById(`${sectionName}LoaderFill`);
-    if (loaderFill) {
-        // Reset animation
-        loaderFill.style.height = '0%';
-        // Start animation after a small delay
-        setTimeout(() => {
-            animateSmallLoader(loaderFill);
-        }, 100);
+    const el = document.getElementById(`${sectionName}LoaderContainer`) ||
+               document.getElementById(`${sectionName}LoaderRow`);
+    if (!el) return;
+    if (el.tagName === 'TR') {
+        el.classList.add('show');
+    } else {
+        el.style.display = 'flex';
     }
 }
 
 function hideSectionDataLoader(sectionName) {
-    // Hide the inline loader for the section
-    const loaderElement = document.getElementById(`${sectionName}LoaderContainer`) ||
-                         document.getElementById(`${sectionName}LoaderRow`);
-    
-    if (loaderElement) {
-        if (loaderElement.tagName === 'TR') {
-            // For table rows, remove the show class
-            loaderElement.classList.remove('show');
-        } else {
-            loaderElement.style.display = 'none';
-        }
+    const el = document.getElementById(`${sectionName}LoaderContainer`) ||
+               document.getElementById(`${sectionName}LoaderRow`);
+    if (!el) return;
+    if (el.tagName === 'TR') {
+        el.classList.remove('show');
+    } else {
+        el.style.display = 'none';
     }
-    
-    const loaderFill = document.getElementById(`${sectionName}LoaderFill`);
-    if (loaderFill) {
-        loaderFill.style.height = '0%';
-    }
-}
-
-function animateSmallLoader(fillElement) {
-    // Animate the fill from 0 to 100% with easing
-    let progress = 0;
-    const startTime = Date.now();
-    const duration = 2000; // 2 second animation
-    
-    const animate = () => {
-        const elapsed = Date.now() - startTime;
-        
-        if (elapsed < duration) {
-            // Ease-out function for natural deceleration
-            progress = Math.min(100, (elapsed / duration) * 100);
-            // Apply easing function
-            const easeProgress = progress - (progress / 100) * (progress / 100) * 0.3;
-            fillElement.style.height = `${easeProgress}%`;
-            requestAnimationFrame(animate);
-        } else {
-            fillElement.style.height = '100%';
-        }
-    };
-    
-    requestAnimationFrame(animate);
 }
 
 // Hide loader when page is fully loaded
@@ -148,24 +100,13 @@ window.addEventListener('load', function() {
     // Complete the loader and ensure it hides
     completeLoader();
     
-    // Wait for loader to fully hide
+    // Wait for loader to fully hide, then verify session with backend
     setTimeout(() => {
         const isAdmin = sessionStorage.getItem('zina_admin');
-        
-        // Ensure login overlay is visible if not authenticated
         if (isAdmin) {
-            const loginOverlay = document.getElementById('loginOverlay');
-            if (loginOverlay) {
-                loginOverlay.style.display = 'none';
-            }
-            document.getElementById('adminWrapper').style.display = 'flex';
-            loadDashboardData();
+            checkAdminSession();
         } else {
-            // Show login overlay
-            const loginOverlay = document.getElementById('loginOverlay');
-            if (loginOverlay) {
-                loginOverlay.style.display = 'flex';
-            }
+            document.getElementById('loginOverlay').style.display = 'flex';
             document.getElementById('adminWrapper').style.display = 'none';
         }
     }, 1000);
@@ -197,58 +138,131 @@ document.addEventListener('DOMContentLoaded', function() {
 // ========================================
 function handleAdminLogin(event) {
     event.preventDefault();
-    
+
     const usernameField = document.getElementById('adminUsername');
     const passwordField = document.getElementById('adminPassword');
-    
-    if (!usernameField || !passwordField) {
-        console.error('Login form fields not found');
-        return;
-    }
-    
-    const username = usernameField.value;
-    const password = passwordField.value;
-    
-    // Simple authentication (in production, use proper backend auth)
-    if (username === 'admin' && password === 'admin123') {
-        sessionStorage.setItem('zina_admin', 'true');
-        
-        const loginOverlay = document.getElementById('loginOverlay');
-        const adminWrapper = document.getElementById('adminWrapper');
-        
-        // Smooth transition to dashboard
-        if (loginOverlay) {
-            loginOverlay.style.opacity = '0';
-            loginOverlay.style.pointerEvents = 'none';
+    if (!usernameField || !passwordField) return;
+
+    const submitBtn = event.target.querySelector('button[type="submit"]');
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Connexion...'; }
+
+    fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: usernameField.value.trim(), password: passwordField.value })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.status === 'success') {
+            sessionStorage.setItem('zina_admin', 'true');
+            const loginOverlay = document.getElementById('loginOverlay');
+            const adminWrapper = document.getElementById('adminWrapper');
+            if (loginOverlay) { loginOverlay.style.opacity = '0'; loginOverlay.style.pointerEvents = 'none'; }
+            setTimeout(() => {
+                if (loginOverlay) loginOverlay.style.display = 'none';
+                if (adminWrapper) adminWrapper.style.display = 'flex';
+                startClock();
+                loadDashboardData();
+                showToast('Connexion réussie !', 'success');
+            }, 300);
+        } else {
+            passwordField.value = '';
+            showToast(data.message || 'Identifiant ou mot de passe incorrect', 'error');
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> <span>Se Connecter</span>'; }
         }
-        
-        setTimeout(() => {
-            if (loginOverlay) loginOverlay.style.display = 'none';
-            if (adminWrapper) adminWrapper.style.display = 'flex';
-            loadDashboardData();
-            showToast('Connexion réussie !', 'success');
-        }, 300);
-    } else {
-        usernameField.value = '';
-        passwordField.value = '';
-        showToast('Identifiant ou mot de passe incorrect', 'error');
-    }
+    })
+    .catch(() => {
+        showToast('Erreur de connexion au serveur', 'error');
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> <span>Se Connecter</span>'; }
+    });
 }
 
 function checkAdminSession() {
-    const isAdmin = sessionStorage.getItem('zina_admin');
-    if (isAdmin) {
-        document.getElementById('loginOverlay').style.display = 'none';
-        document.getElementById('adminWrapper').style.display = 'flex';
-        loadDashboardData();
+    // Verify session is still valid server-side
+    fetch('/api/admin/orders', { method: 'GET' })
+        .then(r => {
+            if (r.status === 401) {
+                sessionStorage.removeItem('zina_admin');
+                document.getElementById('loginOverlay').style.display = 'flex';
+                document.getElementById('adminWrapper').style.display = 'none';
+            } else {
+                document.getElementById('loginOverlay').style.display = 'none';
+                document.getElementById('adminWrapper').style.display = 'flex';
+                startClock();
+                loadDashboardData();
+            }
+        })
+        .catch(() => {
+            // Network error — assume session OK if sessionStorage says so
+            const loginOverlay = document.getElementById('loginOverlay');
+            const adminWrapper = document.getElementById('adminWrapper');
+            if (loginOverlay) loginOverlay.style.display = 'none';
+            if (adminWrapper) adminWrapper.style.display = 'flex';
+            startClock();
+            loadDashboardData();
+        });
+}
+
+// ========================================
+// Live Clock
+// ========================================
+let _clockInterval = null;
+
+function startClock() {
+    if (_clockInterval) clearInterval(_clockInterval);
+
+    function tick() {
+        const now = new Date();
+
+        const clockEl = document.getElementById('liveClock');
+        if (clockEl) {
+            const hh = String(now.getHours()).padStart(2, '0');
+            const mm = String(now.getMinutes()).padStart(2, '0');
+            const ss = String(now.getSeconds()).padStart(2, '0');
+            clockEl.textContent = `${hh}:${mm}:${ss}`;
+        }
+
+        const dateEl = document.getElementById('liveDate');
+        if (dateEl) {
+            dateEl.textContent = now.toLocaleDateString('fr-FR', {
+                weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+            });
+        }
     }
+
+    tick();
+    _clockInterval = setInterval(tick, 1000);
+}
+
+// ========================================
+// Refresh Dashboard
+// ========================================
+function refreshDashboard() {
+    const btn = document.querySelector('.header-refresh-btn');
+    if (btn) {
+        btn.classList.add('spinning');
+        btn.disabled = true;
+    }
+
+    loadDashboardData();
+
+    // Re-enable button after max 3s (loadDashboardData has no Promise return)
+    setTimeout(() => {
+        if (btn) {
+            btn.classList.remove('spinning');
+            btn.disabled = false;
+        }
+        showToast('Tableau de bord actualisé', 'success');
+    }, 1500);
 }
 
 function handleLogout() {
     if (confirm('Voulez-vous vraiment vous déconnecter ?')) {
-        sessionStorage.removeItem('zina_admin');
-        localStorage.removeItem('adminCurrentSection'); // Clear saved section
-        location.reload();
+        fetch('/api/admin/logout', { method: 'POST' }).finally(() => {
+            sessionStorage.removeItem('zina_admin');
+            localStorage.removeItem('adminCurrentSection');
+            location.reload();
+        });
     }
 }
 
@@ -372,13 +386,13 @@ function loadDashboardData() {
             if (data && data.length > 0) {
                 // Map API data to frontend format
                 users = data.map(user => ({
-                    matricule: user.employee_id || user.id || '-',
+                    matricule: user.employee_id || user.user_id || '-',
                     name: user.full_name || 'Utilisateur sans nom',
                     email: user.email || '-',
                     phone: user.phone || '-',
                     joined: user.created_at ? formatDate(user.created_at) : '-',
                     orders: 0, // Will be loaded separately
-                    userId: user.id // Keep original ID for reference
+                    userId: user.user_id // Keep original ID for reference
                 }));
                 // Load order counts for users
                 loadUserOrderCounts();
@@ -421,33 +435,99 @@ function convertAPIMenu(apiData) {
 }
 
 function updateDashboardStats() {
-    document.getElementById('totalMenus').textContent = menus.length;
-    document.getElementById('totalUsers').textContent = users.length;
-    
-    // Get today's date at midnight for filtering
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayStart = today.getTime();
-    
-    // Filter orders for today only
-    const todayOrders = orders.filter(order => {
-        if (!order.created_at) return false;
-        const orderDate = new Date(order.created_at);
-        return orderDate.getTime() >= todayStart;
-    });
-    
-    // Calculate today's revenue
-    const todayRevenue = todayOrders.reduce((sum, order) => sum + (order.total_amount || 0), 0);
-    
-    // Update UI with today's data
-    document.getElementById('todayOrders').textContent = todayOrders.length;
-    document.getElementById('todayRevenue').textContent = todayRevenue.toLocaleString('fr-FR') + ' FCFA';
-    
-    console.log(`Today's orders: ${todayOrders.length}, Revenue: ${todayRevenue}`);
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const todayStart = now.getTime();
+
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+
+    // Filtres temporels
+    const todayOrdersList = orders.filter(o => o.created_at && new Date(o.created_at).getTime() >= todayStart);
+    const monthOrdersList  = orders.filter(o => o.created_at && new Date(o.created_at).getTime() >= thisMonthStart);
+
+    // CA du jour
+    const todayRevenue = todayOrdersList.reduce((s, o) => s + (o.total_amount || 0), 0);
+
+    // Ticket moyen (du jour)
+    const avgTicket = todayOrdersList.length > 0
+        ? Math.round(todayRevenue / todayOrdersList.length)
+        : 0;
+
+    // Taux de complétion (toutes commandes)
+    const completedCount = orders.filter(o => o.order_status === 'completed').length;
+    const completionRate = orders.length > 0 ? Math.round((completedCount / orders.length) * 100) : 0;
+
+    // En attente
+    const pendingCount = orders.filter(o => o.order_status === 'pending').length;
+
+    // Menus disponibles
+    const availableCount = menus.filter(m => m.available !== false).length;
+
+    // ——— Mise à jour DOM ———
+    const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+    setEl('todayRevenue', todayRevenue.toLocaleString('fr-FR'));
+    setEl('todayOrders',  todayOrdersList.length);
+    setEl('avgTicket',    avgTicket.toLocaleString('fr-FR'));
+    setEl('completionRate', completionRate + '%');
+    setEl('pendingOrders',  pendingCount);
+    setEl('availableMenus', availableCount);
+    setEl('totalUsers',     users.length);
+    setEl('monthOrders',    monthOrdersList.length);
+    setEl('totalMenus',     menus.length);
+
+    // Barre de progression complétion
+    const bar = document.getElementById('completionBar');
+    if (bar) bar.style.width = completionRate + '%';
+
+    // Badge pending dans sidebar
+    const navBadge = document.getElementById('navPendingCount');
+    if (navBadge) {
+        if (pendingCount > 0) {
+            navBadge.textContent = pendingCount;
+            navBadge.style.display = '';
+        } else {
+            navBadge.style.display = 'none';
+        }
+    }
+
+    updateStatusBreakdown();
+}
+
+function updateStatusBreakdown() {
+    const el = document.getElementById('statusBreakdown');
+    if (!el) return;
+
+    const statuses = [
+        { key: 'pending',    label: 'En attente', color: '#f59e0b' },
+        { key: 'processing', label: 'En cours',   color: '#3b82f6' },
+        { key: 'completed',  label: 'Livrées',    color: '#10b981' },
+        { key: 'cancelled',  label: 'Annulées',   color: '#ef4444' }
+    ];
+
+    const total = orders.length || 1;
+
+    if (orders.length === 0) {
+        el.innerHTML = '<p style="color:var(--medium-gray);font-size:0.8rem;text-align:center;padding:1rem 0;">Aucune donnée disponible</p>';
+        return;
+    }
+
+    el.innerHTML = statuses.map(s => {
+        const count = orders.filter(o => o.order_status === s.key).length;
+        const pct   = Math.round((count / total) * 100);
+        return `
+            <div class="breakdown-item">
+                <span class="breakdown-label">${s.label}</span>
+                <div class="breakdown-bar">
+                    <div class="breakdown-fill" style="width:${pct}%;background:${s.color}"></div>
+                </div>
+                <span class="breakdown-count">${count}</span>
+            </div>`;
+    }).join('');
 }
 
 function updateRecentOrdersTable() {
-    const tbody = document.getElementById('ordersTableBody');
+    const tbody = document.getElementById('dashboardOrdersBody');
     if (!tbody) return;
     
     if (orders.length === 0) {
@@ -532,36 +612,7 @@ function updatePopularItems() {
     `).join('');
 }
 
-function getStatusClass(status) {
-    const statusMap = {
-        'pending': 'info',
-        'confirmed': 'warning', 
-        'preparing': 'warning',
-        'ready': 'success',
-        'completed': 'success',
-        'cancelled': 'danger'
-    };
-    return statusMap[status] || 'info';
-}
-
-function getStatusText(status) {
-    const statusMap = {
-        'pending': 'En attente',
-        'confirmed': 'Confirmée',
-        'preparing': 'En cours',
-        'ready': 'Prête',
-        'completed': 'Complétée',
-        'cancelled': 'Annulée'
-    };
-    return statusMap[status] || status;
-}
-
-function formatPrice(amount) {
-    return new Intl.NumberFormat('fr-FR', {
-        style: 'currency',
-        currency: 'XOF'
-    }).format(amount || 0);
-}
+// getStatusClass, getStatusText, formatPrice → see utils.js
 
 // ========================================
 // Test Functions
@@ -644,6 +695,7 @@ function loadMenus() {
 }
 
 function loadMenusFromBackend() {
+    showSectionDataLoader('menu');
     fetch('/api/admin/menus')
         .then(response => response.json())
         .then(data => {
@@ -663,11 +715,13 @@ function loadMenusFromBackend() {
             } else {
                 menus = [];
             }
+            hideSectionDataLoader('menu');
             renderMenus();
         })
         .catch(error => {
             console.error('Error loading menus:', error);
             menus = [];
+            hideSectionDataLoader('menu');
             renderMenus();
         });
 }
@@ -687,7 +741,7 @@ function renderMenus() {
     let filteredMenus = menus;
 
     if (categoryFilter) {
-        filteredMenus = filteredMenus.filter(m => m.category === categoryFilter);
+        filteredMenus = filteredMenus.filter(m => String(m.category_id) === String(categoryFilter));
     }
 
     if (availabilityFilter === 'available') {
@@ -793,6 +847,10 @@ function saveMenu(event) {
 
     const menuId = document.getElementById('menuId').value;
 
+    const saveBtn = document.querySelector('#menuModal .btn-confirm');
+    setButtonLoading(saveBtn, menuId ? 'Modification...' : 'Enregistrement...');
+    closeMenuModal();
+
     if (menuId) {
         // Update existing menu - for now just update basic info
         const menuData = {
@@ -803,6 +861,7 @@ function saveMenu(event) {
             is_available: document.getElementById('menuAvailable').value === 'true'
         };
 
+        showSectionDataLoader('menu');
         fetch(`/api/admin/menus/${menuId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -812,17 +871,20 @@ function saveMenu(event) {
         .then(data => {
             if (data.status === 'success') {
                 showToast('Plat modifié avec succès', 'success');
-                loadMenusFromBackend();
             } else {
                 showToast('Erreur: ' + (data.message || 'Échec de la modification'), 'error');
             }
+            loadMenusFromBackend();
         })
         .catch(error => {
             console.error('Error updating menu:', error);
             showToast('Erreur lors de la modification', 'error');
-        });
+            hideSectionDataLoader('menu');
+        })
+        .finally(() => resetButton(saveBtn));
     } else {
         // Create new menu with image
+        showSectionDataLoader('menu');
         fetch('/api/products', {
             method: 'POST',
             body: formData
@@ -831,18 +893,18 @@ function saveMenu(event) {
         .then(data => {
             if (data.status === 'success') {
                 showToast('Plat ajouté avec succès', 'success');
-                loadMenusFromBackend();
             } else {
                 showToast('Erreur: ' + (data.error || 'Échec de l\'ajout'), 'error');
             }
+            loadMenusFromBackend();
         })
         .catch(error => {
             console.error('Error creating menu:', error);
             showToast('Erreur lors de l\'ajout', 'error');
-        });
+            hideSectionDataLoader('menu');
+        })
+        .finally(() => resetButton(saveBtn));
     }
-
-    closeMenuModal();
 }
 
 function getCategoryID(categoryName) {
@@ -868,21 +930,21 @@ function deleteMenu(id) {
         'Supprimer un plat',
         'Voulez-vous vraiment supprimer ce plat ?',
         function() {
-            fetch(`/api/admin/menus/${id}`, {
-                method: 'DELETE'
-            })
+            showSectionDataLoader('menu');
+            fetch(`/api/admin/menus/${id}`, { method: 'DELETE' })
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
                     showToast('Plat supprimé avec succès', 'success');
-                    loadMenus();
                 } else {
                     showToast('Erreur: ' + (data.message || 'Échec de la suppression'), 'error');
                 }
+                loadMenus();
             })
             .catch(error => {
                 console.error('Error deleting menu:', error);
                 showToast('Erreur lors de la suppression', 'error');
+                hideSectionDataLoader('menu');
             });
         }
     );
@@ -892,7 +954,7 @@ function deleteMenu(id) {
 // Category Management
 // ========================================
 function loadCategories() {
-    // Load from backend
+    showSectionDataLoader('categories');
     fetch('/api/categories')
         .then(response => response.json())
         .then(data => {
@@ -915,11 +977,13 @@ function loadCategories() {
             } else {
                 categories = [];
             }
+            hideSectionDataLoader('categories');
             renderCategories();
         })
         .catch(error => {
             console.error('Error loading categories:', error);
             categories = [];
+            hideSectionDataLoader('categories');
             renderCategories();
         });
 }
@@ -1034,27 +1098,37 @@ function saveCategory(event) {
         formData.append('image', imageFile);
     }
 
-    // Send to backend
-    fetch('/api/categories', {
+    // Send to backend as JSON
+    const categoryData = {
+        category_name: document.getElementById('categoryName').value,
+        description: document.getElementById('categoryDescription').value
+    };
+
+    const saveBtn = document.querySelector('#categoryModal .btn-confirm');
+    setButtonLoading(saveBtn, 'Enregistrement...');
+    closeCategoryModal();
+    showSectionDataLoader('categories');
+
+    fetch('/api/admin/categories', {
         method: 'POST',
-        body: formData
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(categoryData)
     })
     .then(response => response.json())
     .then(data => {
         if (data.status === 'success') {
             showToast('Catégorie enregistrée avec succès', 'success');
-            // Reload categories from backend
-            loadCategoriesFromBackend();
         } else {
-            showToast('Erreur: ' + (data.error || 'Échec de l\'enregistrement'), 'error');
+            showToast('Erreur: ' + (data.message || 'Échec de l\'enregistrement'), 'error');
         }
+        loadCategoriesFromBackend();
     })
     .catch(error => {
         console.error('Error saving category:', error);
         showToast('Erreur lors de l\'enregistrement', 'error');
-    });
-
-    closeCategoryModal();
+        hideSectionDataLoader('categories');
+    })
+    .finally(() => resetButton(saveBtn));
 }
 
 function editCategory(id) {
@@ -1066,21 +1140,21 @@ function deleteCategory(id) {
         'Supprimer une catégorie',
         'Voulez-vous vraiment supprimer cette catégorie ?',
         function() {
-            fetch(`/api/admin/categories/${id}`, {
-                method: 'DELETE'
-            })
+            showSectionDataLoader('categories');
+            fetch(`/api/admin/categories/${id}`, { method: 'DELETE' })
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
                     showToast('Catégorie supprimée avec succès', 'success');
-                    loadCategories();
                 } else {
                     showToast('Erreur: ' + (data.message || 'Échec de la suppression'), 'error');
                 }
+                loadCategories();
             })
             .catch(error => {
                 console.error('Error deleting category:', error);
                 showToast('Erreur lors de la suppression', 'error');
+                hideSectionDataLoader('categories');
             });
         }
     );
@@ -1093,7 +1167,7 @@ function loadOrders() {
     const tbody = document.getElementById('ordersTableBody');
     const filter = document.getElementById('ordersFilter').value;
 
-    // Fetch orders from API
+    showSectionDataLoader('orders');
     fetch('/api/admin/orders')
         .then(response => response.json())
         .then(apiOrders => {
@@ -1128,10 +1202,8 @@ function loadOrders() {
                         <td><strong>${order.total.toLocaleString('fr-FR')} FCFA</strong></td>
                         <td>${order.payment}</td>
                         <td>
-                            <span class="status-badge ${order.status}">
-                                ${order.status === 'completed' ? 'Complété' :
-                                  order.status === 'processing' ? 'En cours' :
-                                  order.status === 'pending' ? 'En attente' : 'Annulé'}
+                            <span class="status-badge ${getStatusClass(order.status)}">
+                                ${getStatusText(order.status)}
                             </span>
                         </td>
                         <td>${order.time}</td>
@@ -1154,12 +1226,19 @@ function loadOrders() {
 }
 
 function viewOrderDetails(id) {
+    const content = document.getElementById('orderDetailsContent');
+    if (content) {
+        content.innerHTML = `<div class="zina-loader zina-loader--inline" style="min-height:180px;"><div class="zl-inner"><div class="zl-logo-wrap"><div class="zl-ring"></div><img src="/static/images/logo.PNG" alt="ZINA" class="zl-logo" style="width:48px;height:48px;"></div><div class="zl-dots"><span></span><span></span><span></span></div></div></div>`;
+    }
+    document.getElementById('orderDetailsModal').classList.add('active');
+
     // Fetch order details from API
     fetch(`/api/orders/${id}`)
         .then(response => response.json())
         .then(order => {
             if (!order || order.error) {
                 showToast('Commande introuvable', 'error');
+                document.getElementById('orderDetailsModal').classList.remove('active');
                 return;
             }
 
@@ -1238,6 +1317,7 @@ function viewOrderDetails(id) {
                 </div>
             `;
 
+            document.getElementById('currentOrderId').value = id;
             document.getElementById('orderDetailsModal').classList.add('active');
         })
         .catch(error => {
@@ -1251,48 +1331,106 @@ function closeOrderDetails() {
 }
 
 function updateOrderStatus() {
-    showToast('Statut de la commande mis à jour', 'success');
-    closeOrderDetails();
-    loadOrders();
+    const orderId = document.getElementById('currentOrderId').value;
+    const newStatus = document.getElementById('orderStatusUpdate') && document.getElementById('orderStatusUpdate').value;
+
+    if (!orderId || !newStatus) {
+        showToast('Impossible de mettre à jour : commande non identifiée', 'error');
+        return;
+    }
+
+    const btn = document.getElementById('updateStatusBtn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mise à jour...'; }
+
+    fetch(`/api/admin/orders/${orderId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            showToast('Statut mis à jour avec succès', 'success');
+            closeOrderDetails();
+            loadOrders();
+        } else {
+            showToast('Erreur: ' + (data.message || 'Échec'), 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error updating order status:', error);
+        showToast('Erreur lors de la mise à jour', 'error');
+    })
+    .finally(() => {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-check"></i> <span>Mettre à Jour le Statut</span>'; }
+    });
 }
 
 // ========================================
 // Users Management
 // ========================================
 function loadUsers() {
-    const tbody = document.getElementById('usersTableBody');
-
-    if (users.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><i class="fas fa-users"></i><h3>Aucun utilisateur</h3><p>Aucun utilisateur enregistré</p></div></td></tr>';
-    } else {
-        tbody.innerHTML = users.map(user => `
-            <tr>
-                <td>${user.name}</td>
-                <td>${user.email}</td>
-                <td>${user.phone}</td>
-                <td>${user.orders}</td>
-                <td>${user.joined}</td>
-                <td>
-                    <button class="action-btn edit" onclick="viewUser('${user.matricule}')">
-                        <i class="fas fa-eye"></i>
-                    </button>
-                </td>
-            </tr>
-        `).join('');
-    }
-
     hideSectionDataLoader('users');
+    filterUsers();
 }
 
 function filterUsers() {
-    // Implement search functionality
+    const query = (document.getElementById('userSearchInput')?.value || '').toLowerCase().trim();
+    const tbody = document.getElementById('usersTableBody');
+    if (!tbody) return;
+
+    const filtered = query
+        ? users.filter(u =>
+            (u.name || '').toLowerCase().includes(query) ||
+            (u.email || '').toLowerCase().includes(query) ||
+            (u.phone || '').toLowerCase().includes(query) ||
+            (u.matricule || '').toLowerCase().includes(query)
+          )
+        : users;
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><i class="fas fa-search"></i><h3>Aucun résultat</h3><p>Aucun utilisateur ne correspond à votre recherche</p></div></td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(user => `
+        <tr>
+            <td><strong>${user.name}</strong><br><small style="color:var(--medium-gray)">${user.matricule}</small></td>
+            <td>${user.email}</td>
+            <td>${user.phone}</td>
+            <td><span class="status-badge info">${user.orders} commande${user.orders !== 1 ? 's' : ''}</span></td>
+            <td>${user.joined}</td>
+            <td>
+                <button class="action-btn edit" onclick="viewUser('${user.matricule}')" title="Voir détails">
+                    <i class="fas fa-eye"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
 }
 
 function viewUser(matricule) {
     const user = users.find(u => u.matricule === matricule);
-    if (user) {
-        showToast(`Profil de ${user.name}`, 'info');
-    }
+    if (!user) return;
+
+    document.getElementById('userDetailsContent').innerHTML = `
+        <div style="display:flex;flex-direction:column;gap:1rem;">
+            <div style="display:flex;align-items:center;gap:1rem;padding:1rem;background:var(--off-white);border-radius:12px;">
+                <div style="width:60px;height:60px;border-radius:50%;background:var(--primary-gradient);display:flex;align-items:center;justify-content:center;font-size:1.75rem;color:white;flex-shrink:0;">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div>
+                    <h3 style="color:var(--primary);margin:0">${user.name}</h3>
+                    <small style="color:var(--medium-gray)">Matricule : ${user.matricule}</small>
+                </div>
+            </div>
+            <div class="detail-row"><strong><i class="fas fa-envelope"></i> Email</strong><span>${user.email}</span></div>
+            <div class="detail-row"><strong><i class="fas fa-phone"></i> Téléphone</strong><span>${user.phone}</span></div>
+            <div class="detail-row"><strong><i class="fas fa-shopping-cart"></i> Commandes</strong><span><span class="status-badge info">${user.orders}</span></span></div>
+            <div class="detail-row"><strong><i class="fas fa-calendar"></i> Inscrit le</strong><span>${user.joined}</span></div>
+        </div>
+    `;
+    document.getElementById('userDetailsModal').classList.add('active');
 }
 
 // ========================================
@@ -1316,19 +1454,7 @@ function saveFeesSettings(event) {
 // ========================================
 // Utilities
 // ========================================
-function formatPrice(price) {
-    return new Intl.NumberFormat('fr-FR').format(price) + ' FCFA';
-}
-
-function formatDate(dateString) {
-    if (!dateString) return '-';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('fr-FR', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric'
-    });
-}
+// formatPrice, formatDate, showToast, showConfirmModal, closeConfirmModal, confirmAction → see utils.js
 
 function loadUserOrderCounts() {
     // Fetch all orders and count by user_id
@@ -1386,22 +1512,6 @@ function loadUserOrderCounts() {
         });
 }
 
-function showToast(message, type = 'info') {
-    const container = document.getElementById('toastContainer');
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    toast.innerHTML = `
-        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
-        <span>${message}</span>
-    `;
-    container.appendChild(toast);
-    
-    setTimeout(() => {
-        toast.style.animation = 'slideIn 0.3s ease reverse';
-        setTimeout(() => toast.remove(), 300);
-    }, 3000);
-}
-
 // Close modals on escape
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
@@ -1411,33 +1521,10 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
-// ========================================
-// Confirmation Modal
-// ========================================
-let confirmCallback = null;
-
-function showConfirmModal(title, message, onConfirm) {
-    document.getElementById('confirmModalTitle').textContent = title;
-    document.getElementById('confirmMessage').textContent = message;
-    confirmCallback = onConfirm;
-    document.getElementById('confirmModal').classList.add('active');
-}
-
-function closeConfirmModal() {
-    document.getElementById('confirmModal').classList.remove('active');
-    confirmCallback = null;
-}
-
-function confirmAction() {
-    if (confirmCallback) {
-        confirmCallback();
-    }
-    closeConfirmModal();
-}
-
-// Add click listener to confirm button
+// Wire confirm button → confirmAction (defined in utils.js)
 document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('confirmBtn').addEventListener('click', confirmAction);
+    const confirmBtn = document.getElementById('confirmBtn');
+    if (confirmBtn) confirmBtn.addEventListener('click', confirmAction);
 });
 
 // Export functions
@@ -1469,3 +1556,5 @@ window.viewUser = viewUser;
 window.saveGeneralSettings = saveGeneralSettings;
 window.saveHoursSettings = saveHoursSettings;
 window.saveFeesSettings = saveFeesSettings;
+window.startClock = startClock;
+window.refreshDashboard = refreshDashboard;

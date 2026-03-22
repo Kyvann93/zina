@@ -15,7 +15,19 @@ let currentCategory = 'all';
 let currentFilter = 'all';
 let currentSubcategory = 'all';
 let currentLanguage = 'fr';
-let currentTheme = 'light'; // Add theme state
+let currentTheme = 'light';
+
+// Client-side progressive rendering
+const PAGE_SIZE = 50;
+let currentPage = 0;
+let currentFilteredMenu = [];
+let menuObserver = null;
+
+// Server-side pagination
+const API_PAGE_SIZE = 100;
+let apiOffset = 0;
+let apiHasMore = true;
+let apiFetching = false;
 
 // Meal Selection Modal State
 let currentMealSelection = null;
@@ -116,62 +128,49 @@ window.testGuestOrderHistory = testGuestOrderHistory;
 document.addEventListener('DOMContentLoaded', function() {
     initializeDate();
     updateMealPeriod();
+    initializeGreetingBar();
     checkSession(); // Check if user is logged in (moved inside DOMContentLoaded)
     loadLanguagePreference(); // Load language preference
     loadThemePreference(); // Load theme preference
-    loadMenuFromAPI();
+    loadCategoriesFromAPI();
 
     // Handle category sidebar sticky behavior
     handleStickySidebar();
 });
 
 // ========================================
-// Sticky Category Sidebar
+// Sticky header hide/show on scroll
 // ========================================
 function handleStickySidebar() {
     const header = document.querySelector('.order-header');
-    const categorySidebar = document.querySelector('.category-sidebar');
-    const mainContent = document.querySelector('.order-main');
+    const pageTopBar = document.querySelector('.page-top-bar');
+    if (!header || !pageTopBar) return;
 
-    if (!header || !categorySidebar) return;
+    let ticking = false;
 
-    const headerHeight = header.offsetHeight;
+    function updateStickyLayout() {
+        const scrollY = window.scrollY;
+        const headerHeight = header.offsetHeight;
 
-    // Set initial padding on main content
-    mainContent.style.paddingTop = (headerHeight + 20) + 'px';
-
-    window.addEventListener('scroll', function() {
-        const scrollTop = window.scrollY;
-
-        // When scrolled past header, hide header and make sidebar fixed at top
-        if (scrollTop >= headerHeight) {
-            header.style.transform = 'translateY(-100%)';
-            categorySidebar.style.position = 'fixed';
-            categorySidebar.style.top = '0';
-            categorySidebar.style.left = '0';
-            categorySidebar.style.right = '0';
-            categorySidebar.style.width = '100%';
-            categorySidebar.style.borderRadius = '0';
-            categorySidebar.style.zIndex = '1000';
-            categorySidebar.style.boxShadow = 'var(--shadow-lg)';
-
-            // Adjust padding to match fixed sidebar height
-            mainContent.style.paddingTop = (categorySidebar.offsetHeight + 20) + 'px';
+        if (scrollY > headerHeight) {
+            header.classList.add('hidden');
+            pageTopBar.style.top = '0';
         } else {
-            header.style.transform = 'translateY(0)';
-            categorySidebar.style.position = '';
-            categorySidebar.style.top = '';
-            categorySidebar.style.left = '';
-            categorySidebar.style.right = '';
-            categorySidebar.style.width = '';
-            categorySidebar.style.borderRadius = '';
-            categorySidebar.style.zIndex = '';
-            categorySidebar.style.boxShadow = '';
-
-            // Reset main content padding to initial value
-            mainContent.style.paddingTop = (headerHeight + 20) + 'px';
+            header.classList.remove('hidden');
+            pageTopBar.style.top = headerHeight + 'px';
         }
-    });
+
+        ticking = false;
+    }
+
+    updateStickyLayout();
+
+    window.addEventListener('scroll', () => {
+        if (!ticking) {
+            requestAnimationFrame(updateStickyLayout);
+            ticking = true;
+        }
+    }, { passive: true });
 }
 
 // ========================================
@@ -267,6 +266,9 @@ async function handleLogin(event) {
     const employeeName = document.getElementById('employeeName').value;
     const department = document.getElementById('department').value;
 
+    const submitBtn = event.target ? event.target.querySelector('button[type="submit"]') : null;
+    setButtonLoading(submitBtn, currentLanguage === 'fr' ? 'Connexion...' : 'Signing in...');
+
     try {
         // First, try to authenticate user and get complete data from database
         const response = await fetch('/api/login_user', {
@@ -329,6 +331,8 @@ async function handleLogin(event) {
             phone: '',
             department: department
         };
+    } finally {
+        resetButton(submitBtn);
     }
 
     // Save to localStorage for persistence across page reloads
@@ -344,6 +348,7 @@ async function handleLogin(event) {
     document.getElementById('userDept').textContent = currentUser.department;
 
     showToast(currentLanguage === 'fr' ? 'Connexion réussie ! Bienvenue ' + currentUser.name : 'Login successful! Welcome ' + currentUser.name, 'success');
+    initializeGreetingBar();
 }
 
 function handleLogout() {
@@ -410,7 +415,7 @@ async function fetchUserOrders() {
         // Show loading indicator
         const contentDiv = document.getElementById('orderHistoryContent');
         if (contentDiv) {
-            contentDiv.innerHTML = '<div class=\"loading-spinner\"><i class=\"fas fa-circle-notch fa-spin\"></i><p>' + (currentLanguage === 'fr' ? 'Chargement de vos commandes...' : 'Loading your orders...') + '</p></div>';
+            contentDiv.innerHTML = `<div class="zina-loader zina-loader--inline"><div class="zl-inner"><div class="zl-logo-wrap"><div class="zl-ring"></div><img src="/static/images/logo.PNG" alt="ZINA" class="zl-logo"></div><p class="zl-text">${currentLanguage === 'fr' ? 'Chargement de vos commandes...' : 'Loading your orders...'}</p><div class="zl-dots"><span></span><span></span><span></span></div></div></div>`;
         }
 
         let url;
@@ -469,7 +474,7 @@ function displayOrderHistory(orders) {
         const pickupDate = order.pickup_time ? new Date(order.pickup_time) : null;
 
         const statusClass = `status-${order.order_status}`;
-        const statusText = getStatusText(order.order_status);
+        const statusText = getStatusText(order.order_status, currentLanguage);
 
         return `
             <div class="order-item">
@@ -524,46 +529,7 @@ function displayOrderHistoryError(error) {
     `;
 }
 
-function getStatusText(status) {
-    const statusMapFr = {
-        'pending': 'En attente',
-        'confirmed': 'Confirmée',
-        'preparing': 'En préparation',
-        'ready': 'Prête',
-        'completed': 'Terminée',
-        'cancelled': 'Annulée'
-    };
-
-    const statusMapEn = {
-        'pending': 'Pending',
-        'confirmed': 'Confirmed',
-        'preparing': 'Preparing',
-        'ready': 'Ready',
-        'completed': 'Completed',
-        'cancelled': 'Cancelled'
-    };
-
-    return currentLanguage === 'fr' ? statusMapFr[status] : statusMapEn[status] || status;
-}
-
-function formatDate(date) {
-    const locale = currentLanguage === 'fr' ? 'fr-FR' : 'en-US';
-    return date.toLocaleDateString(locale, {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
-}
-
-function formatTime(date) {
-    const locale = currentLanguage === 'fr' ? 'fr-FR' : 'en-US';
-    return date.toLocaleTimeString(locale, {
-        hour: '2-digit',
-        minute: '2-digit'
-    });
-}
+// getStatusText, formatDate, formatTime → see utils.js
 
 // Check if user is already logged in and restore session
 function checkSession() {
@@ -657,6 +623,27 @@ function updateMealPeriod() {
     else if (hour >= 18) period = currentLanguage === 'fr' ? 'Dîner' : 'Dinner';
 
     mealPeriodElement.textContent = period;
+}
+
+function initializeGreetingBar() {
+    const msgEl = document.getElementById('greetingMessage');
+    const timeEl = document.getElementById('greetingTime');
+    if (!msgEl || !timeEl) return;
+
+    const hour = new Date().getHours();
+    const isFr = currentLanguage !== 'en';
+    let greeting;
+    if (hour < 12)      greeting = isFr ? 'Bonjour' : 'Good morning';
+    else if (hour < 18) greeting = isFr ? 'Bon après-midi' : 'Good afternoon';
+    else                greeting = isFr ? 'Bonsoir' : 'Good evening';
+
+    const displayName = currentUser && (currentUser.full_name || currentUser.name);
+    const name = displayName ? ', ' + displayName.split(' ')[0] : '';
+    const suffix = isFr ? ' ! Que souhaitez-vous commander ?' : '! What would you like to order?';
+    msgEl.textContent = greeting + name + suffix;
+
+    const now = new Date();
+    timeEl.textContent = now.toLocaleTimeString(isFr ? 'fr-FR' : 'en-US', { hour: '2-digit', minute: '2-digit' });
 }
 
 // ========================================
@@ -1053,7 +1040,18 @@ function setTheme(theme, showNotification = true) {
     // Update theme icon
     const themeIcon = document.getElementById('themeIcon');
     if (themeIcon) {
-        themeIcon.className = theme === 'light' ? 'fas fa-moon' : 'fas fa-sun';
+        const tag = themeIcon.tagName.toLowerCase();
+        if (tag === 'iconify-icon') {
+            themeIcon.setAttribute('icon', theme === 'light'
+                ? 'icon-park-twotone:moon'
+                : 'icon-park-twotone:sun');
+        } else if (tag === 'img') {
+            themeIcon.src = theme === 'light'
+                ? 'https://img.icons8.com/doodle/24/bright-moon.png'
+                : 'https://img.icons8.com/doodle/24/sun.png';
+        } else {
+            themeIcon.className = theme === 'light' ? 'fas fa-moon' : 'fas fa-sun';
+        }
     }
     
     // Save theme preference
@@ -1088,64 +1086,254 @@ document.addEventListener('click', function(event) {
 // ========================================
 let menuItems = []; // Store all menu items from backend
 
+// API categories store: { [id]: { name, emoji } }
+window.apiCategories = {};
+
+// ── View toggle (grid / list) ─────────────────────────────────────────────────
+var menuViewMode = localStorage.getItem('zina_menu_view') || 'grid';
+
+function setMenuView(mode) {
+    menuViewMode = mode;
+    localStorage.setItem('zina_menu_view', mode);
+    var grid = document.getElementById('menuGrid');
+    if (grid) {
+        grid.classList.toggle('menu-view-list', mode === 'list');
+    }
+    document.querySelectorAll('.view-toggle-btn').forEach(function(btn) {
+        btn.classList.remove('active');
+    });
+    var activeBtn = document.getElementById(mode === 'list' ? 'viewBtnList' : 'viewBtnGrid');
+    if (activeBtn) activeBtn.classList.add('active');
+}
+
+function applyStoredMenuView() {
+    // Only apply on phones; desktop always uses grid
+    if (window.innerWidth > 768) return;
+    setMenuView(menuViewMode);
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Fallback emoji map for categories when the DB has no emoji set
+var CATEGORY_EMOJI_MAP = [
+    ['petit dejeuner', '🌅'], ['breakfast', '🌅'],
+    ['déjeuner', '🍳'], ['dejeuner', '🍳'],
+    ['dîner', '🍽️'], ['diner', '🍽️'],
+    ['boisson', '🥤'], ['drink', '🥤'], ['jus', '🧃'], ['eau', '💧'],
+    ['café', '☕'], ['cafe', '☕'], ['thé', '🍵'], ['the', '🍵'],
+    ['dessert', '🍰'], ['gâteau', '🎂'], ['gateau', '🎂'], ['pâtisserie', '🧁'],
+    ['snack', '🥪'], ['sandwich', '🥙'], ['burger', '🍔'],
+    ['pizza', '🍕'], ['pasta', '🍝'], ['pâtes', '🍝'],
+    ['riz', '🍚'], ['salade', '🥗'], ['soupe', '🍲'],
+    ['poisson', '🐟'], ['fruits de mer', '🦐'],
+    ['viande', '🥩'], ['poulet', '🍗'], ['bœuf', '🥩'], ['boeuf', '🥩'],
+    ['formule', '⭐'], ['menu', '📋'],
+    ['africain', '🌍'], ['ivoirien', '🌍'], ['local', '🌍'],
+    ['végétarien', '🥦'], ['vegetarien', '🥦'], ['vegan', '🌱'],
+    ['plat', '🥘'], ['chaud', '🔥'],
+    ['froid', '🧊'], ['glace', '🍦'],
+    ['fruit', '🍎'], ['légume', '🥕'], ['legume', '🥕'],
+];
+function getCategoryEmoji(name) {
+    var lower = (name || '').toLowerCase();
+    for (var i = 0; i < CATEGORY_EMOJI_MAP.length; i++) {
+        if (lower.includes(CATEGORY_EMOJI_MAP[i][0])) return CATEGORY_EMOJI_MAP[i][1];
+    }
+    return '🍽️';
+}
+
+// Custom SVG icons — map category keywords → filename under /static/images/food/icons/
+var CATEGORY_SVG_BASE = '/static/images/food/icons/';
+var CATEGORY_SVG_MAP = [
+    ['petit dejeuner', 'petit%20dejeuner.svg'], ['breakfast', 'petit%20dejeuner.svg'],
+    ['déjeuner', 'd%C3%A9jeuner.svg'],  ['dejeuner', 'd%C3%A9jeuner.svg'],
+    ['boisson', 'boissons.svg'], ['drink', 'boissons.svg'],
+    ['jus', 'boissons.svg'], ['eau', 'boissons.svg'],
+    ['café', 'boissons.svg'], ['cafe', 'boissons.svg'],
+    ['thé', 'boissons.svg'], ['the', 'boissons.svg'],
+    ['dessert', 'desserts.svg'], ['gâteau', 'desserts.svg'],
+    ['gateau', 'desserts.svg'], ['pâtisserie', 'desserts.svg'],
+    ['snack', 'snacks.svg'], ['sandwich', 'snacks.svg'], ['burger', 'snacks.svg'],
+];
+
+function getCategoryIconHTML(name) {
+    var lower = (name || '').toLowerCase();
+    for (var i = 0; i < CATEGORY_SVG_MAP.length; i++) {
+        if (lower.includes(CATEGORY_SVG_MAP[i][0])) {
+            return '<img class="cat-svg-icon" src="' + CATEGORY_SVG_BASE + CATEGORY_SVG_MAP[i][1] + '" alt="" aria-hidden="true">';
+        }
+    }
+    return getCategoryEmoji(name); // fallback to emoji for unmapped categories
+}
+
+function loadCategoriesFromAPI() {
+    fetch('/api/categories')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            const nav = document.getElementById('categoryNav');
+            if (!nav) return;
+
+            // Build category map
+            window.apiCategories = {};
+            data.forEach(function(cat) {
+                var emoji = cat.emoji || getCategoryEmoji(cat.name);
+                window.apiCategories[String(cat.id)] = { name: cat.name, emoji: emoji };
+            });
+
+            // Remove any previously injected dynamic buttons
+            nav.querySelectorAll('.cat-btn-dynamic').forEach(function(el) { el.remove(); });
+
+            // Append one button per category from the API
+            data.forEach(function(cat, idx) {
+                const btn = document.createElement('button');
+                btn.className = 'cat-btn cat-btn-dynamic';
+                btn.setAttribute('data-category', String(cat.id));
+                btn.style.animationDelay = (idx * 40) + 'ms';
+                btn.onclick = function() { filterCategory(String(cat.id)); };
+                var iconHTML = getCategoryIconHTML(cat.name);
+                btn.innerHTML =
+                    '<span class="cat-emoji">' + iconHTML + '</span>' +
+                    '<span class="cat-name">' + cat.name + '</span>';
+                nav.appendChild(btn);
+            });
+
+            // Parse twemoji only for fallback emoji (buttons without a custom SVG)
+            if (window.twemoji) twemoji.parse(nav, { folder: 'svg', ext: '.svg' });
+
+            // Now load the menu
+            applyStoredMenuView();
+            loadMenuFromAPI();
+        })
+        .catch(function(err) {
+            console.error('Error loading categories:', err);
+            applyStoredMenuView();
+            // Fallback: load menu directly
+            loadMenuFromAPI();
+        });
+}
+
 function loadMenuFromAPI() {
+    // Reset everything
+    menuItems  = [];
+    apiOffset  = 0;
+    apiHasMore = true;
+    apiFetching = false;
+
     const menuGrid = document.getElementById('menuGrid');
     if (menuGrid) {
         menuGrid.innerHTML = `
-            <div class="loading-spinner">
-                <i class="fas fa-spinner fa-spin"></i>
-                <p>Chargement du menu...</p>
-            </div>
-        `;
+            <div class="zina-loader zina-loader--inline">
+                <div class="zl-inner">
+                    <div class="zl-logo-wrap">
+                        <div class="zl-ring"></div>
+                        <img src="/static/images/logo.PNG" alt="ZINA" class="zl-logo">
+                    </div>
+                    <p class="zl-text">${currentLanguage === 'fr' ? 'Chargement du menu...' : 'Loading menu...'}</p>
+                    <div class="zl-dots"><span></span><span></span><span></span></div>
+                </div>
+            </div>`;
     }
+    fetchMenuPage();
+}
 
-    // Load from API
-    fetch('/api/menu')
-        .then(response => response.json())
-        .then(data => {
-            console.log('Menu data loaded:', data);
-            if (data && Object.keys(data).length > 0) {
-                // Use API data
-                menuItems = convertAPIMenu(data);
-                console.log('Menu items converted:', menuItems.length, 'items');
-                console.log('Categories:', [...new Set(menuItems.map(i => i.category))]);
+function fetchMenuPage() {
+    if (apiFetching || !apiHasMore) return;
+    apiFetching = true;
+
+    // Track whether this is the very first load
+    const isFirstLoad = menuItems.length === 0;
+
+    fetch('/api/menu/feed?limit=' + API_PAGE_SIZE + '&offset=' + apiOffset)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            apiFetching = false;
+            if (data.error) throw new Error(data.error);
+
+            // Merge new items — skip duplicates
+            const existingIds = new Set(menuItems.map(function(i) { return i.id; }));
+            const newItems = (data.items || [])
+                .filter(function(i) { return !existingIds.has(i.id); })
+                .map(function(item) {
+                    return {
+                        id:               item.id,
+                        category_id:      String(item.category_id || ''),
+                        sous_category_id: item.sous_category_id ? String(item.sous_category_id) : null,
+                        name:             item.name,
+                        description:      item.description || '',
+                        price:            item.price,
+                        category:         item.category || '',
+                        image:            item.image || '',
+                        available:        item.available !== undefined ? item.available : true,
+                        popular:          false,
+                        prepTime:         15,
+                        options:          item.options || []
+                    };
+                });
+
+            menuItems  = menuItems.concat(newItems);
+            apiOffset += (data.items || []).length;
+            apiHasMore = data.has_more;
+
+            updateCategoryCounts(menuItems);
+
+            if (isFirstLoad) {
+                // First load — full render (clears grid, resets pagination)
                 renderMenu(menuItems);
-                updateCategoryCounts(menuItems);
             } else {
-                // Empty menu
-                renderMenu([]);
+                // Subsequent fetch
+                const grid = document.getElementById('menuGrid');
+                if (!grid) return;
+
+                if (currentCategory === 'all') {
+                    // Grouped view: re-render all sections with the updated item pool
+                    renderMenuGrouped(applyFilters(menuItems));
+                } else {
+                    // Single-category paginated view: append new matching items
+                    const newFiltered = applyFilters(newItems);
+                    currentFilteredMenu = currentFilteredMenu.concat(newFiltered);
+
+                    const oldSentinel = document.getElementById('menuSentinel');
+                    if (oldSentinel) oldSentinel.remove();
+                    if (menuObserver) { menuObserver.disconnect(); menuObserver = null; }
+
+                    loadMoreMenuItems(grid);
+                }
             }
         })
-        .catch(error => {
-            console.error('Error loading menu:', error);
-            if (menuGrid) {
+        .catch(function(err) {
+            apiFetching = false;
+            console.error('Error fetching menu page:', err);
+            const menuGrid = document.getElementById('menuGrid');
+            if (menuGrid && menuItems.length === 0) {
                 menuGrid.innerHTML = `
                     <div class="menu-error">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <p>Impossible de charger le menu. Veuillez réessayer.</p>
-                    </div>
-                `;
+                        <i class="fas fa-triangle-exclamation"></i>
+                        <p>${currentLanguage === 'fr' ? 'Impossible de charger le menu.' : 'Could not load the menu.'}
+                           <button class="btn-retry" onclick="loadMenuFromAPI()">
+                               ${currentLanguage === 'fr' ? 'Réessayer' : 'Retry'}
+                           </button>
+                        </p>
+                    </div>`;
             }
         });
 }
 
 function convertAPIMenu(apiData) {
-    // Convert API format to our format
     const converted = [];
-    let id = 1;
 
     for (const [categoryKey, items] of Object.entries(apiData)) {
-        items.forEach(item => {
+        items.forEach(function(item) {
             converted.push({
-                id: id++,
+                id: item.id,                           // real product_id from DB
+                category_id: String(item.category_id || ''), // numeric FK as string
                 name: item.name,
                 description: item.description || '',
                 price: item.price,
-                category: item.category || categoryKey,  // Use item's category if available
-                image: item.image || '🍽️',
+                category: item.category || categoryKey,
+                image: item.image || '',
                 available: item.is_available !== undefined ? item.is_available : true,
                 popular: false,
-                prepTime: 15
+                prepTime: 15,
+                options: item.options || []
             });
         });
     }
@@ -1153,227 +1341,313 @@ function convertAPIMenu(apiData) {
     return converted;
 }
 
+function buildMenuItemHTML(item) {
+    const catInfo = window.apiCategories && item.category_id
+        ? window.apiCategories[String(item.category_id)]
+        : null;
+    const catTag = catInfo ? `${catInfo.emoji} ${catInfo.name}` : '';
+    return `
+    <div class="menu-item${!item.available ? ' unavailable' : ''}" data-id="${item.id}">
+        <div class="menu-item-image">
+            <img src="${item.image}" alt="${item.name}" loading="lazy"
+                 onerror="this.src='https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&h=300&fit=crop'">
+            <div class="menu-item-image-overlay"></div>
+            ${item.popular ? '<span class="menu-badge badge-popular"><i class="fas fa-fire-flame-curved"></i> Pop</span>' : ''}
+            ${catTag ? `<span class="menu-item-tag-float">${catTag}</span>` : ''}
+            ${!item.available ? `<div class="menu-unavailable-overlay"><i class="fas fa-hourglass-half"></i><span>${currentLanguage === 'fr' ? 'Indisponible' : 'Unavailable'}</span></div>` : ''}
+            <button class="add-to-cart"
+                    onclick="addToCart(${item.id})"
+                    ${!item.available ? 'disabled' : ''}
+                    title="${currentLanguage === 'fr' ? 'Ajouter au panier' : 'Add to cart'}">
+                <i class="fas fa-plus"></i>
+            </button>
+        </div>
+        <div class="menu-item-content">
+            <h3 class="menu-item-title">${item.name}</h3>
+            <p class="menu-item-description">${item.description || ''}</p>
+            <div class="menu-item-bottom">
+                <span class="menu-item-price">${formatPrice(item.price)}</span>
+            </div>
+        </div>
+    </div>`;
+}
+
+function attachMenuObserver(grid) {
+    // Disconnect any previous observer
+    if (menuObserver) { menuObserver.disconnect(); menuObserver = null; }
+
+    const sentinel = document.getElementById('menuSentinel');
+    if (!sentinel) return;
+
+    menuObserver = new IntersectionObserver(function(entries) {
+        if (entries[0].isIntersecting) {
+            loadMoreMenuItems(grid);
+        }
+    }, { rootMargin: '400px' });
+
+    menuObserver.observe(sentinel);
+}
+
+function loadMoreMenuItems(grid) {
+    const start = currentPage * PAGE_SIZE;
+    const slice = currentFilteredMenu.slice(start, start + PAGE_SIZE);
+
+    if (slice.length === 0) {
+        // Nothing left in the filtered buffer — fetch the next server page
+        if (apiHasMore && !apiFetching) fetchMenuPage();
+        return;
+    }
+
+    // Remove sentinel before appending
+    const oldSentinel = document.getElementById('menuSentinel');
+    if (oldSentinel) oldSentinel.remove();
+
+    // Append new cards
+    const fragment = document.createDocumentFragment();
+    slice.forEach(function(item) {
+        const tmp = document.createElement('div');
+        tmp.innerHTML = buildMenuItemHTML(item);
+        fragment.appendChild(tmp.firstElementChild);
+    });
+    grid.appendChild(fragment);
+
+    // Apply Twemoji to newly added cards
+    if (window.twemoji) twemoji.parse(grid, { folder: 'svg', ext: '.svg' });
+
+    currentPage++;
+
+    const hasMoreFiltered = currentPage * PAGE_SIZE < currentFilteredMenu.length;
+
+    // Keep sentinel visible while there are more items (client or server)
+    if (hasMoreFiltered || apiHasMore) {
+        const sentinel = document.createElement('div');
+        sentinel.id = 'menuSentinel';
+        sentinel.className = 'menu-sentinel';
+        grid.appendChild(sentinel);
+        attachMenuObserver(grid);
+    }
+
+    // Pre-fetch the next server page when we're near the end of the local buffer
+    if (!hasMoreFiltered && apiHasMore && !apiFetching) {
+        fetchMenuPage();
+    }
+}
+
+// Apply current category / subcategory / filter to an array of items
+function applyFilters(items) {
+    let result = items;
+    if (currentCategory !== 'all') {
+        result = result.filter(function(item) {
+            return String(item.category_id) === String(currentCategory);
+        });
+    }
+    if (currentSubcategory !== 'all' && currentSubcategory !== 'tous') {
+        result = result.filter(function(item) {
+            return item.sous_category_id && String(item.sous_category_id) === String(currentSubcategory);
+        });
+    }
+    if (currentFilter === 'available') {
+        result = result.filter(function(item) { return item.available; });
+    } else if (currentFilter === 'popular') {
+        result = result.filter(function(item) { return item.popular; });
+    } else if (currentFilter === 'new') {
+        result = result.filter(function(item) { return item.id > 55; });
+    }
+    return result;
+}
+
 function renderMenu(menu) {
     const grid = document.getElementById('menuGrid');
     updateCategoryCounts(menu);
-    
-    let filteredMenu = menu;
-    
-    // Apply category filter
-    if (currentCategory !== 'all') {
-        const actualNames = mapCategoryToActualNames(currentCategory);
-        filteredMenu = filteredMenu.filter(item => 
-            actualNames.some(name => 
-                item.category && item.category.toLowerCase() === name.toLowerCase()
-            )
-        );
+
+    // Disconnect any existing observer
+    if (menuObserver) { menuObserver.disconnect(); menuObserver = null; }
+
+    // Formula view
+    if (currentCategory === 'formulas') {
+        grid.classList.remove('menu-grid-grouped');
+        renderFormulas();
+        return;
     }
-    
-    // Apply subcategory filter
-    if (currentSubcategory !== 'all' && currentSubcategory !== 'tous') {
-        filteredMenu = filteredMenu.filter(item => 
-            item.subcategory && item.subcategory.toLowerCase() === currentSubcategory.toLowerCase()
-        );
+
+    // No-filter view → horizontal grouped sections per category
+    if (currentCategory === 'all') {
+        grid.classList.add('menu-grid-grouped');
+        renderMenuGrouped(applyFilters(menu));
+        return;
     }
-    
-    // Apply item filter
-    if (currentFilter === 'available') {
-        filteredMenu = filteredMenu.filter(item => item.available);
-    } else if (currentFilter === 'popular') {
-        filteredMenu = filteredMenu.filter(item => item.popular);
-    } else if (currentFilter === 'new') {
-        filteredMenu = filteredMenu.filter(item => item.id > 55);
-    }
-    
+
+    // Single-category view → normal paginated grid
+    grid.classList.remove('menu-grid-grouped');
+
+    const filteredMenu = applyFilters(menu);
+
     if (filteredMenu.length === 0) {
+        if (apiHasMore && !apiFetching) { fetchMenuPage(); return; }
         grid.innerHTML = `
             <div class="no-results">
-                <i class="fas fa-search"></i>
-                <h3>Aucun plat trouvé</h3>
-                <p>Essayez une autre catégorie ou filtre</p>
+                <div class="no-results-icon"><i class="fas fa-utensils"></i></div>
+                <h3>${currentLanguage === 'fr' ? 'Aucun plat trouvé' : 'No items found'}</h3>
+                <p>${currentLanguage === 'fr' ? 'Essayez une autre catégorie ou filtre' : 'Try another category or filter'}</p>
             </div>
         `;
         return;
     }
-    
-    grid.innerHTML = filteredMenu.map(item => `
-        <div class="menu-item ${!item.available ? 'unavailable' : ''}" data-id="${item.id}">
-            <div class="menu-item-image">
-                <img src="${item.image}" alt="${item.name}" onerror="this.src='https://via.placeholder.com/300x200?text=${encodeURIComponent(item.name)}'">
-                ${item.popular ? '<span class="popular-badge"><i class="fas fa-star"></i> Populaire</span>' : ''}
-                ${!item.available ? '<span class="unavailable-badge">Indisponible</span>' : ''}
-                <button class="add-btn-overlay" onclick="addToCart(${item.id})">
-                    <i class="fas fa-plus"></i>
-                </button>
-            </div>
-            <div class="menu-item-content">
-                <div class="menu-item-header">
-                    <h3 class="menu-item-title">${item.name}</h3>
-                    <span class="menu-item-price">${item.price} FCFA</span>
-                </div>
-                <p class="menu-item-description">${item.description}</p>
-            </div>
-        </div>
-    `).join('');
-    
-    document.getElementById('menuTitle').textContent = 
-        currentCategory === 'all' ? 'Commander' : 
-        getCategoryName(currentCategory);
-}
 
-function getCategoryName(category) {
-    const names = {
-        'breakfast': 'Petit-Déjeuner',
-        'lunch': 'Plats Complets',
-        'snacks': 'Snacks',
-        'salads': 'Salades',
-        'drinks': 'Boissons',
-        'desserts': 'Desserts',
-        'specials': 'Spécialités'
-    };
-    return names[category] || category;
-}
+    currentFilteredMenu = filteredMenu;
+    currentPage = 0;
+    grid.innerHTML = '';
 
-function updateCategoryCounts(menu) {
-    // Count items by actual category names (no safe key conversion)
-    const categoryCounts = {};
-    menu.forEach(item => {
-        const category = item.category;
-        if (category) {
-            categoryCounts[category] = (categoryCounts[category] || 0) + 1;
-        }
-    });
-    
-    // Update "All" count
-    const allEl = document.getElementById('countAll');
-    if (allEl) {
-        allEl.textContent = menu.length;
+    // Drain the full local buffer without waiting for the IntersectionObserver
+    loadMoreMenuItems(grid);
+    while (currentPage * PAGE_SIZE < currentFilteredMenu.length && document.getElementById('menuSentinel')) {
+        loadMoreMenuItems(grid);
     }
-    
-    // Define mapping from data-category values to actual category names
-    const categoryMappings = {
-        'breakfast': ['petit déjeuner', 'petit-déjeuner', 'breakfast', 'petit_dejeuner'],
-        'lunch': ['déjeuner', 'dejeuner', 'plats complets', 'lunch', 'plats_complets'],
-        'snacks': ['snacks'],
-        'salads': ['salades', 'salade', 'salads'],
-        'drinks': ['boissons', 'drinks'],
-        'desserts': ['desserts', 'dessert'],
-        'specials': ['spécialités', 'specialites', 'specials']
-    };
-    
-    // Update specific category counts
-    document.querySelectorAll('.cat-btn[data-category]').forEach(btn => {
-        const category = btn.dataset.category;
-        if (category === 'all') return; // Already handled
-        
-        // Calculate count by summing all matching actual categories
-        let count = 0;
-        const actualCategories = categoryMappings[category] || [category];
-        
-        actualCategories.forEach(actualCat => {
-            count += categoryCounts[actualCat] || 0;
-        });
-        
-        // Find the count element for this category
-        const countEl = btn.querySelector('.cat-count');
-        if (countEl) {
-            countEl.textContent = count;
-        }
-    });
+
+    const titleEl = document.getElementById('menuTitle');
+    if (titleEl) {
+        const catInfo = window.apiCategories ? window.apiCategories[String(currentCategory)] : null;
+        titleEl.textContent = catInfo
+            ? (catInfo.emoji + ' ' + catInfo.name)
+            : (currentLanguage === 'fr' ? 'Tous les plats' : 'All dishes');
+    }
 }
+
+/**
+ * Render one horizontal-scrolling section per category (the default "all" view).
+ * Shows up to 10 items per category.
+ */
+function renderMenuGrouped(items) {
+    var grid = document.getElementById('menuGrid');
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    // Group items by category_id, preserving insertion order
+    var groups = {};
+    var groupOrder = [];
+    items.forEach(function(item) {
+        if (!item.available) return;
+        var cid = String(item.category_id || 'other');
+        if (!groups[cid]) { groups[cid] = []; groupOrder.push(cid); }
+        groups[cid].push(item);
+    });
+
+    if (groupOrder.length === 0) {
+        if (apiHasMore && !apiFetching) { fetchMenuPage(); return; }
+        grid.innerHTML = '<div class="no-results"><div class="no-results-icon"><i class="fas fa-utensils"></i></div>' +
+            '<h3>' + (currentLanguage === 'fr' ? 'Aucun plat disponible' : 'No items available') + '</h3></div>';
+        return;
+    }
+
+    groupOrder.forEach(function(cid) {
+        var catItems = groups[cid].slice(0, 10);
+        var catInfo  = window.apiCategories && window.apiCategories[cid];
+        var catName  = catInfo ? catInfo.name  : (currentLanguage === 'fr' ? 'Divers' : 'Other');
+        var total    = groups[cid].length;
+
+        var section = document.createElement('div');
+        section.className = 'menu-category-section';
+        section.dataset.categoryId = cid;
+        section.innerHTML =
+            '<div class="menu-category-header">' +
+                '<span class="menu-category-title">' + catName + '</span>' +
+                '<button class="menu-category-see-all" onclick="filterCategory(\'' + cid + '\')">' +
+                    (currentLanguage === 'fr' ? 'Voir tout' : 'See all') +
+                    (total > 10 ? ' (' + total + ')' : '') +
+                    ' <i class="fas fa-chevron-right"></i>' +
+                '</button>' +
+            '</div>' +
+            '<div class="menu-category-row">' +
+                catItems.map(function(item) { return buildMenuItemHTML(item); }).join('') +
+            '</div>';
+
+        grid.appendChild(section);
+    });
+
+    if (window.twemoji) twemoji.parse(grid, { folder: 'svg', ext: '.svg' });
+}
+
+function updateCategoryCounts() { /* counts removed */ }
 
 function capitalize(str) {
     return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
 function filterCategory(category) {
-    currentCategory = category;
-    currentSubcategory = 'all'; // Reset subcategory when main category changes
-
-    document.querySelectorAll('.cat-btn').forEach(btn => {
-        btn.classList.remove('active');
-        if (btn.dataset.category === category) {
-            btn.classList.add('active');
-        }
-    });
-
-    // Show/hide subcategories based on selected category
-    updateSubcategories(category);
-    
-    renderMenu(menuItems);
-}
-
-function updateSubcategories(category) {
-    const subcategoriesSection = document.getElementById('subcategoriesSection');
-    const subcategoriesNav = document.getElementById('subcategoriesNav');
-    
-    // Define subcategories for each main category
-    const subcategoriesMap = {
-        'breakfast': ['Tous', 'Viennoiseries', 'Boissons Chaudes', 'Céréales'],
-        'lunch': ['Tous', 'Plats Traditionnels', 'Riz Sauces', 'Grillades', 'Accompagnements'],
-        'snacks': ['Tous', 'Gâteaux', 'Beignets', 'Chips', 'Fruits'],
-        'salads': ['Tous', 'Salades Vertes', 'Salades Composées', 'Crudités'],
-        'drinks': ['Tous', 'Jus', 'Sodas', 'Eaux', 'Boissons Chaudes'],
-        'desserts': ['Tous', 'Glaces', 'Pâtisseries', 'Fruits', 'Chocolats'],
-        'specials': ['Tous', 'Menu du Jour', 'Plats du Chef', 'Promotions']
-    };
-    
-    if (category === 'all' || !subcategoriesMap[category]) {
-        subcategoriesSection.style.display = 'none';
+    // Toggle: clicking the already-active category deselects it → grouped view
+    if (currentCategory === category) {
+        currentCategory = 'all';
+        currentSubcategory = 'all';
+        document.querySelectorAll('.cat-btn').forEach(function(btn) { btn.classList.remove('active'); });
+        renderMenu(menuItems);
+        updateSubcategories('all');
         return;
     }
-    
-    const subcategories = subcategoriesMap[category];
-    
-    // Clear existing subcategories
-    subcategoriesNav.innerHTML = '';
-    
-    // Add subcategory buttons
-    subcategories.forEach(sub => {
-        const btn = document.createElement('button');
-        btn.className = 'subcategory-btn';
-        if (sub === 'Tous') {
-            btn.classList.add('active');
-        }
-        btn.dataset.subcategory = sub.toLowerCase().replace(/\s+/g, '-');
-        btn.onclick = () => filterSubcategory(sub.toLowerCase().replace(/\s+/g, '-'));
-        btn.innerHTML = `
-            <span>${sub}</span>
-        `;
-        subcategoriesNav.appendChild(btn);
+
+    currentCategory = category;
+    currentSubcategory = 'all';
+
+    document.querySelectorAll('.cat-btn').forEach(function(btn) {
+        btn.classList.remove('active');
+        if (btn.dataset.category === category) btn.classList.add('active');
     });
-    
-    subcategoriesSection.style.display = 'block';
+
+    renderMenu(menuItems);
+    updateSubcategories(category);
+}
+
+function updateSubcategories(categoryId) {
+    const section = document.getElementById('subcategoriesSection');
+    const nav = document.getElementById('subcategoriesNav');
+    if (!section || !nav) return;
+
+    // Hide for 'all' or 'formulas'
+    if (!categoryId || categoryId === 'all' || categoryId === 'formulas') {
+        section.style.display = 'none';
+        return;
+    }
+
+    fetch('/api/sous-categories?category_id=' + encodeURIComponent(categoryId))
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data || data.error || data.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+
+            // Build subcategory buttons
+            nav.innerHTML = '';
+
+            // "Tous" button
+            const allBtn = document.createElement('button');
+            allBtn.className = 'subcategory-btn active';
+            allBtn.setAttribute('data-subcategory', 'all');
+            allBtn.onclick = function() { filterSubcategory('all'); };
+            allBtn.textContent = currentLanguage === 'fr' ? 'Tous' : 'All';
+            nav.appendChild(allBtn);
+
+            data.forEach(function(sc) {
+                const btn = document.createElement('button');
+                btn.className = 'subcategory-btn';
+                btn.setAttribute('data-subcategory', String(sc.id));
+                btn.onclick = function() { filterSubcategory(String(sc.id)); };
+                btn.textContent = sc.name;
+                nav.appendChild(btn);
+            });
+
+            section.style.display = '';
+        })
+        .catch(function() {
+            section.style.display = 'none';
+        });
 }
 
 function filterSubcategory(subcategory) {
     currentSubcategory = subcategory;
-    
-    document.querySelectorAll('.subcategory-btn').forEach(btn => {
-        btn.classList.remove('active');
-        if (btn.dataset.subcategory === subcategory) {
-            btn.classList.add('active');
-        }
+    document.querySelectorAll('.subcategory-btn').forEach(function(btn) {
+        btn.classList.toggle('active', btn.dataset.subcategory === String(subcategory));
     });
-    
     renderMenu(menuItems);
-}
-
-// Helper function to map English category to actual French category names
-function mapCategoryToActualNames(category) {
-    if (category === 'all') return null; // No filtering for 'all'
-    
-    const mappings = {
-        'breakfast': ['petit déjeuner', 'petit-déjeuner', 'breakfast', 'petit_dejeuner'],
-        'lunch': ['déjeuner', 'dejeuner', 'plats complets', 'lunch', 'plats_complets'],
-        'snacks': ['snacks'],
-        'salads': ['salades', 'salade', 'salads'],
-        'drinks': ['boissons', 'drinks'],
-        'desserts': ['desserts', 'dessert'],
-        'specials': ['spécialités', 'specialites', 'specials']
-    };
-    
-    return mappings[category] || [category];
 }
 
 function filterItems(filter) {
@@ -1419,26 +1693,7 @@ function searchMenu() {
         return;
     }
     
-    // Use the same HTML structure as renderMenu() for consistent styling
-    grid.innerHTML = filtered.map(item => `
-        <div class="menu-item ${!item.available ? 'unavailable' : ''}" data-id="${item.id}">
-            <div class="menu-item-image">
-                <img src="${item.image}" alt="${item.name}" onerror="this.src='https://via.placeholder.com/300x200?text=${encodeURIComponent(item.name)}'">
-                ${item.popular ? '<span class="popular-badge"><i class="fas fa-star"></i> Populaire</span>' : ''}
-                ${!item.available ? '<span class="unavailable-badge">Indisponible</span>' : ''}
-                <button class="add-btn-overlay" onclick="addToCart(${item.id})">
-                    <i class="fas fa-plus"></i>
-                </button>
-            </div>
-            <div class="menu-item-content">
-                <div class="menu-item-header">
-                    <h3 class="menu-item-title">${item.name}</h3>
-                    <span class="menu-item-price">${item.price} FCFA</span>
-                </div>
-                <p class="menu-item-description">${item.description}</p>
-            </div>
-        </div>
-    `).join('');
+    grid.innerHTML = filtered.map(item => buildMenuItemHTML(item)).join('');
 }
 
 // ========================================
@@ -1479,48 +1734,77 @@ function updateCartUI() {
     const cartItems = document.getElementById('cartItems');
     const cartCount = document.getElementById('cartCount');
     const navCartCount = document.getElementById('navCartCount');
+    const desktopCartCount = document.getElementById('desktopCartCount');
 
     const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-    // Update both cart count badges
-    if (cartCount) {
-        cartCount.textContent = totalItems;
-    }
-    if (navCartCount) {
-        navCartCount.textContent = totalItems;
-        // Hide badge if cart is empty
-        if (totalItems === 0) {
-            navCartCount.style.display = 'none';
-        } else {
-            navCartCount.style.display = 'flex';
+    // Update all cart count badges
+    if (cartCount) cartCount.textContent = totalItems;
+
+    [navCartCount, desktopCartCount].forEach(function(badge) {
+        if (!badge) return;
+        badge.textContent = totalItems;
+        badge.style.display = totalItems === 0 ? 'none' : 'flex';
+        if (totalItems > 0) {
+            badge.style.animation = 'none';
+            badge.offsetHeight; // reflow to restart
+            badge.style.animation = 'badgePop 0.3s ease';
         }
-    }
+    });
+
 
     if (cart.length === 0) {
         cartItems.innerHTML = `
             <div class="empty-cart">
-                <i class="fas fa-shopping-basket"></i>
-                <p data-translate="cartEmpty">${currentLanguage === 'fr' ? 'Votre panier est vide' : 'Your cart is empty'}</p>
-                <span data-translate="cartEmptySub">${currentLanguage === 'fr' ? 'Ajoutez des articles pour commencer' : 'Add items to get started'}</span>
+                <i class="fas fa-basket-shopping"></i>
+                <p>${currentLanguage === 'fr' ? 'Votre panier est vide' : 'Your cart is empty'}</p>
+                <span>${currentLanguage === 'fr' ? 'Ajoutez des articles pour commencer' : 'Add items to get started'}</span>
             </div>
         `;
     } else {
-        cartItems.innerHTML = cart.map(item => `
-            <div class="cart-item">
-                <div class="cart-item-image"><img style="height: -webkit-fill-available; width: -webkit-fill-available;" src="${item.image}"/></div>
-                <div class="cart-item-details">
-                    <div class="cart-item-title">${item.name}</div>
-                    <div class="cart-item-price">${formatPrice(item.price)}</div>
-                    <div class="cart-item-quantity">${currentLanguage === 'fr' ? 'Quantité' : 'Quantity'}: ${item.quantity}</div>
-                    <button class="add-more-btn" onclick="addToCart(${item.id})">
-                        <i class="fas fa-plus"></i> ${currentLanguage === 'fr' ? 'Ajouter' : 'Add'}
-                    </button>
-                </div>
-                <button class="remove-item" onclick="removeFromCart(${item.id})">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </div>
-        `).join('');
+        cartItems.innerHTML = cart.map(function(item) {
+            if (item.isFormula) {
+                var subList = item.items.map(function(sub) {
+                    return '<li><i class="fas fa-check"></i> ' + sub.name + '</li>';
+                }).join('');
+                return '<div class="cart-item cart-item-formula">' +
+                    '<div class="cart-formula-icon"><i class="' + item.formulaIcon + '"></i></div>' +
+                    '<div class="cart-item-details">' +
+                        '<div class="cart-item-title">' + item.formulaName + '</div>' +
+                        '<ul class="formula-cart-subitems">' + subList + '</ul>' +
+                        '<div class="cart-item-price">' + formatPrice(item.price) + '</div>' +
+                    '</div>' +
+                    '<button class="remove-item" onclick="removeFromCart(\'' + item.id + '\')" title="Retirer">' +
+                        '<i class="fas fa-trash-alt"></i>' +
+                    '</button>' +
+                '</div>';
+            }
+            // Normal item with qty controls
+            return '<div class="cart-item" data-id="' + item.id + '">' +
+                '<div class="cart-item-image">' +
+                    '<img src="' + item.image + '" alt="' + item.name + '" onerror="this.parentElement.innerHTML=\'<i class=\\\"fas fa-utensils\\\"></i>\'">' +
+                '</div>' +
+                '<div class="cart-item-details">' +
+                    '<div class="cart-item-title">' + item.name + '</div>' +
+                    '<div class="cart-item-price">' + formatPrice(item.price) + '</div>' +
+                    '<div class="cart-qty-controls">' +
+                        '<button class="cart-qty-btn" onclick="updateQuantity(' + item.id + ', -1)" title="Réduire">' +
+                            '<i class="fas fa-minus"></i>' +
+                        '</button>' +
+                        '<span class="cart-qty-val">' + item.quantity + '</span>' +
+                        '<button class="cart-qty-btn" onclick="updateQuantity(' + item.id + ', 1)" title="Augmenter">' +
+                            '<i class="fas fa-plus"></i>' +
+                        '</button>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="cart-item-right">' +
+                    '<span class="cart-item-total">' + formatPrice(item.price * item.quantity) + '</span>' +
+                    '<button class="remove-item" onclick="removeFromCart(' + item.id + ')" title="Retirer">' +
+                        '<i class="fas fa-trash-alt"></i>' +
+                    '</button>' +
+                '</div>' +
+            '</div>';
+        }).join('');
     }
     
     updateCartTotals();
@@ -1786,7 +2070,6 @@ function updatePickupTime() {
 }
 
 function confirmMealOrder() {
-            alert('clicked');
         console.log('confirmMealOrder called');
         // Loader/modal debug logs
         console.log('Attempting to show loader/modal...');
@@ -1933,8 +2216,6 @@ function proceedToCheckout() {
 
 function updatePickupTimeOptions(prepTimeMinutes) {
     const pickupSelect = document.getElementById('pickupTime');
-    const now = new Date();
-
     // Clear existing options
     pickupSelect.innerHTML = '';
 
@@ -2021,11 +2302,7 @@ function confirmOrder() {
         const totalPrepTime = Math.max(...cart.map(item => item.prepTime || 15));
 
         // Format items for backend API
-        const orderItems = cart.map(item => ({
-            product_id: item.id,
-            quantity: item.quantity,
-            option_ids: item.optionIds || []
-        }));
+        const orderItems = flattenCartForSubmission(cart);
 
         const orderData = {
             // Only include user_id if it exists (guest users have null ID)
@@ -2051,31 +2328,162 @@ function confirmOrder() {
                 // Update guest user with the assigned user_id from backend
                 if (currentUser && currentUser.isGuest && data.user_id) {
                     currentUser.id = data.user_id;
-                    // Save updated user info to localStorage
                     localStorage.setItem('zina_user', JSON.stringify(currentUser));
                     sessionStorage.setItem('zina_user', JSON.stringify(currentUser));
-                    console.log('Guest user updated with ID:', data.user_id);
-
-                    // Show additional success message for guest users
-                    setTimeout(() => {
-                        showToast(currentLanguage === 'fr' ? 'Commande confirmée !' : 'Order confirmed!', 'success');
-                    }, 2000);
                 }
 
-                closeOrderModal();
-                showSuccess(data.order_id || Math.floor(Math.random() * 10000), pickupTime, totalPrepTime, data.items || [], totalAmount);
+                // Hide loading modal
+                const successModal = document.getElementById('successModal');
+                if (successModal) {
+                    successModal.style.display = 'none';
+                    successModal.classList.remove('active');
+                }
+
+                // Clear cart
                 cart = [];
-                saveCart();  // Clear cart from localStorage
+                saveCart();
                 updateCartUI();
+
+                // Show Wave payment modal, then show receipt after payment
+                showWavePaymentModal(data.order_id, totalAmount, pickupTime, totalPrepTime, data.items || []);
+
             } else {
-            showToast(currentLanguage === 'fr' ? 'Erreur: ' + (data.error || '��chec de la commande') : 'Error: ' + (data.error || 'Order failed'), 'error');
+                const successModal = document.getElementById('successModal');
+                if (successModal) { successModal.style.display = 'none'; successModal.classList.remove('active'); }
+                showToast(currentLanguage === 'fr' ? 'Erreur: ' + (data.error || 'Échec de la commande') : 'Error: ' + (data.error || 'Order failed'), 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Order error:', error);
+            const successModal = document.getElementById('successModal');
+            if (successModal) { successModal.style.display = 'none'; successModal.classList.remove('active'); }
+            showToast(currentLanguage === 'fr' ? 'Erreur lors de la commande: ' + error.message : 'Order error: ' + error.message, 'error');
+        });
+    }, 50);
+}
+
+// ── Wave Payment ──────────────────────────────────────────────────────────────
+
+let _wavePollingInterval = null;
+let _wavePendingReceipt = null; // { orderId, pickupTime, prepTime, items, total }
+
+function showWavePaymentModal(orderId, totalAmount, pickupTime, prepTimeMinutes, orderItems) {
+    _wavePendingReceipt = { orderId, pickupTime, prepTimeMinutes, orderItems, totalAmount };
+
+    // Update display values
+    document.getElementById('waveAmountDisplay').textContent = formatPrice(totalAmount);
+    document.getElementById('waveOrderIdDisplay').textContent = orderId;
+
+    // Reset QR section
+    document.getElementById('waveQrLoading').style.display = 'flex';
+    document.getElementById('waveQrWrapper').style.display = 'none';
+    document.getElementById('waveQrError').style.display = 'none';
+    document.getElementById('waveStatusWaiting').style.display = 'flex';
+    document.getElementById('waveStatusConfirmed').style.display = 'none';
+    document.getElementById('waveBtnSkip').style.display = 'flex';
+    document.getElementById('waveQrCode').innerHTML = '';
+
+    const modal = document.getElementById('wavePaymentModal');
+    modal.style.display = 'flex';
+    modal.offsetHeight;
+    modal.classList.add('active');
+
+    // Call backend to create Wave checkout session
+    fetch('/api/payment/wave/initiate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id: orderId, amount: totalAmount })
+    })
+    .then(r => r.json())
+    .then(res => {
+        document.getElementById('waveQrLoading').style.display = 'none';
+        if (res.status === 'success' && res.wave_launch_url) {
+            // Generate QR code
+            document.getElementById('waveQrWrapper').style.display = 'flex';
+            new QRCode(document.getElementById('waveQrCode'), {
+                text: res.wave_launch_url,
+                width: 200,
+                height: 200,
+                colorDark: '#1B6FE4',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.M
+            });
+
+            // Show "Open Wave" link for mobile users
+            const mobileLink = document.getElementById('waveMobileLink');
+            mobileLink.href = res.wave_launch_url;
+            mobileLink.style.display = 'flex';
+
+            // Start polling for payment confirmation
+            _startWavePolling(orderId);
+        } else {
+            document.getElementById('waveQrError').style.display = 'flex';
+            document.getElementById('waveQrErrorMsg').textContent =
+                res.message || (currentLanguage === 'fr' ? 'Impossible de générer le QR code.' : 'Could not generate QR code.');
         }
     })
-    .catch(error => {
-        console.error('Order error:', error);
-        showToast(currentLanguage === 'fr' ? 'Erreur lors de la commande: ' + error.message : 'Order error: ' + error.message, 'error');
-    }, 50); // 50ms delay to allow browser to paint loader
+    .catch(() => {
+        document.getElementById('waveQrLoading').style.display = 'none';
+        document.getElementById('waveQrError').style.display = 'flex';
     });
+}
+
+function _startWavePolling(orderId) {
+    if (_wavePollingInterval) clearInterval(_wavePollingInterval);
+    _wavePollingInterval = setInterval(() => {
+        fetch(`/api/payment/wave/status/${orderId}`)
+            .then(r => r.json())
+            .then(res => {
+                if (res.paid) {
+                    clearInterval(_wavePollingInterval);
+                    _wavePollingInterval = null;
+                    _onWavePaymentConfirmed();
+                }
+            })
+            .catch(() => {});
+    }, 3000); // poll every 3s
+
+    // Stop polling after 10 minutes
+    setTimeout(() => {
+        if (_wavePollingInterval) {
+            clearInterval(_wavePollingInterval);
+            _wavePollingInterval = null;
+        }
+    }, 600000);
+}
+
+function _onWavePaymentConfirmed() {
+    document.getElementById('waveStatusWaiting').style.display = 'none';
+    document.getElementById('waveStatusConfirmed').style.display = 'flex';
+    document.getElementById('waveBtnSkip').style.display = 'none';
+    showToast(currentLanguage === 'fr' ? 'Paiement Wave confirmé !' : 'Wave payment confirmed!', 'success');
+    setTimeout(() => {
+        closeWavePaymentModal();
+        if (_wavePendingReceipt) {
+            const r = _wavePendingReceipt;
+            showSuccess(r.orderId, r.pickupTime, r.prepTimeMinutes, r.orderItems, r.totalAmount);
+        }
+    }, 1800);
+}
+
+function closeWavePaymentModal() {
+    if (_wavePollingInterval) {
+        clearInterval(_wavePollingInterval);
+        _wavePollingInterval = null;
+    }
+    const modal = document.getElementById('wavePaymentModal');
+    if (modal) {
+        modal.classList.remove('active');
+        modal.style.display = 'none';
+    }
+}
+
+function skipWavePayment() {
+    closeWavePaymentModal();
+    if (_wavePendingReceipt) {
+        const r = _wavePendingReceipt;
+        showSuccess(r.orderId, r.pickupTime, r.prepTimeMinutes, r.orderItems, r.totalAmount);
+    }
 }
 
 function showSuccess(orderId, pickupTime, prepTimeMinutes, orderItems, totalAmount) {
@@ -2162,39 +2570,7 @@ function closeSuccessModal() {
 // ========================================
 // Utilities
 // ========================================
-function formatPrice(price) {
-    return new Intl.NumberFormat('fr-FR').format(price) + ' FCFA';
-}
-
-function showToast(message, type = 'info') {
-    console.log('Toast called:', message, type); // Debug log
-    
-    const container = document.getElementById('toastContainer');
-    if (!container) {
-        // Fallback: log to console if toast container doesn't exist
-        console.log(`[${type.toUpperCase()}] ${message}`);
-        console.error('Toast container not found!');
-        return;
-    }
-    
-    console.log('Container found:', container); // Debug log
-    
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    toast.innerHTML = `
-        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
-        <span>${message}</span>
-    `;
-    container.appendChild(toast);
-    
-    console.log('Toast added to container:', toast); // Debug log
-    
-    // Wait for toast to be visible, then set up removal
-    setTimeout(() => {
-        toast.style.animation = 'slideUp 0.3s ease reverse';
-        setTimeout(() => toast.remove(), 300);
-    }, 3000);
-}
+// formatPrice, showToast → see utils.js
 
 // Close modals on escape
 document.addEventListener('keydown', function(e) {
@@ -2207,6 +2583,367 @@ document.addEventListener('keydown', function(e) {
         }
     }
 });
+
+// ========================================
+// Formula Feature
+// ========================================
+
+/**
+ * Maps a DB category_name (lowercased) to a course type.
+ * Used to filter which menu items appear at each formula step.
+ */
+const COURSE_TYPE_MAP = {
+    'entrées':        'entree',
+    'entrée':         'entree',
+    'entrees':        'entree',
+    'entree':         'entree',
+    'salades':        'entree',
+    'salade':         'entree',
+    'snacks':         'entree',
+    'petit déjeuner': 'entree',
+    'petit-déjeuner': 'entree',
+    'soupes':         'entree',
+    'soupe':          'entree',
+    'déjeuner':       'plat',
+    'dejeuner':       'plat',
+    'plats complets': 'plat',
+    'plats':          'plat',
+    'spécialités':    'plat',
+    'specialites':    'plat',
+    'dîner':          'plat',
+    'diner':          'plat',
+    'desserts':       'dessert',
+    'dessert':        'dessert',
+    'boissons':       'boisson',
+};
+
+function getCourseType(categoryName) {
+    if (!categoryName) return null;
+    return COURSE_TYPE_MAP[categoryName.toLowerCase().trim()] || null;
+}
+
+const FORMULAS = [
+    {
+        id: 'f1',
+        name: 'Entrée + Plat',
+        description: 'Une entrée et un plat de votre choix',
+        icon: 'fas fa-utensils',
+        steps: ['entree', 'plat'],
+        labels: { entree: 'Votre Entrée', plat: 'Votre Plat' }
+    },
+    {
+        id: 'f2',
+        name: 'Entrée + Plat + Dessert',
+        description: 'La formule complète sans boisson',
+        icon: 'fas fa-star',
+        badge: 'Populaire',
+        steps: ['entree', 'plat', 'dessert'],
+        labels: { entree: 'Votre Entrée', plat: 'Votre Plat', dessert: 'Votre Dessert' }
+    },
+    {
+        id: 'f3',
+        name: 'Plat + Dessert',
+        description: 'Un plat et une douceur en fin de repas',
+        icon: 'fas fa-ice-cream',
+        steps: ['plat', 'dessert'],
+        labels: { plat: 'Votre Plat', dessert: 'Votre Dessert' }
+    },
+    {
+        id: 'f4',
+        name: 'Formule Complète',
+        description: 'Entrée, plat, dessert et boisson — le repas idéal',
+        icon: 'fas fa-crown',
+        badge: 'Complet',
+        steps: ['entree', 'plat', 'dessert', 'boisson'],
+        labels: { entree: 'Votre Entrée', plat: 'Votre Plat', dessert: 'Votre Dessert', boisson: 'Votre Boisson' }
+    }
+];
+
+// Formula builder state
+var currentFormula = null;
+var currentFormulaStep = 0;
+var formulaSelections = {};
+
+var COURSE_STEP_LABELS = {
+    entree:  'Entrée',
+    plat:    'Plat',
+    dessert: 'Dessert',
+    boisson: 'Boisson'
+};
+
+/**
+ * Render the formula cards grid in the menu area.
+ */
+function renderFormulas() {
+    var grid = document.getElementById('menuGrid');
+    if (!grid) return;
+
+    grid.innerHTML = '<div class="formula-cards-grid">' +
+        FORMULAS.map(function(f) {
+            var stepBadges = f.steps.map(function(s) {
+                return '<span class="formula-step-badge">' + (COURSE_STEP_LABELS[s] || s) + '</span>';
+            }).join('');
+
+            return '<div class="formula-card">' +
+                '<div class="formula-card-header">' +
+                    '<div class="formula-card-icon"><i class="' + f.icon + '"></i></div>' +
+                    (f.badge ? '<span class="formula-card-badge">' + f.badge + '</span>' : '') +
+                '</div>' +
+                '<div class="formula-card-body">' +
+                    '<h3 class="formula-card-name">' + f.name + '</h3>' +
+                    '<p class="formula-card-desc">' + f.description + '</p>' +
+                    '<div class="formula-step-badges">' + stepBadges + '</div>' +
+                '</div>' +
+                '<button class="formula-compose-btn" onclick="openFormulaBuilderModal(\'' + f.id + '\')">' +
+                    '<i class="fas fa-plus-circle"></i> Composer' +
+                '</button>' +
+            '</div>';
+        }).join('') +
+    '</div>';
+}
+
+function openFormulaBuilderModal(formulaId) {
+    currentFormula = FORMULAS.find(function(f) { return f.id === formulaId; });
+    if (!currentFormula) return;
+    currentFormulaStep = 0;
+    formulaSelections = {};
+
+    document.getElementById('formulaBuilderTitle').innerHTML =
+        '<i class="' + currentFormula.icon + '"></i> ' + currentFormula.name;
+
+    buildFormulaProgress();
+    renderFormulaStep(0);
+    openModal('formulaBuilderModal');
+}
+
+function closeFormulaBuilderModal() {
+    currentFormula = null;
+    currentFormulaStep = 0;
+    formulaSelections = {};
+    closeModal('formulaBuilderModal');
+}
+
+function buildFormulaProgress() {
+    var el = document.getElementById('formulaProgress');
+    if (!el || !currentFormula) return;
+    el.innerHTML = currentFormula.steps.map(function(step, i) {
+        return '<div class="formula-prog-step" id="fprog-' + i + '">' +
+            '<div class="formula-prog-dot">' + (i + 1) + '</div>' +
+            '<span>' + (COURSE_STEP_LABELS[step] || step) + '</span>' +
+        '</div>';
+    }).join('<div class="formula-prog-connector"></div>');
+    updateFormulaProgress();
+}
+
+function updateFormulaProgress() {
+    if (!currentFormula) return;
+    currentFormula.steps.forEach(function(_, i) {
+        var el = document.getElementById('fprog-' + i);
+        if (!el) return;
+        el.className = 'formula-prog-step' +
+            (i < currentFormulaStep ? ' done' : '') +
+            (i === currentFormulaStep ? ' active' : '');
+    });
+}
+
+function renderFormulaStep(stepIndex) {
+    if (!currentFormula) return;
+    var courseType = currentFormula.steps[stepIndex];
+    var label = currentFormula.labels[courseType] || COURSE_STEP_LABELS[courseType] || courseType;
+
+    // Update step label
+    var labelEl = document.getElementById('formulaStepLabel');
+    if (labelEl) labelEl.textContent = 'Étape ' + (stepIndex + 1) + ' / ' + currentFormula.steps.length + ' — ' + label;
+
+    // Filter menu items for this course type
+    var items = (menuItems || []).filter(function(item) {
+        return getCourseType(item.category) === courseType && item.available !== false;
+    });
+
+    var content = document.getElementById('formulaStepContent');
+    if (!content) return;
+
+    if (items.length === 0) {
+        content.innerHTML = '<div class="formula-empty-step"><i class="fas fa-exclamation-circle"></i>' +
+            '<p>Aucun plat disponible pour cette étape.<br>Veuillez contacter le personnel.</p></div>';
+    } else {
+        var selected = formulaSelections[courseType];
+        content.innerHTML = '<div class="formula-item-grid">' +
+            items.map(function(item) {
+                var isSelected = selected && String(selected.id) === String(item.id);
+                return '<div class="formula-item' + (isSelected ? ' selected' : '') + '" onclick="selectFormulaItem(' + stepIndex + ', ' + item.id + ')">' +
+                    '<div class="formula-item-img">' +
+                        (item.image ? '<img src="' + item.image + '" alt="' + item.name + '" loading="lazy">' :
+                            '<div class="formula-item-placeholder"><i class="fas fa-utensils"></i></div>') +
+                        (isSelected ? '<div class="formula-item-check"><i class="fas fa-check"></i></div>' : '') +
+                    '</div>' +
+                    '<div class="formula-item-info">' +
+                        '<p class="formula-item-name">' + item.name + '</p>' +
+                        '<p class="formula-item-price">' + formatPrice(item.price) + '</p>' +
+                    '</div>' +
+                '</div>';
+            }).join('') +
+        '</div>';
+    }
+
+    updateFormulaSummary();
+    updateFormulaFooterButtons();
+    updateFormulaProgress();
+}
+
+function selectFormulaItem(stepIndex, itemId) {
+    if (!currentFormula) return;
+    var courseType = currentFormula.steps[stepIndex];
+    var item = (menuItems || []).find(function(m) { return String(m.id) === String(itemId); });
+    if (!item) return;
+
+    formulaSelections[courseType] = item;
+
+    // Refresh grid to show checkmark
+    renderFormulaStep(stepIndex);
+
+    // Auto-advance after short delay if not on last step
+    if (stepIndex < currentFormula.steps.length - 1) {
+        setTimeout(function() { formulaNextStep(); }, 380);
+    }
+}
+
+function formulaNextStep() {
+    if (!currentFormula) return;
+    var courseType = currentFormula.steps[currentFormulaStep];
+    if (!formulaSelections[courseType]) {
+        showToast('Veuillez sélectionner un article pour continuer', 'warning');
+        return;
+    }
+    currentFormulaStep++;
+    if (currentFormulaStep >= currentFormula.steps.length) {
+        currentFormulaStep = currentFormula.steps.length - 1;
+    }
+    renderFormulaStep(currentFormulaStep);
+}
+
+function formulaPreviousStep() {
+    if (currentFormulaStep > 0) {
+        currentFormulaStep--;
+        renderFormulaStep(currentFormulaStep);
+    }
+}
+
+function updateFormulaFooterButtons() {
+    var backBtn  = document.getElementById('formulaBackBtn');
+    var nextBtn  = document.getElementById('formulaNextBtn');
+    var addBtn   = document.getElementById('formulaAddToCartBtn');
+    if (!currentFormula) return;
+
+    var isLast = currentFormulaStep === currentFormula.steps.length - 1;
+    var allSelected = currentFormula.steps.every(function(s) { return !!formulaSelections[s]; });
+
+    if (backBtn) backBtn.style.display = currentFormulaStep > 0 ? '' : 'none';
+    if (nextBtn) nextBtn.style.display = (isLast && allSelected) ? 'none' : '';
+    if (addBtn)  addBtn.style.display  = (isLast && allSelected) ? '' : 'none';
+
+    updateFormulaTotal();
+}
+
+function updateFormulaTotal() {
+    var total = Object.values(formulaSelections).reduce(function(sum, item) {
+        return sum + (item ? item.price : 0);
+    }, 0);
+    var el = document.getElementById('formulaTotalPreview');
+    if (el) el.textContent = 'Total : ' + formatPrice(total);
+}
+
+function updateFormulaSummary() {
+    var el = document.getElementById('formulaSummary');
+    if (!el || !currentFormula) return;
+    var entries = currentFormula.steps
+        .filter(function(s) { return !!formulaSelections[s]; })
+        .map(function(s) {
+            var item = formulaSelections[s];
+            return '<div class="formula-summary-row">' +
+                '<span class="formula-summary-course">' + (COURSE_STEP_LABELS[s] || s) + '</span>' +
+                '<span class="formula-summary-name">' + item.name + '</span>' +
+                '<span class="formula-summary-price">' + formatPrice(item.price) + '</span>' +
+            '</div>';
+        });
+    el.innerHTML = entries.length ? entries.join('') : '';
+}
+
+function addFormulaToCart() {
+    if (!currentFormula) return;
+    var allSelected = currentFormula.steps.every(function(s) { return !!formulaSelections[s]; });
+    if (!allSelected) {
+        showToast('Veuillez compléter tous les choix de la formule', 'warning');
+        return;
+    }
+
+    // Calculate total price
+    var total = Object.values(formulaSelections).reduce(function(sum, item) {
+        return sum + item.price;
+    }, 0);
+
+    // Build sub-items list
+    var subItems = currentFormula.steps.map(function(s) {
+        return formulaSelections[s];
+    });
+
+    // Add as grouped formula cart entry
+    var formulaCartItem = {
+        id: 'formula-' + currentFormula.id + '-' + Date.now(),
+        isFormula: true,
+        formulaName: currentFormula.name,
+        formulaIcon: currentFormula.icon,
+        items: subItems,
+        name: currentFormula.name,
+        price: total,
+        quantity: 1,
+        image: subItems[0] ? subItems[0].image : '',
+        category: 'formula'
+    };
+
+    cart.push(formulaCartItem);
+    saveCart();
+    updateCartUI();
+    updateCartCount();
+
+    showToast('Formule "' + currentFormula.name + '" ajoutée au panier !', 'success');
+    closeFormulaBuilderModal();
+    filterCategory('all'); // Return to full menu view
+}
+
+/**
+ * Expand formula cart items into individual product_id lines for the API.
+ */
+function flattenCartForSubmission(cartItems) {
+    var result = [];
+    cartItems.forEach(function(item) {
+        if (item.isFormula) {
+            item.items.forEach(function(subItem) {
+                result.push({
+                    product_id: subItem.id,
+                    quantity: 1,
+                    option_ids: []
+                });
+            });
+        } else {
+            result.push({
+                product_id: item.id,
+                quantity: item.quantity,
+                option_ids: item.optionIds || []
+            });
+        }
+    });
+    return result;
+}
+
+// Export formula functions
+window.renderFormulas            = renderFormulas;
+window.openFormulaBuilderModal   = openFormulaBuilderModal;
+window.closeFormulaBuilderModal  = closeFormulaBuilderModal;
+window.selectFormulaItem         = selectFormulaItem;
+window.formulaNextStep           = formulaNextStep;
+window.formulaPreviousStep       = formulaPreviousStep;
+window.addFormulaToCart          = addFormulaToCart;
 
 // Export functions
 window.addToCart = addToCart;

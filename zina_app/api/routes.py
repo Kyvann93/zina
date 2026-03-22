@@ -9,6 +9,7 @@ from decimal import Decimal
 from flask import jsonify, request, current_app, redirect, url_for, flash, session
 import random
 from zina_app.api import api_bp
+from zina_app.api.constants import CATEGORY_EMOJIS, CATEGORY_DEFAULT_IMAGES, CATEGORY_DEFAULT_IMAGE_FALLBACK
 from zina_app.services import DatabaseService
 from zina_app.models import CreateOrderRequest, OrderItemRequest
 
@@ -22,32 +23,7 @@ def get_db_service():
     )
     return DatabaseService(supabase)
 
-DEFAULT_IMAGES = {
-        'petit_déjeuner': 'https://images.unsplash.com/photo-1533089862017-5614ec45e25a?w=400&h=300&fit=crop',
-        'petit-déjeuner': 'https://images.unsplash.com/photo-1533089862017-5614ec45e25a?w=400&h=300&fit=crop',
-        'déjeuner': 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop',
-        'dejeuner': 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop',
-        'snacks': 'https://images.unsplash.com/photo-1566478989037-eec170784d0b?w=400&h=300&fit=crop',
-        'salades': 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&h=300&fit=crop',
-        'salade': 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&h=300&fit=crop',
-        'boissons': 'https://images.unsplash.com/photo-1544145945-f90425340c7e?w=400&h=300&fit=crop',
-        'desserts': 'https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?w=400&h=300&fit=crop',
-        'dessert': 'https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?w=400&h=300&fit=crop',
-        'dîner': 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&h=300&fit=crop',
-        'diner': 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&h=300&fit=crop',
-        'entrées': 'https://images.unsplash.com/photo-1541544741938-0af808871cc0?w=400&h=300&fit=crop',
-        'entrees': 'https://images.unsplash.com/photo-1541544741938-0af808871cc0?w=400&h=300&fit=crop',
-        'soupes': 'https://images.unsplash.com/photo-1547592166-23acbe346499?w=400&h=300&fit=crop',
-        'soupe': 'https://images.unsplash.com/photo-1547592166-23acbe346499?w=400&h=300&fit=crop',
-        'spécialités': 'https://images.unsplash.com/photo-1559339352-11d035aa65de?w=400&h=300&fit=crop',
-        'specialites': 'https://images.unsplash.com/photo-1559339352-11d035aa65de?w=400&h=300&fit=crop',
-        'breakfast': 'https://images.unsplash.com/photo-1533089862017-5614ec45e25a?w=400&h=300&fit=crop',
-        'lunch': 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop',
-        'dinner': 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&h=300&fit=crop',
-        'appetizers': 'https://images.unsplash.com/photo-1541544741938-0af808871cc0?w=400&h=300&fit=crop',
-        'soups': 'https://images.unsplash.com/photo-1547592166-23acbe346499?w=400&h=300&fit=crop',
-        'specials': 'https://images.unsplash.com/photo-1559339352-11d035aa65de?w=400&h=300&fit=crop'
-    }
+# DEFAULT_IMAGES imported from constants.py
     
 
 @api_bp.route('/menu')
@@ -60,14 +36,14 @@ async def get_menu():
         menu_data = {}
         for category in categories:
             category_key = category.category_name.lower().replace(' ', '_').replace('-', '_')
-            default_image = DEFAULT_IMAGES.get(category_key, 'https://images.unsplash.com/photo-1544025162-d76690b67f14?w=400&h=300&fit=crop')
+            default_image = CATEGORY_DEFAULT_IMAGES.get(category_key, CATEGORY_DEFAULT_IMAGE_FALLBACK)
             category_image = category.image_url
             try:
                 category_key = category.category_name.lower().replace(' ', '_')
-                print("image produit",category.products[0].image_url)
                 menu_data[category_key] = [
                     {
                         "id": product.product_id,
+                        "category_id": category.category_id,
                         "name": product.product_name,
                         "price": float(product.price),
                         "description": product.description or "",
@@ -97,20 +73,129 @@ async def get_menu():
 
 
 @api_bp.route('/categories')
-async def get_categories():
-    """Get all categories with images and products"""
+def get_categories():
+    """Get all categories — 2 queries total, no product loading"""
     try:
-        db = get_db_service()
-        categories = await db.get_categories()
-        return jsonify([{
-            "id": cat.category_id,
-            "name": cat.category_name,
-            "description": cat.description,
-            "image": cat.image_url,
-            "products_count": len(cat.products) if cat.products else 0
-        } for cat in categories])
+        from supabase import create_client
+        from collections import Counter
+        supabase = create_client(
+            current_app.config['SUPABASE_URL'],
+            current_app.config['SUPABASE_KEY']
+        )
+        # Query 1: all category rows (lightweight)
+        cats_resp = supabase.table('categories').select('*').execute()
+        categories = cats_resp.data or []
+
+        # Query 2: just category_id column for available products — count in Python
+        counts_resp = (supabase.table('products')
+                       .select('category_id')
+                       .eq('is_available', True)
+                       .execute())
+        count_map = Counter(p['category_id'] for p in (counts_resp.data or []))
+
+        result = []
+        for cat in categories:
+            cat_key = cat['category_name'].lower().replace(' ', '_').replace('-', '_')
+            result.append({
+                'id':             cat['category_id'],
+                'name':           cat['category_name'],
+                'description':    cat.get('description'),
+                'image':          cat.get('image_url'),
+                'emoji':          CATEGORY_EMOJIS.get(cat_key, '🍽️'),
+                'products_count': count_map.get(cat['category_id'], 0)
+            })
+        return jsonify(result)
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/sous-categories')
+def get_sous_categories():
+    """Get sous-categories, optionally filtered by category_id"""
+    try:
+        from supabase import create_client
+        supabase = create_client(
+            current_app.config['SUPABASE_URL'],
+            current_app.config['SUPABASE_KEY']
+        )
+        category_id = request.args.get('category_id')
+        q = supabase.table('sous_categories').select('*').order('sous_category_id')
+        if category_id:
+            q = q.eq('category_id', int(category_id))
+        resp = q.execute()
+        result = []
+        for sc in (resp.data or []):
+            result.append({
+                'id':          sc['sous_category_id'],
+                'name':        sc['name'],
+                'description': sc.get('description'),
+                'image':       sc.get('image_url'),
+                'category_id': sc['category_id']
+            })
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/menu/feed')
+def get_menu_feed():
+    """Paginated flat product list — exactly 3 DB queries regardless of catalogue size"""
+    try:
+        from supabase import create_client
+        supabase = create_client(
+            current_app.config['SUPABASE_URL'],
+            current_app.config['SUPABASE_KEY']
+        )
+        limit       = min(int(request.args.get('limit', 100)), 200)
+        offset      = max(int(request.args.get('offset', 0)), 0)
+        category_id = request.args.get('category_id')
+
+        # ── Query 1: products with pagination ────────────────────────────────
+        q = (supabase.table('products')
+             .select('*', count='exact')
+             .eq('is_available', True)
+             .order('product_id')
+             .range(offset, offset + limit - 1))
+        if category_id:
+            q = q.eq('category_id', int(category_id))
+        prod_resp = q.execute()
+        products  = prod_resp.data or []
+        total     = prod_resp.count or 0
+
+        # ── Query 2: all categories (lightweight name + image lookup) ─────────
+        cats_resp = supabase.table('categories').select('category_id,category_name,image_url').execute()
+        cat_map   = {c['category_id']: c for c in (cats_resp.data or [])}
+
+        # ── Build response (options fetched lazily per product when needed) ────
+        items = []
+        for p in products:
+            cat     = cat_map.get(p['category_id'], {})
+            cat_key = cat.get('category_name', '').lower().replace(' ', '_').replace('-', '_')
+            image   = p.get('image_url') or cat.get('image_url') or CATEGORY_DEFAULT_IMAGES.get(cat_key, CATEGORY_DEFAULT_IMAGE_FALLBACK)
+            items.append({
+                'id':               p['product_id'],
+                'category_id':      p['category_id'],
+                'sous_category_id': p.get('sous_category_id'),
+                'name':             p['product_name'],
+                'description':      p.get('description') or '',
+                'price':            float(p['price']),
+                'image':            image,
+                'category':         cat.get('category_name', ''),
+                'available':        p.get('is_available', True),
+                'options':          []
+            })
+
+        return jsonify({
+            'items':    items,
+            'total':    total,
+            'offset':   offset,
+            'limit':    limit,
+            'has_more': (offset + limit) < total
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
 
 
 @api_bp.route('/products/<int:product_id>')
@@ -382,6 +467,112 @@ async def place_order():
         return jsonify({"error": str(e)}), 500
 
 
+@api_bp.route('/payment/wave/initiate', methods=['POST'])
+def initiate_wave_payment():
+    """Initiate a Wave payment checkout session for an order"""
+    try:
+        import requests as http_requests
+        data = request.json
+        order_id = data.get('order_id')
+        amount = data.get('amount')
+
+        if not order_id or not amount:
+            return jsonify({'status': 'error', 'message': 'order_id and amount sont requis'}), 400
+
+        wave_api_key = current_app.config.get('WAVE_API_KEY')
+        if not wave_api_key:
+            return jsonify({'status': 'error', 'message': 'Paiement Wave non configuré'}), 500
+
+        base_url = request.host_url.rstrip('/')
+
+        wave_response = http_requests.post(
+            'https://api.wave.com/v1/checkout/sessions',
+            headers={
+                'Authorization': f'Bearer {wave_api_key}',
+                'Content-Type': 'application/json'
+            },
+            json={
+                'amount': str(int(float(amount))),
+                'currency': 'XOF',
+                'error_url': f'{base_url}/commander?payment=error&order_id={order_id}',
+                'success_url': f'{base_url}/commander?payment=success&order_id={order_id}',
+                'client_reference': f'order_{order_id}'
+            },
+            timeout=15
+        )
+
+        if wave_response.status_code == 200:
+            wave_data = wave_response.json()
+            return jsonify({
+                'status': 'success',
+                'wave_launch_url': wave_data.get('wave_launch_url'),
+                'checkout_id': wave_data.get('id'),
+                'order_id': order_id
+            })
+        else:
+            print(f"Wave API error: {wave_response.status_code} - {wave_response.text}")
+            return jsonify({'status': 'error', 'message': 'Erreur Wave API', 'details': wave_response.text}), 502
+
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@api_bp.route('/payment/wave/webhook', methods=['POST'])
+def wave_webhook():
+    """Handle Wave payment webhook callback"""
+    try:
+        event = request.json
+        if not event:
+            return jsonify({'status': 'error'}), 400
+
+        if event.get('type') == 'checkout.session.completed':
+            session_data = event.get('data', {})
+            client_reference = session_data.get('client_reference', '')
+            payment_status = session_data.get('payment_status')
+
+            if payment_status == 'succeeded' and client_reference.startswith('order_'):
+                order_id = client_reference.replace('order_', '')
+                from supabase import create_client
+                supabase = create_client(
+                    current_app.config['SUPABASE_URL'],
+                    current_app.config['SUPABASE_KEY']
+                )
+                supabase.table('orders').update({
+                    'order_status': 'confirmed',
+                    'payment_method': 'wave'
+                }).eq('order_id', order_id).execute()
+
+        return jsonify({'status': 'ok'})
+
+    except Exception as e:
+        print(f"Wave webhook error: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@api_bp.route('/payment/wave/status/<order_id>', methods=['GET'])
+def wave_payment_status(order_id):
+    """Check payment status for an order"""
+    try:
+        from supabase import create_client
+        supabase = create_client(
+            current_app.config['SUPABASE_URL'],
+            current_app.config['SUPABASE_KEY']
+        )
+        response = supabase.table('orders').select('order_status, payment_method').eq('order_id', order_id).execute()
+        if response.data:
+            order = response.data[0]
+            return jsonify({
+                'status': 'success',
+                'order_status': order.get('order_status'),
+                'payment_method': order.get('payment_method'),
+                'paid': order.get('payment_method') == 'wave' or order.get('order_status') == 'confirmed'
+            })
+        return jsonify({'status': 'error', 'message': 'Commande introuvable'}), 404
+
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
 @api_bp.route('/orders/<int:order_id>')
 async def get_order(order_id):
     """Get order by ID"""
@@ -435,7 +626,7 @@ async def get_menu_of_the_day():
 
         for category in categories:
             category_key = category.category_name.lower().replace(' ', '_').replace('-', '_')
-            default_image = DEFAULT_IMAGES.get(category_key, 'https://images.unsplash.com/photo-1544025162-d76690b67f14?w=400&h=300&fit=crop')
+            default_image = CATEGORY_DEFAULT_IMAGES.get(category_key, CATEGORY_DEFAULT_IMAGE_FALLBACK)
             category_image = category.image_url
             
             todays_menu["categories"][category.category_name.lower().replace(' ', '_')] = [

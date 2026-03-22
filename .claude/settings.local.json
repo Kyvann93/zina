@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:media.lordicon.com)",
+      "WebFetch(domain:img.icons8.com)"
+    ]
+  }
+}
