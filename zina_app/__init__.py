@@ -2,9 +2,7 @@
 ZINA Cantine BAD - Application Package
 """
 
-import json
-from pathlib import Path
-
+import os
 from flask import Flask
 from flask_cors import CORS
 from flasgger import Swagger
@@ -23,31 +21,10 @@ def create_app(config_object=None):
     
     app.config.from_object(config_object)
     
-    # Initialize extensions
-    CORS(app)
-
-    spec_path = Path(app.root_path) / "config" / "openapi.yaml"
-    try:
-        from yaml import safe_load
-
-        swagger_template = safe_load(spec_path.read_text(encoding="utf-8")) if spec_path.exists() else {}
-    except Exception:
-        swagger_template = {}
-
-    # Ensure no swagger field is injected by Flasgger
-    swagger_template["swagger"] = None
-    swagger_template["openapi"] = swagger_template.get("openapi", "3.0.2")
-
-    Swagger(app, template=swagger_template)
-
-    @app.route("/openapi.json")
-    def openapi_json():
-        clean_spec = {k: v for k, v in swagger_template.items() if k != "swagger"}
-        return app.response_class(
-            response=json.dumps(clean_spec),
-            status=200,
-            mimetype="application/json",
-        )
+    # Initialize extensions — restrict CORS to origins listed in CORS_ORIGINS env var
+    cors_env = os.environ.get('CORS_ORIGINS', '').strip()
+    allowed_origins = [o.strip() for o in cors_env.split(',') if o.strip()] if cors_env else '*'
+    CORS(app, origins=allowed_origins)
     
     # Register blueprints
     from zina_app.api import api_bp

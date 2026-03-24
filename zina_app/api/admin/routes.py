@@ -3,13 +3,70 @@ ZINA Cantine BAD - Admin API Routes
 Handles admin endpoints for menus, categories, orders, and settings
 """
 
-from flask import jsonify, request, current_app
-from supabase import create_client
-import json
+import os
 from pathlib import Path
 
+from flask import jsonify, request, current_app, session
+from werkzeug.utils import secure_filename
+
+from supabase import create_client
+
 from zina_app.api.admin import admin_bp
+from zina_app.api.constants import CATEGORY_EMOJIS, CATEGORY_DEFAULT_IMAGES, CATEGORY_DEFAULT_IMAGE_FALLBACK
 from zina_app.services import DatabaseService
+
+# ── Auth guard ───────────────────────────────────────────────────────────────
+# Routes that are accessible without a session
+_PUBLIC_ENDPOINTS = {'admin.admin_login', 'admin.admin_logout', 'admin.admin_session'}
+
+@admin_bp.before_request
+def require_admin_session():
+    if request.endpoint in _PUBLIC_ENDPOINTS:
+        return None
+    if not session.get('zina_admin'):
+        return jsonify({'status': 'error', 'message': 'Non autorisé'}), 401
+
+
+@admin_bp.route('/login', methods=['POST'])
+def admin_login():
+    """Authenticate admin and create a server-side session"""
+    data = request.json or {}
+    username = data.get('username', '').strip()
+    password = data.get('password', '').strip()
+
+    expected_user = current_app.config.get('ADMIN_USERNAME', 'admin')
+    expected_pass = current_app.config.get('ADMIN_PASSWORD', 'admin123')
+
+    if not expected_pass:
+        # Development fallback to avoid locking yourself out locally.
+        # In production, ADMIN_PASSWORD must be set.
+        if current_app.config.get('DEBUG') and username == expected_user and password == 'admin123':
+            session['zina_admin'] = True
+            session.permanent = False
+            return jsonify({'status': 'success', 'message': 'Connexion réussie'})
+
+        return jsonify({
+            'status': 'error',
+            'message': "Admin non configuré. Définissez la variable d'environnement ADMIN_PASSWORD.",
+        }), 503
+    if username == expected_user and password == expected_pass:
+        session['zina_admin'] = True
+        session.permanent = False
+        return jsonify({'status': 'success', 'message': 'Connexion réussie'})
+    return jsonify({'status': 'error', 'message': 'Identifiant ou mot de passe incorrect'}), 401
+
+
+@admin_bp.route('/logout', methods=['POST'])
+def admin_logout():
+    """Clear admin session"""
+    session.pop('zina_admin', None)
+    return jsonify({'status': 'success'})
+
+
+@admin_bp.route('/session', methods=['GET'])
+def admin_session():
+    """Return whether the current browser has an authenticated admin session"""
+    return jsonify({'authenticated': bool(session.get('zina_admin'))})
 
 
 def get_supabase():
@@ -27,65 +84,18 @@ def get_db_service():
         current_app.config['SUPABASE_KEY']
     )
     return DatabaseService(supabase)
-local_path : str= "static/images/food"
-bucket_name : str = 'menu_picture'
-supabase_file_path : str = 'storage/files/buckets/menu_picture'
-
-def upload_image_to_supabase(local_path,remote_path):
-    try:
-        with open(local_path,'rb') as f:
-            file_body= f.read()
-        response = get_db_service.storage.from_(bucket_name).upload(
-            file = file_body,
-            path = remote_path,
-        )
-        if response.get("error"):
-            raise Exception(response["error"].get("message"))
-        print(f"Successfully uploaded {local_path} to {remote_path}")
-        public_url_response = get_db_service.storage.from_(bucket_name).get_public_url(remote_path)
-        print(f"Public URL: {public_url_response}")
-    except FileNotFoundError:
-        print(f"Error: the file {local_path} was not found.")
 
 
 @admin_bp.route('/menus', methods=['GET'])
 async def get_admin_menus():
     """Get all menus for admin"""
-    # Default images by category - using Unsplash source URLs
-    DEFAULT_IMAGES = {
-        'petit_déjeuner': 'https://images.unsplash.com/photo-1533089862017-5614ec45e25a?w=400&h=300&fit=crop',
-        'petit-déjeuner': 'https://images.unsplash.com/photo-1533089862017-5614ec45e25a?w=400&h=300&fit=crop',
-        'déjeuner': 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop',
-        'dejeuner': 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop',
-        'snacks': 'https://images.unsplash.com/photo-1566478989037-eec170784d0b?w=400&h=300&fit=crop',
-        'salades': 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&h=300&fit=crop',
-        'salade': 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&h=300&fit=crop',
-        'boissons': 'https://images.unsplash.com/photo-1544145945-f90425340c7e?w=400&h=300&fit=crop',
-        'desserts': 'https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?w=400&h=300&fit=crop',
-        'dessert': 'https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?w=400&h=300&fit=crop',
-        'dîner': 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&h=300&fit=crop',
-        'diner': 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&h=300&fit=crop',
-        'entrées': 'https://images.unsplash.com/photo-1541544741938-0af808871cc0?w=400&h=300&fit=crop',
-        'entrees': 'https://images.unsplash.com/photo-1541544741938-0af808871cc0?w=400&h=300&fit=crop',
-        'soupes': 'https://images.unsplash.com/photo-1547592166-23acbe346499?w=400&h=300&fit=crop',
-        'soupe': 'https://images.unsplash.com/photo-1547592166-23acbe346499?w=400&h=300&fit=crop',
-        'spécialités': 'https://images.unsplash.com/photo-1559339352-11d035aa65de?w=400&h=300&fit=crop',
-        'specialites': 'https://images.unsplash.com/photo-1559339352-11d035aa65de?w=400&h=300&fit=crop',
-        'breakfast': 'https://images.unsplash.com/photo-1533089862017-5614ec45e25a?w=400&h=300&fit=crop',
-        'lunch': 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop',
-        'dinner': 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&h=300&fit=crop',
-        'appetizers': 'https://images.unsplash.com/photo-1541544741938-0af808871cc0?w=400&h=300&fit=crop',
-        'soups': 'https://images.unsplash.com/photo-1547592166-23acbe346499?w=400&h=300&fit=crop',
-        'specials': 'https://images.unsplash.com/photo-1559339352-11d035aa65de?w=400&h=300&fit=crop'
-    }
-    
     try:
         db = get_db_service()
-        categories = await db.get_categories()
+        categories = await db.get_categories(available_only=False)
         menus = []
         for cat in categories:
             category_key = cat.category_name.lower().replace(' ', '_').replace('-', '_')
-            default_image = DEFAULT_IMAGES.get(category_key, 'https://images.unsplash.com/photo-1544025162-d76690b67f14?w=400&h=300&fit=crop')
+            default_image = CATEGORY_DEFAULT_IMAGES.get(category_key, CATEGORY_DEFAULT_IMAGE_FALLBACK)
             
             for product in (cat.products or []):
                 product_image = product.image_url
@@ -103,7 +113,7 @@ async def get_admin_menus():
                     'category_id': cat.category_id,
                     'price': float(product.price),
                     'description': product.description,
-                    'available': product.is_available,
+                    'available': product.is_available is not False,
                     'image': image
                 })
         return jsonify(menus)
@@ -111,39 +121,109 @@ async def get_admin_menus():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
+_MENU_FIELDS = {'product_name', 'category_id', 'price', 'description', 'is_available', 'image_url'}
+_CATEGORY_FIELDS = {'category_name', 'description', 'image_url'}
+_VALID_ORDER_STATUSES = {'pending', 'confirmed', 'preparing', 'ready', 'completed', 'cancelled'}
+
+
 @admin_bp.route('/menus', methods=['POST'])
 def create_menu():
     """Create a new menu item"""
     try:
-        data = request.json
+        raw = request.json or {}
+        data = {k: v for k, v in raw.items() if k in _MENU_FIELDS}
         supabase = get_supabase()
-        existing_category = supabase.table('categories').select('category_id').order('category_id',desc=True).limit(1).execute()
-        if existing_category.data:
-            next_category_id = existing_category.data[0]['category_id']
-            data['category_id'] = next_category_id
-            response = supabase.table('products').select('product_id').order('product_id',desc=True).limit(1).execute()
-            next_id = response.data[0]['product_id'] + 1 if response.data else 1
-            data['product_id'] = next_id
-            supabase.table('products').insert(data).execute()
-            print('Menu created:', data)
-            return jsonify({'status': 'success', 'message': 'Menu créé'})
-        else:
+        existing_category = supabase.table('categories').select('category_id').order('category_id', desc=True).limit(1).execute()
+        if not existing_category.data:
             return jsonify({'status': 'error', 'message': 'Aucune catégorie trouvée'}), 404
+        if 'category_id' not in data:
+            data['category_id'] = existing_category.data[0]['category_id']
+        response = supabase.table('products').select('product_id').order('product_id', desc=True).limit(1).execute()
+        next_id = response.data[0]['product_id'] + 1 if response.data else 1
+        data['product_id'] = next_id
+        supabase.table('products').insert(data).execute()
+        return jsonify({'status': 'success', 'message': 'Menu créé', 'id': next_id})
     except Exception as e:
-        print("Une erreur",e)
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        current_app.logger.error('create_menu error: %s', e)
+        return jsonify({'status': 'error', 'message': 'Une erreur est survenue'}), 500
+
+
+_ALLOWED_IMAGE_EXTS = {'.png', '.jpg', '.jpeg', '.gif', '.webp'}
+
+
+@admin_bp.route('/menus/<int:menu_id>/image', methods=['POST'])
+def upload_menu_image(menu_id):
+    """Upload image for a menu item"""
+    try:
+        if 'image' not in request.files:
+            return jsonify({'status': 'error', 'message': 'Aucun fichier fourni'}), 400
+        file = request.files['image']
+        if not file or file.filename == '':
+            return jsonify({'status': 'error', 'message': 'Fichier vide'}), 400
+        ext = os.path.splitext(secure_filename(file.filename).lower())[1]
+        if ext not in _ALLOWED_IMAGE_EXTS:
+            return jsonify({'status': 'error', 'message': 'Format non supporté'}), 400
+        filename = f"menu_{menu_id}{ext}"
+        save_path = Path('static/images/food') / filename
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+        file.save(str(save_path))
+        image_url = f"static/images/food/{filename}"
+        supabase = get_supabase()
+        supabase.table('products').update({'image_url': image_url}).eq('product_id', menu_id).execute()
+        return jsonify({'status': 'success', 'image_url': image_url})
+    except Exception as e:
+        current_app.logger.error('upload_menu_image error: %s', e)
+        return jsonify({'status': 'error', 'message': 'Une erreur est survenue'}), 500
+
+
+@admin_bp.route('/menus/bulk', methods=['PUT'])
+def bulk_update_menus():
+    """Bulk update menu items (e.g. availability)"""
+    try:
+        body = request.json or {}
+        ids = body.get('ids', [])
+        update_data = {k: v for k, v in (body.get('data') or {}).items() if k in _MENU_FIELDS}
+        if not ids or not update_data:
+            return jsonify({'status': 'error', 'message': 'ids et data requis'}), 400
+        supabase = get_supabase()
+        supabase.table('products').update(update_data).in_('product_id', ids).execute()
+        label = 'disponibles' if update_data.get('is_available') else 'indisponibles'
+        return jsonify({'status': 'success', 'message': f'{len(ids)} plat(s) marqué(s) {label}'})
+    except Exception as e:
+        current_app.logger.error('bulk_update_menus error: %s', e)
+        return jsonify({'status': 'error', 'message': 'Une erreur est survenue'}), 500
+
+
+@admin_bp.route('/menus/bulk', methods=['DELETE'])
+def bulk_delete_menus():
+    """Bulk delete menu items"""
+    try:
+        body = request.json or {}
+        ids = body.get('ids', [])
+        if not ids:
+            return jsonify({'status': 'error', 'message': 'ids requis'}), 400
+        supabase = get_supabase()
+        supabase.table('products').delete().in_('product_id', ids).execute()
+        return jsonify({'status': 'success', 'message': f'{len(ids)} plat(s) supprimé(s)'})
+    except Exception as e:
+        current_app.logger.error('bulk_delete_menus error: %s', e)
+        return jsonify({'status': 'error', 'message': 'Une erreur est survenue'}), 500
 
 
 @admin_bp.route('/menus/<int:menu_id>', methods=['PUT'])
 def update_menu(menu_id):
     """Update a menu item"""
     try:
-        data = request.json
+        raw = request.json or {}
+        data = {k: v for k, v in raw.items() if k in _MENU_FIELDS}
+        if not data:
+            return jsonify({'status': 'error', 'message': 'Aucun champ valide fourni'}), 400
         supabase = get_supabase()
         supabase.table('products').update(data).eq('product_id', menu_id).execute()
         return jsonify({'status': 'success', 'message': 'Menu mis à jour'})
     except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        current_app.logger.error('update_menu error: %s', e)
+        return jsonify({'status': 'error', 'message': 'Une erreur est survenue'}), 500
 
 
 @admin_bp.route('/menus/<int:menu_id>', methods=['DELETE'])
@@ -154,43 +234,16 @@ def delete_menu(menu_id):
         supabase.table('products').delete().eq('product_id', menu_id).execute()
         return jsonify({'status': 'success', 'message': 'Menu supprimé'})
     except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        current_app.logger.error('delete_menu error: %s', e)
+        return jsonify({'status': 'error', 'message': 'Une erreur est survenue'}), 500
 
 
 @admin_bp.route('/categories', methods=['GET'])
 async def get_admin_categories():
     """Get all categories for admin"""
-    # Emoji icons by category
-    CATEGORY_EMOJIS = {
-        'petit_déjeuner': '🥐',
-        'petit-déjeuner': '🥐',
-        'déjeuner': '🍽️',
-        'dejeuner': '🍽️',
-        'snacks': '🍟',
-        'salades': '🥗',
-        'salade': '🥗',
-        'boissons': '🥤',
-        'desserts': '🍰',
-        'dessert': '🍰',
-        'dîner': '🍲',
-        'diner': '🍲',
-        'entrées': '🥖',
-        'entrees': '🥖',
-        'soupes': '🍜',
-        'soupe': '🍜',
-        'spécialités': '🌟',
-        'specialites': '🌟',
-        'breakfast': '🥐',
-        'lunch': '🍽️',
-        'dinner': '🍲',
-        'appetizers': '🥖',
-        'soups': '🍜',
-        'specials': '🌟'
-    }
-    
     try:
         db = get_db_service()
-        categories = await db.get_categories()
+        categories = await db.get_categories(available_only=False)
         result = []
         for cat in categories:
             category_key = cat.category_name.lower().replace(' ', '_').replace('-', '_')
@@ -199,7 +252,8 @@ async def get_admin_categories():
                 'id': cat.category_id,
                 'name': cat.category_name,
                 'description': cat.description,
-                'emoji': emoji
+                'emoji': emoji,
+                'image_url': cat.image_url
             })
         return jsonify(result)
     except Exception as e:
@@ -210,148 +264,168 @@ async def get_admin_categories():
 def create_category():
     """Create a new category"""
     try:
-        data = request.json
+        raw = request.json or {}
+        data = {k: v for k, v in raw.items() if k in _CATEGORY_FIELDS}
         supabase = get_supabase()
-        
-        # Get the next category_id
         response = supabase.table('categories').select('category_id').order('category_id', desc=True).limit(1).execute()
         next_id = response.data[0]['category_id'] + 1 if response.data else 1
-        
-        # Add the generated ID to the data
         data['category_id'] = next_id
         supabase.table('categories').insert(data).execute()
-        return jsonify({'status': 'success', 'message': 'Catégorie créée'})
+        return jsonify({'status': 'success', 'message': 'Catégorie créée', 'id': next_id})
     except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        current_app.logger.error('create_category error: %s', e)
+        return jsonify({'status': 'error', 'message': 'Une erreur est survenue'}), 500
     
-@admin_bp.route('/categories/<int:category_id>',methods=['DELETE'])
+@admin_bp.route('/categories/<int:category_id>', methods=['PUT'])
+def update_category(category_id):
+    """Update an existing category"""
+    try:
+        raw = request.json or {}
+        data = {k: v for k, v in raw.items() if k in _CATEGORY_FIELDS}
+        if not data:
+            return jsonify({'status': 'error', 'message': 'Aucun champ valide fourni'}), 400
+        supabase = get_supabase()
+        supabase.table('categories').update(data).eq('category_id', category_id).execute()
+        return jsonify({'status': 'success', 'message': 'Catégorie mise à jour'})
+    except Exception as e:
+        current_app.logger.error('update_category error: %s', e)
+        return jsonify({'status': 'error', 'message': 'Une erreur est survenue'}), 500
+
+
+@admin_bp.route('/categories/<int:category_id>', methods=['DELETE'])
 def delete_categories(category_id):
     try:
         supabase = get_supabase()
         supabase.table('categories').delete().eq('category_id', category_id).execute()
         return jsonify({'status': 'success', 'message': 'Catégorie supprimée'})
     except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        current_app.logger.error('delete_category error: %s', e)
+        return jsonify({'status': 'error', 'message': 'Une erreur est survenue'}), 500
     
 @admin_bp.route('/orders', methods=['GET'])
 def get_admin_orders():
     """Get all orders for admin"""
     try:
         supabase = get_supabase()
-        response = (
-            supabase.table('orders')
-            .select('order_id,user_id,total_amount,order_status,created_at,pickup_time,prep_time_minutes')
-            .order('created_at', desc=True)
-            .limit(200)
-            .execute()
-        )
-
+        response = supabase.table('orders').select('*').order('created_at', desc=True).execute()
+        
         if response.data:
             orders = []
             for order in response.data:
-                # Get order items
-                items = []
-                try:
-                    items_response = supabase.table('order_items')\
-                        .select('*')\
-                        .eq('order_id', order['order_id'])\
-                        .execute()
-                    if items_response.data:
-                        for item in items_response.data:
-                            items.append({
-                                'product_id': item['product_id'],
-                                'product_name': item.get('product_name', 'Item'),
-                                'quantity': item['quantity'],
-                                'unit_price': float(item['unit_price']) if item.get('unit_price') else 0
-                            })
-                except Exception:
-                    pass  # order_items table might not exist
-
-                # Get payment info
-                payment = {'payment_method': 'Non spécifié'}
-                try:
-                    payment_response = supabase.table('payments')\
-                        .select('payment_method')\
-                        .eq('order_id', order['order_id'])\
-                        .execute()
-                    if payment_response.data and len(payment_response.data) > 0:
-                        payment['payment_method'] = payment_response.data[0].get('payment_method', 'Non spécifié')
-                except Exception:
-                    pass  # payments table might not exist or no payment yet
-
                 orders.append({
                     'order_id': order.get('order_id'),
                     'user_id': order.get('user_id'),
-                    'total_amount': float(order.get('total_amount') or 0),
+                    'total_amount': order.get('total_amount'),
                     'order_status': order.get('order_status'),
                     'created_at': order.get('created_at'),
                     'pickup_time': order.get('pickup_time'),
-                    'prep_time_minutes': order.get('prep_time_minutes'),
-                    'items': items,
-                    'payment': payment
+                    'prep_time_minutes': order.get('prep_time_minutes')
                 })
             return jsonify(orders)
         else:
             return jsonify([])
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        current_app.logger.error('get_admin_orders error: %s', e)
+        return jsonify([]), 500
 
 
 @admin_bp.route('/users', methods=['GET'])
 def get_admin_users():
-    """Get all users for admin"""
+    """Get all users for admin with their order counts"""
     try:
         supabase = get_supabase()
         response = supabase.table('users').select('*').execute()
-        
-        if response.data:
-            users = []
-            for user in response.data:
-                users.append({
-                    'id': user.get('id'),
-                    'full_name': user.get('full_name'),
-                    'email': user.get('email'),
-                    'phone': user.get('phone'),
-                    'department': user.get('department'),
-                    'employee_id': user.get('employee_id'),
-                    'created_at': user.get('created_at')
-                })
-            return jsonify(users)
-        else:
+
+        if not response.data:
             return jsonify([])
+
+        # Count orders per user in a single query
+        orders_response = supabase.table('orders').select('user_id').execute()
+        order_counts = {}
+        for order in (orders_response.data or []):
+            uid = order.get('user_id')
+            if uid:
+                order_counts[uid] = order_counts.get(uid, 0) + 1
+
+        users = []
+        for user in response.data:
+            uid = user.get('user_id')
+            users.append({
+                'user_id': uid,
+                'full_name': user.get('full_name'),
+                'email': user.get('email'),
+                'phone': user.get('phone'),
+                'department': user.get('department'),
+                'employee_id': user.get('employee_id'),
+                'created_at': user.get('created_at'),
+                'order_count': order_counts.get(uid, 0)
+            })
+        return jsonify(users)
     except Exception as e:
-        return jsonify([{'error': str(e)}])
+        current_app.logger.error('get_admin_users error: %s', e)
+        return jsonify([]), 500
+
+
+@admin_bp.route('/orders/<int:order_id>', methods=['GET'])
+def get_admin_order(order_id):
+    """Get a single order with items for admin details modal"""
+    try:
+        supabase = get_supabase()
+        order_res = supabase.table('orders').select('*').eq('order_id', order_id).limit(1).execute()
+        if not order_res.data:
+            return jsonify({'error': 'Commande introuvable'}), 404
+        order = order_res.data[0]
+
+        items_res = supabase.table('order_items').select('*').eq('order_id', order_id).execute()
+        items = items_res.data or []
+
+        # Map item fields to expected frontend shape
+        mapped_items = []
+        for it in items:
+            mapped_items.append({
+                'order_item_id': it.get('order_item_id'),
+                'product_id': it.get('product_id'),
+                'product_name': it.get('product_name'),
+                'quantity': it.get('quantity'),
+                'unit_price': it.get('unit_price')
+            })
+
+        result = {
+            'order_id': order.get('order_id'),
+            'user_id': order.get('user_id'),
+            'total_amount': float(order.get('total_amount') or 0),
+            'order_status': order.get('order_status'),
+            'created_at': order.get('created_at'),
+            'pickup_time': order.get('pickup_time'),
+            'prep_time_minutes': order.get('prep_time_minutes'),
+            'payment': {
+                'payment_method': order.get('payment_method'),
+                'payment_status': order.get('payment_status')
+            },
+            'items': mapped_items
+        }
+        return jsonify(result)
+    except Exception as e:
+        current_app.logger.error('get_admin_order error: %s', e)
+        return jsonify({'error': 'Erreur interne'}), 500
 
 
 @admin_bp.route('/orders/<int:order_id>/status', methods=['PUT'])
 def update_order_status(order_id):
     """Update order status"""
     try:
-        data = request.json
+        data = request.json or {}
         new_status = data.get('status')
-        
         if not new_status:
-            return jsonify({'status': 'error', 'message': 'Status is required'}), 400
-        
+            return jsonify({'status': 'error', 'message': 'Champ status manquant'}), 400
+        if new_status not in _VALID_ORDER_STATUSES:
+            return jsonify({'status': 'error', 'message': 'Statut invalide'}), 400
         supabase = get_supabase()
-        
-        # Update the order status in the database
-        response = supabase.table('orders')\
-            .update({'order_status': new_status})\
-            .eq('order_id', order_id)\
-            .execute()
-        
-        if response.data:
-            return jsonify({
-                'status': 'success',
-                'message': f'Order {order_id} updated to {new_status}',
-                'order_id': order_id,
-                'new_status': new_status
-            })
-        else:
-            return jsonify({'status': 'error', 'message': 'Order not found'}), 404
+        supabase.table('orders').update({'order_status': new_status}).eq('order_id', order_id).execute()
+        return jsonify({'status': 'success', 'message': f'Commande #{order_id} mise à jour : {new_status}'})
     except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        current_app.logger.error('update_order_status error: %s', e)
+        return jsonify({'status': 'error', 'message': 'Une erreur est survenue'}), 500
 
 
 @admin_bp.route('/settings', methods=['GET'])
@@ -372,54 +446,4 @@ def get_settings():
 @admin_bp.route('/settings', methods=['POST'])
 def update_settings():
     """Update site settings"""
-    try:
-        _ = request.json
-        return jsonify({'status': 'success', 'message': 'Settings updated'})
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-
-@admin_bp.route('/formulas', methods=['GET'])
-def get_formulas_admin():
-    """Get formulas configuration (discounts) for admin"""
-    try:
-        config_path = Path(current_app.root_path) / 'config' / 'formulas.json'
-        if not config_path.exists():
-            default_data = {"discounts": {"EP": 0, "PD": 0, "EPD": 0, "EPDB": 0}}
-            config_path.parent.mkdir(parents=True, exist_ok=True)
-            config_path.write_text(json.dumps(default_data, ensure_ascii=False, indent=2), encoding='utf-8')
-            return jsonify(default_data)
-
-        data = json.loads(config_path.read_text(encoding='utf-8'))
-        return jsonify(data)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@admin_bp.route('/formulas', methods=['POST'])
-def update_formulas_admin():
-    """Update formulas configuration (discounts)"""
-    try:
-        payload = request.json or {}
-        discounts = payload.get('discounts') or {}
-
-        normalized = {
-            'EP': int(discounts.get('EP', 0) or 0),
-            'PD': int(discounts.get('PD', 0) or 0),
-            'EPD': int(discounts.get('EPD', 0) or 0),
-            'EPDB': int(discounts.get('EPDB', 0) or 0)
-        }
-
-        for k, v in list(normalized.items()):
-            if v < 0:
-                normalized[k] = 0
-
-        data = {'discounts': normalized}
-
-        config_path = Path(current_app.root_path) / 'config' / 'formulas.json'
-        config_path.parent.mkdir(parents=True, exist_ok=True)
-        config_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
-
-        return jsonify({'status': 'success', 'data': data})
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+    return jsonify({'status': 'success', 'message': 'Settings updated'})

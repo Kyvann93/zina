@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test - Authentification Séparée</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .section h3 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        .success { background-color: #d4edda; color: #155724; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+        
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover { background-color: #0056b3; }
+        button.success { background-color: #28a745; }
+        button.secondary { background-color: #6c757d; }
+        
+        .flow-diagram {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        
+        .page-list {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .page-list li {
+            padding: 10px;
+            margin: 5px 0;
+            background: #f8f9fa;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+        }
+        
+        .page-list li strong {
+            color: #007bff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Test - Système d'Authentification Séparée</h1>
+        
+        <div class="section">
+            <h3>📋 Nouvelle Architecture</h3>
+            <p>Le système utilise maintenant des pages séparées pour l'authentification:</p>
+            <ul class="page-list">
+                <li><strong>/</strong> - Page d'accueil avec navigation</li>
+                <li><strong>/login</strong> - Page de connexion dédiée</li>
+                <li><strong>/register</strong> - Page d'inscription dédiée</li>
+                <li><strong>/commander</strong> - Page de commande (protégée)</li>
+                <li><strong>/admin</strong> - Interface admin</li>
+            </ul>
+        </div>
+        
+        <div class="section">
+            <h3>🔄 Flux Utilisateur</h3>
+            <div class="flow-diagram">
+1. Utilisateur visite / → Page d'accueil
+2. Clique "Se Connecter" → Redirigé vers /login
+3. Remplit formulaire → Soumet au backend
+4. Succès → Redirigé vers /commander
+5. Session sauvegardée → Accès direct futur
+
+Alternative:
+1. Clique "S'inscrire" → Redirigé vers /register
+2. Remplit formulaire d'inscription
+3. Succès → Redirigé vers /commander
+
+Guest Access:
+1. Clique "Continuer en Invité" → Accès immédiat
+            </div>
+        </div>
+        
+        <div class="section">
+            <h3>✅ Avantages du Nouveau Système</h3>
+            <ul>
+                <li>✅ <strong>Pages dédiées</strong> - Chaque fonction a sa propre page</li>
+                <li>✅ <strong>URL propres</strong> - Partageable et bookmarkable</li>
+                <li>✅ <strong>SEO friendly</strong> - Meilleur référencement</li>
+                <li>✅ <strong>Code maintenable</strong> - Séparation claire des responsabilités</li>
+                <li>✅ <strong>Expérience utilisateur</strong> - Navigation plus intuitive</li>
+                <li>✅ <strong>Responsive design</strong> - Adapté mobile/desktop</li>
+            </ul>
+        </div>
+        
+        <div class="section">
+            <h3>🧪 Tests à Effectuer</h3>
+            <p>Testez chaque page et fonctionnalité:</p>
+            <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                <button onclick="window.open('/', '_blank')" class="success">
+                    <i class="fas fa-home"></i> Page d'accueil
+                </button>
+                <button onclick="window.open('/login', '_blank')">
+                    <i class="fas fa-sign-in-alt"></i> Connexion
+                </button>
+                <button onclick="window.open('/register', '_blank')">
+                    <i class="fas fa-user-plus"></i> Inscription
+                </button>
+                <button onclick="window.open('/commander', '_blank')">
+                    <i class="fas fa-utensils"></i> Commande
+                </button>
+                <button onclick="window.open('/admin', '_blank')" class="secondary">
+                    <i class="fas fa-cog"></i> Admin
+                </button>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h3>🔧 Modifications Techniques</h3>
+            <p><strong>Fichiers créés/modifiés:</strong></p>
+            <ul>
+                <li><code>templates/index.html</code> - Nouvelle page d'accueil</li>
+                <li><code>templates/login.html</code> - Page de connexion dédiée</li>
+                <li><code>templates/register.html</code> - Page d'inscription dédiée</li>
+                <li><code>templates/ordering.html</code> - Simplifiée avec redirection</li>
+                <li><code>zina_app/routes.py</code> - Nouvelles routes ajoutées</li>
+            </ul>
+        </div>
+        
+        <div class="section">
+            <h3>📝 Checklist de Validation</h3>
+            <p>Validez chaque point:</p>
+            <ol>
+                <li>☐ Page d'accueil s'affiche correctement</li>
+                <li>☐ Boutons de navigation fonctionnent</li>
+                <li>☐ Page de login s'affiche et fonctionne</li>
+                <li>☐ Page d'inscription s'affiche et valide les champs</li>
+                <li>☐ Connexion réussie redirige vers /commander</li>
+                <li>☐ Inscription réussie redirige vers /commander</li>
+                <li>☐ Accès invité fonctionne depuis /commander</li>
+                <li>☐ Session persistante fonctionne</li>
+                <li>☐ Déconnexion retourne vers login</li>
+                <li>☐ Design responsive sur mobile</li>
+            </ol>
+        </div>
+        
+        <div class="section">
+            <h3>🎯 Prochaines Étapes</h3>
+            <p>Pour améliorer davantage le système:</p>
+            <ul>
+                <li>Ajouter la validation email backend</li>
+                <li>Implémenter la réinitialisation de mot de passe</li>
+                <li>Ajouter la gestion des rôles utilisateur</li>
+                <li>Optimiser le SEO des pages</li>
+                <li>Ajouter des tests automatisés</li>
+            </ul>
+        </div>
+        
+        <div id="testResult" class="status info">
+            Cliquez sur les boutons ci-dessus pour tester chaque page du nouveau système.
+        </div>
+    </div>
+
+    <script>
+        // Track which pages have been tested
+        const testedPages = new Set();
+        
+        function updateTestStatus() {
+            const total = 5;
+            const tested = testedPages.size;
+            const percentage = Math.round((tested / total) * 100);
+            
+            const resultDiv = document.getElementById('testResult');
+            if (tested === 0) {
+                resultDiv.className = 'status info';
+                resultDiv.textContent = 'Cliquez sur les boutons ci-dessus pour tester chaque page du nouveau système.';
+            } else if (tested === total) {
+                resultDiv.className = 'status success';
+                resultDiv.textContent = `✅ Excellent! Vous avez testé toutes les ${total} pages (${percentage}%).`;
+            } else {
+                resultDiv.className = 'status info';
+                resultDiv.textContent = `🔄 Progression: ${tested}/${total} pages testées (${percentage}%). Continuez!`;
+            }
+        }
+        
+        // Add click tracking to test buttons
+        document.addEventListener('DOMContentLoaded', function() {
+            const buttons = document.querySelectorAll('button[onclick*="window.open"]');
+            buttons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const pageName = this.textContent.trim();
+                    testedPages.add(pageName);
+                    updateTestStatus();
+                });
+            });
+        });
+    </script>
+</body>
+</html>

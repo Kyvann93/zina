@@ -3,178 +3,248 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZINA</title>
+    <title>ZINA — Connexion</title>
     <meta name="description" content="Connectez-vous à votre espace ZINA Cantine BAD">
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo.PNG') }}">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600&family=Playfair+Display:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/ordering.css') }}">
+    <!-- Tailwind + Flowbite CDN -->
+    <script>
+      tailwind.config = {
+        corePlugins: { preflight: false },
+        theme: {
+          extend: {
+            colors: {
+              primary: { DEFAULT: '#581b1f', light: '#a0656b', dark: '#3d1215' }
+            },
+            fontFamily: {
+              sans: ['Poppins', 'ui-sans-serif', 'system-ui'],
+              display: ['"Playfair Display"', 'Georgia', 'serif']
+            }
+          }
+        }
+      }
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.3.0/flowbite.min.css" rel="stylesheet"/>
+    <!-- Shared CSS (loader only) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/shared.css') }}">
     <style>
-        .login-only {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(135deg, rgba(88, 27, 31, 0.95) 0%, rgba(160, 101, 107, 0.9) 100%),
-                        url('https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1920&h=1080&fit=crop') center/cover;
-        }
-        
-        .login-container {
-            width: 100%;
-            max-width: 450px;
-            padding: 20px;
-        }
-        
-        .back-link {
-            text-align: center;
-            margin-top: 20px;
-        }
-        
-        .back-link a {
-            color: rgba(255, 255, 255, 0.8);
-            text-decoration: none;
-            font-size: 14px;
-            transition: color 0.3s ease;
-        }
-        
-        .back-link a:hover {
-            color: white;
-        }
-        
-        .guest-access {
-            text-align: center;
-           
-            border-top: 1px solid rgba(255, 255, 255, 0.2);
-        }
-        .flash-message {
-            padding: 10px;
-            border-radius: 5px;
-            margin-bottom: 15px;
-            text-align: center;
-            font-weight: bold;
-            font-size:12px;
-        }
-        .flash-message.success {
-            background: rgba(46, 204, 113, 0.2);
-            border: 1px solid rgba(46, 204, 113, 0.5);
-        }
-        .flash-message.error {
-            background: rgba(231, 76, 60, 0.2);
-            border: 1px solid rgba(231, 76, 60, 0.5);
-            color:white;
-        }
-
-        .guest-btn {
-            background: rgb(112 51 56);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 25px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-size: 14px;
-        }
-        
-        .guest-btn:hover {
-            background: rgba(255, 255, 255, 0.2);
-            border-color: rgba(255, 255, 255, 0.5);
-        }
+      body { font-family: 'Poppins', sans-serif; }
+      .auth-bg {
+        background:
+          linear-gradient(135deg, rgba(61,18,21,0.96) 0%, rgba(88,27,31,0.92) 50%, rgba(160,101,107,0.88) 100%),
+          url('https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1920&h=1080&fit=crop') center/cover no-repeat fixed;
+      }
+      .glass-card {
+        background: rgba(255,255,255,0.07);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255,255,255,0.15);
+      }
+      .auth-input {
+        width: 100%;
+        background: rgba(255,255,255,0.1);
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 12px;
+        padding: 0.75rem 1rem 0.75rem 2.75rem;
+        color: #fff;
+        font-size: 0.9rem;
+        transition: border-color 0.2s, background 0.2s;
+        outline: none;
+      }
+      .auth-input::placeholder { color: rgba(255,255,255,0.45); }
+      .auth-input:focus {
+        border-color: rgba(255,255,255,0.5);
+        background: rgba(255,255,255,0.15);
+      }
+      .auth-label {
+        display: block;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: rgba(255,255,255,0.7);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-bottom: 0.4rem;
+      }
+      .auth-btn-primary {
+        width: 100%;
+        background: #fff;
+        color: #581b1f;
+        font-weight: 700;
+        font-size: 0.95rem;
+        padding: 0.85rem;
+        border-radius: 12px;
+        border: none;
+        cursor: pointer;
+        transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+      }
+      .auth-btn-primary:hover {
+        background: rgba(255,255,255,0.92);
+        transform: translateY(-1px);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      }
+      .auth-btn-secondary {
+        width: 100%;
+        background: rgba(255,255,255,0.1);
+        color: #fff;
+        font-weight: 600;
+        font-size: 0.88rem;
+        padding: 0.75rem;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.2);
+        cursor: pointer;
+        transition: background 0.2s, border-color 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+      }
+      .auth-btn-secondary:hover {
+        background: rgba(255,255,255,0.18);
+        border-color: rgba(255,255,255,0.4);
+      }
+      .divider-line {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        color: rgba(255,255,255,0.35);
+        font-size: 0.78rem;
+        font-weight: 500;
+      }
+      .divider-line::before, .divider-line::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: rgba(255,255,255,0.15);
+      }
     </style>
 </head>
-<body>
-    <div class="login-only">
-        <div class="login-container">
-            <div class="login-modal">
-                <div class="login-header">
-                    <div class="login-logo">
-                        <img src="{{ url_for('static', filename='images/logo.PNG') }}" style="width:40px;" alt="ZINA Cantine BAD">
-                    </div>
-                    <p>Connexion Employés</p>
+<body class="auth-bg min-h-screen flex flex-col items-center justify-center p-4">
+
+    <div class="w-full max-w-md">
+
+        <!-- Flash messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="mb-4 px-4 py-3 rounded-xl text-sm font-semibold text-center
+                    {% if category == 'success' %}bg-green-500/20 border border-green-400/40 text-green-200
+                    {% else %}bg-red-500/20 border border-red-400/40 text-red-200{% endif %}">
+                    <i class="fas {% if category == 'success' %}fa-check-circle{% else %}fa-exclamation-circle{% endif %} mr-1"></i>
+                    {{ message }}
                 </div>
-                
-                <div class="login-content">
-                    {% with messages = get_flashed_messages(with_categories=true) %}
-                        {% if messages %}
-                            {% for category, message in messages %}
-                                <div class="flash-message {{ category }}">{{ message }}</div>
-                            {% endfor %}
-                        {% endif %}
-                    {% endwith %}
-                    <div class="login-panel active" id="manualPanel">
-                        <form id="loginForm" action="{{url_for('api.login_user')}}" method="POST" onsubmit="localStorage.setItem('login_success_flag', 'true'); showFormLoader();">
-                            <div class="form-group">
-                                <label for="employeeName">
-                                    <i class="fas fa-user"></i>
-                                    Nom Complet *
-                                </label>
-                                <input type="text" id="employeeName" name="full_name" placeholder="Votre nom" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="department">
-                                    <i class="fas fa-building"></i>
-                                   Numero de téléphone *
-                                </label>
-                               <input type="text" id="phone" name="phone" placeholder="Votre numéro de téléphone" required>
-                            </div>
-                            <button type="submit" class="login-submit-btn">
-                                <i class="fas fa-sign-in-alt"></i>
-                                <span>Se Connecter</span>
-                            </button>
-                        </form>
-                        
-                        <div class="register-option">
-                            <div class="divider">
-                                <span>OU</span>
-                            </div>
-                            <button class="register-btn" onclick="window.location.href='/register'">
-                                <i class="fas fa-user-plus"></i>
-                                <span>Nouvel Employé ? S'inscrire</span>
-                            </button>
-                        </div>
-                        
-                        <div class="guest-access">
-                            <button class="guest-btn" onclick="window.location.href='/commander?guest'">
-                                <i class="fas fa-user-secret"></i>
-                                <span>Continuer en tant qu'Invité</span>
-                            </button>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Card -->
+        <div class="glass-card rounded-2xl p-8 shadow-2xl">
+
+            <!-- Header -->
+            <div class="flex flex-col items-center mb-8">
+                <div class="w-16 h-16 rounded-2xl bg-white/15 flex items-center justify-center mb-4 shadow-lg">
+                    <img src="{{ url_for('static', filename='images/logo.PNG') }}" alt="ZINA" class="w-10 h-10 object-contain rounded-lg">
+                </div>
+                <h1 class="text-white font-display text-2xl font-bold tracking-tight">ZINA Cantine</h1>
+                <p class="text-white/60 text-sm mt-1">Connexion Employés</p>
+            </div>
+
+            <!-- Form -->
+            <form id="loginForm" action="{{ url_for('api.login_user') }}" method="POST"
+                  onsubmit="localStorage.setItem('login_success_flag', 'true'); showFormLoader();">
+                <div class="space-y-5">
+
+                    <!-- Full name -->
+                    <div>
+                        <label class="auth-label" for="employeeName">
+                            Nom Complet
+                        </label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-white/40 pointer-events-none">
+                                <i class="fas fa-user text-sm"></i>
+                            </span>
+                            <input class="auth-input" type="text" id="employeeName" name="full_name"
+                                   placeholder="Votre nom complet" required autocomplete="name">
                         </div>
                     </div>
+
+                    <!-- Phone -->
+                    <div>
+                        <label class="auth-label" for="phone">
+                            Numéro de téléphone
+                        </label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-white/40 pointer-events-none">
+                                <i class="fas fa-phone text-sm"></i>
+                            </span>
+                            <input class="auth-input" type="tel" id="phone" name="phone"
+                                   placeholder="+225 XX XX XX XX XX" required autocomplete="tel">
+                        </div>
+                    </div>
+
+                    <!-- Submit -->
+                    <button type="submit" class="auth-btn-primary mt-2">
+                        <i class="fas fa-sign-in-alt"></i>
+                        Se Connecter
+                    </button>
+
                 </div>
+            </form>
+
+            <!-- Divider -->
+            <div class="divider-line my-5">OU</div>
+
+            <!-- Register + Guest -->
+            <div class="space-y-3">
+                <button class="auth-btn-secondary" onclick="window.location.href='/register'">
+                    <i class="fas fa-user-plus"></i>
+                    Nouvel Employé ? S'inscrire
+                </button>
+                <button class="auth-btn-secondary" onclick="window.location.href='/commander?guest'">
+                    <i class="fas fa-user-secret"></i>
+                    Continuer en tant qu'Invité
+                </button>
             </div>
-            
-            <div class="back-link">
-                <a href="/">
-                    <i class="fas fa-arrow-left"></i>
-                    Retour à l'accueil
-                </a>
+
+        </div>
+
+        <!-- Back link -->
+        <div class="text-center mt-5">
+            <a href="/" class="text-white/55 text-sm hover:text-white transition-colors inline-flex items-center gap-2">
+                <i class="fas fa-arrow-left text-xs"></i>
+                Retour à l'accueil
+            </a>
+        </div>
+
+    </div>
+
+    <!-- ZINA Loader Overlay -->
+    <div id="formLoader" class="zina-loader" style="display:none;">
+        <div class="zl-inner">
+            <div class="zl-logo-wrap">
+                <div class="zl-ring"></div>
+                <img src="{{ url_for('static', filename='images/logo.PNG') }}" alt="ZINA" class="zl-logo">
             </div>
+            <p class="zl-text">Connexion en cours...</p>
+            <div class="zl-dots"><span></span><span></span><span></span></div>
         </div>
     </div>
 
-    <!-- Loader Overlay -->
-    <div id="formLoader" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); justify-content: center; align-items: center; z-index: 10000; display: none;">
-        <div style="background: white; padding: 30px; border-radius: 10px; text-align: center;">
-            <div style="font-size: 3em; margin-bottom: 10px;">
-                <i class="fas fa-circle-notch fa-spin"></i>
-            </div>
-            <p style="color: #333; font-weight: bold;">Connexion en cours...</p>
-        </div>
-    </div>
-
-    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.3.0/flowbite.min.js"></script>
     <script>
         function showFormLoader() {
             const loader = document.getElementById('formLoader');
-            if (loader) {
-                loader.style.display = 'flex';
-            }
+            if (loader) loader.style.display = 'flex';
         }
     </script>
-    
 </body>
 </html>

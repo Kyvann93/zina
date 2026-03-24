@@ -239,7 +239,7 @@ const loadMenu = async () => {
 /* Block */
 .menu-item {
   display: flex;
-  padding: 1rem;
+  
 }
 
 /* Element */

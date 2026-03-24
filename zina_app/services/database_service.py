@@ -25,33 +25,48 @@ class DatabaseService:
         self.supabase = supabase_client
         self.image_service = CategoryImageService()
 
-    # Product operations
+    # ── Internal batch helpers ────────────────────────────────────────────────
+
+    def _fetch_all_products_raw(self, category_id: Optional[int] = None, available_only: bool = True):
+        """Single DB query for products — no per-row lookups."""
+        query = self.supabase.table('products').select('*')
+        if category_id:
+            query = query.eq('category_id', category_id)
+        if available_only:
+            query = query.eq('is_available', True)
+        return query.execute().data or []
+
+    def _fetch_options_map(self, product_ids: List[int]) -> dict:
+        """Fetch all product_options for a list of product IDs → {product_id: [ProductOption]}."""
+        if not product_ids:
+            return {}
+        opts = self.supabase.table('product_options').select('*').in_('product_id', product_ids).execute().data or []
+        result: dict = {}
+        for opt in opts:
+            pid = opt['product_id']
+            result.setdefault(pid, []).append(ProductOption(**opt))
+        return result
+
+    def _fetch_cat_names_map(self) -> dict:
+        """Fetch all categories → {category_id: category_name}."""
+        cats = self.supabase.table('categories').select('category_id, category_name').execute().data or []
+        return {c['category_id']: c['category_name'] for c in cats}
+
+    # ── Public product operations (3 queries max) ─────────────────────────────
+
     async def get_products(self, category_id: Optional[int] = None, available_only: bool = True) -> List[ProductResponse]:
         try:
-            query = self.supabase.table('products').select('*')
+            rows = self._fetch_all_products_raw(category_id=category_id, available_only=available_only)
+            if not rows:
+                return []
 
-            if category_id:
-                query = query.eq('category_id', category_id)
-
-            if available_only:
-                query = query.eq('is_available', True)
-
-            response = query.execute()
-
-            print(f"[DEBUG] get_products: found {len(response.data)} products (available_only={available_only})")
+            cat_names = self._fetch_cat_names_map()
+            product_ids = [r['product_id'] for r in rows]
+            options_map = self._fetch_options_map(product_ids)
 
             products = []
-            print(f'[DEBUG]{response.data}')
-            for item in response.data:
-                # Get category info
-                category_response = self.supabase.table('categories').select('category_name').eq('category_id', item['category_id']).execute()
-                category_name = category_response.data[0]['category_name'] if category_response.data else None
-
-                # Get product options
-                options_response = self.supabase.table('product_options').select('*').eq('product_id', item['product_id']).execute()
-                options = [ProductOption(**opt) for opt in options_response.data] if options_response.data else []
-
-                product = ProductResponse(
+            for item in rows:
+                products.append(ProductResponse(
                     product_id=item['product_id'],
                     category_id=item['category_id'],
                     product_name=item['product_name'],
@@ -59,34 +74,23 @@ class DatabaseService:
                     price=Decimal(str(item['price'])),
                     image_url=item.get('image_url'),
                     is_available=item.get('is_available', True),
-                    category_name=category_name,
-                    options=options
-                )
-                products.append(product)
-
+                    category_name=cat_names.get(item['category_id']),
+                    options=options_map.get(item['product_id'], [])
+                ))
             return products
         except Exception as e:
             print(f"Error fetching products: {e}")
             return []
 
     async def get_product_by_id(self, product_id: int) -> Optional[ProductResponse]:
+        """Fetch a single product without loading all others."""
         try:
-            response = self.supabase.table('products').select('*').eq('product_id', product_id).limit(1).execute()
-            if not response.data:
+            rows = self.supabase.table('products').select('*').eq('product_id', product_id).limit(1).execute().data or []
+            if not rows:
                 return None
-
-            item = response.data[0]
-
-            category_name = None
-            try:
-                category_response = self.supabase.table('categories').select('category_name').eq('category_id', item['category_id']).limit(1).execute()
-                category_name = category_response.data[0]['category_name'] if category_response.data else None
-            except Exception:
-                category_name = None
-
-            options_response = self.supabase.table('product_options').select('*').eq('product_id', item['product_id']).execute()
-            options = [ProductOption(**opt) for opt in options_response.data] if options_response.data else []
-
+            item = rows[0]
+            cat_names = self._fetch_cat_names_map()
+            options_map = self._fetch_options_map([product_id])
             return ProductResponse(
                 product_id=item['product_id'],
                 category_id=item['category_id'],
@@ -95,93 +99,61 @@ class DatabaseService:
                 price=Decimal(str(item['price'])),
                 image_url=item.get('image_url'),
                 is_available=item.get('is_available', True),
-                category_name=category_name,
-                options=options,
+                category_name=cat_names.get(item['category_id']),
+                options=options_map.get(product_id, [])
             )
         except Exception as e:
-            print(f"Error fetching product by id {product_id}: {e}")
+            print(f"Error fetching product {product_id}: {e}")
             return None
 
-    async def get_products_by_ids(self, product_ids: List[int]) -> List[ProductResponse]:
-        """Batch-load products + options for a list of product_ids.
+    # ── Category operations (3 queries total) ─────────────────────────────────
 
-        This avoids repeated calls to get_products() and helps prevent upstream 502s.
-        """
-        if not product_ids:
-            return []
-
-        unique_ids = sorted({int(pid) for pid in product_ids if pid is not None})
-        if not unique_ids:
-            return []
-
+    async def get_categories(self, available_only: bool = True) -> List[CategoryResponse]:
         try:
-            products_resp = self.supabase.table('products').select('*').in_('product_id', unique_ids).execute()
-            product_rows = products_resp.data or []
+            cats_data = self.supabase.table('categories').select('*').execute().data or []
+            if not cats_data:
+                return []
 
-            options_resp = self.supabase.table('product_options').select('*').in_('product_id', unique_ids).execute()
-            option_rows = options_resp.data or []
+            # All products + all options in two queries
+            all_products_raw = self._fetch_all_products_raw(available_only=available_only)
+            product_ids = [p['product_id'] for p in all_products_raw]
+            options_map = self._fetch_options_map(product_ids)
+            cat_names = {c['category_id']: c['category_name'] for c in cats_data}
 
-            options_by_product_id = {}
-            for opt in option_rows:
-                options_by_product_id.setdefault(opt.get('product_id'), []).append(ProductOption(**opt))
-
-            products: List[ProductResponse] = []
-            for row in product_rows:
-                products.append(
-                    ProductResponse(
-                        product_id=row['product_id'],
-                        category_id=row['category_id'],
-                        product_name=row['product_name'],
-                        description=row.get('description'),
-                        price=Decimal(str(row['price'])),
-                        image_url=row.get('image_url'),
-                        is_available=row.get('is_available', True),
-                        category_name=None,
-                        options=options_by_product_id.get(row['product_id'], []),
-                    )
-                )
-
-            return products
-        except Exception as e:
-            print(f"Error batch fetching products by ids: {e}")
-            return []
-
-    # Category operations
-    async def get_categories(self) -> List[CategoryResponse]:
-        try:
-            response = self.supabase.table('categories').select('*').execute()
+            # Group products by category
+            products_by_cat: dict = {}
+            for item in all_products_raw:
+                cat_id = item['category_id']
+                products_by_cat.setdefault(cat_id, []).append(ProductResponse(
+                    product_id=item['product_id'],
+                    category_id=cat_id,
+                    product_name=item['product_name'],
+                    description=item.get('description'),
+                    price=Decimal(str(item['price'])),
+                    image_url=item.get('image_url'),
+                    is_available=item.get('is_available', True),
+                    category_name=cat_names.get(cat_id),
+                    options=options_map.get(item['product_id'], [])
+                ))
 
             categories = []
-            for item in response.data:
-                # Get products for this category
-                products = await self.get_products(category_id=item['category_id'])
-                
-                # Get image for this category - prioritize local images
+            for item in cats_data:
+                cat_id = item['category_id']
                 category_name = item['category_name']
-                try:
-                    # Try to find local image first (most reliable)
-                    image_url = item['image_url']
-                    print("Image",image_url)
-                    # If no local image, try API fallback but don't block on failure
-                    if not image_url:
-                        try:
-                            image_url = self.image_service.get_fallback_image_url(category_name, use_api='unsplash')
-                        except Exception as api_err:
-                            # Log but don't crash - it's OK to have no image
-                            logger.warning(f"Fallback API error for {category_name}: {api_err}")
-                            image_url = None
-                except Exception as img_err:
-                    print(f"Warning: Could not get image for {category_name}: {img_err}")
-                    image_url = None
+                image_url = item.get('image_url')
+                if not image_url:
+                    try:
+                        image_url = self.image_service.get_fallback_image_url(category_name, use_api='unsplash')
+                    except Exception:
+                        image_url = None
 
-                category = CategoryResponse(
-                    category_id=item['category_id'],
+                categories.append(CategoryResponse(
+                    category_id=cat_id,
                     category_name=category_name,
                     description=item.get('description'),
                     image_url=image_url,
-                    products=products
-                )
-                categories.append(category)
+                    products=products_by_cat.get(cat_id, [])
+                ))
 
             return categories
         except Exception as e:
