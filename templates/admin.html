@@ -344,7 +344,73 @@
                             <option value="available">Disponibles</option>
                             <option value="unavailable">Indisponibles</option>
                         </select>
+                        <!-- Select All — Tailwind custom checkbox -->
+                        <label for="selectAllMenus"
+                               class="inline-flex items-center gap-2.5 px-3.5 py-2 rounded-xl border-2 border-gray-200
+                                      cursor-pointer transition-all duration-150 hover:border-[#a0656b] hover:bg-[#581b1f]/5 group"
+                               style="-webkit-user-select:none;user-select:none;" title="Tout sélectionner / désélectionner">
+                            <div class="relative w-5 h-5 flex-shrink-0">
+                                <input type="checkbox" id="selectAllMenus" onchange="toggleSelectAll(this)"
+                                       class="peer absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 m-0 p-0">
+                                <div class="absolute inset-0 rounded-[5px] border-2 border-gray-300 bg-white
+                                            group-hover:border-[#a0656b]
+                                            peer-checked:bg-[#581b1f] peer-checked:border-[#581b1f]
+                                            peer-indeterminate:bg-[#581b1f] peer-indeterminate:border-[#581b1f]
+                                            flex items-center justify-center pointer-events-none transition-colors duration-150">
+                                    <svg id="selectAllCheckmark" class="w-3 text-white" viewBox="0 0 12 10" fill="none" style="display:none">
+                                        <path d="M1 5L4.5 8.5L11 1" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                    <svg id="selectAllMinus" class="w-2.5 text-white" viewBox="0 0 10 3" fill="none" style="display:none">
+                                        <path d="M1 1.5h8" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                                    </svg>
+                                </div>
+                            </div>
+                            <span class="text-sm font-medium text-gray-700 whitespace-nowrap">Tout sélectionner</span>
+                        </label>
                     </div>
+                </div>
+
+                <!-- Floating Bulk Action Bar — fixed at bottom (Tailwind) -->
+                <div id="bulkActionBar"
+                     class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999]
+                            bg-gray-900 text-white rounded-2xl shadow-2xl border border-white/10
+                            items-center gap-4 px-5 py-3"
+                     style="display:none; min-width:min(680px,93vw);">
+                    <!-- Count badge -->
+                    <div class="flex items-center gap-2.5 border-r border-white/20 pr-4 flex-shrink-0">
+                        <div class="w-8 h-8 rounded-full bg-[#581b1f] flex items-center justify-center
+                                    text-sm font-bold ring-2 ring-white/20 flex-shrink-0">
+                            <span id="bulkCount">0</span>
+                        </div>
+                        <span class="text-sm text-gray-300 whitespace-nowrap">sélectionné(s)</span>
+                    </div>
+                    <!-- Action buttons -->
+                    <div class="flex items-center gap-2 flex-1 flex-wrap">
+                        <button onclick="bulkSetAvailable(true)"
+                                class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl
+                                       bg-emerald-500 hover:bg-emerald-400 active:scale-95
+                                       text-white text-[13px] font-semibold transition-all whitespace-nowrap">
+                            <i class="fas fa-eye text-[11px]"></i> Rendre Disponible
+                        </button>
+                        <button onclick="bulkSetAvailable(false)"
+                                class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl
+                                       bg-amber-400 hover:bg-amber-300 active:scale-95
+                                       text-gray-900 text-[13px] font-semibold transition-all whitespace-nowrap">
+                            <i class="fas fa-eye-slash text-[11px]"></i> Rendre Indisponible
+                        </button>
+                        <button onclick="bulkDeleteMenus()"
+                                class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl
+                                       bg-red-500 hover:bg-red-400 active:scale-95
+                                       text-white text-[13px] font-semibold transition-all whitespace-nowrap">
+                            <i class="fas fa-trash text-[11px]"></i> Supprimer
+                        </button>
+                    </div>
+                    <!-- Dismiss -->
+                    <button onclick="deselectAllMenus()"
+                            class="ml-auto flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center
+                                   text-gray-400 hover:text-white hover:bg-white/10 active:scale-95 transition-all">
+                        <i class="fas fa-times"></i>
+                    </button>
                 </div>
 
                 <div class="menu-grid" id="menuGrid">
@@ -393,8 +459,10 @@
                         <select id="ordersFilter" onchange="loadOrders()">
                             <option value="all">Toutes les commandes</option>
                             <option value="pending">En attente</option>
-                            <option value="processing">En cours</option>
-                            <option value="completed">Complétées</option>
+                            <option value="confirmed">Confirmées</option>
+                            <option value="preparing">En préparation</option>
+                            <option value="ready">Prêtes</option>
+                            <option value="completed">Terminées</option>
                             <option value="cancelled">Annulées</option>
                         </select>
                     </div>
@@ -618,12 +686,9 @@
                     </div>
                     <div class="form-group">
                         <label>Image du Plat</label>
-                        <input type="file" id="menuImageFile" accept="image/*">
+                        <img id="menuImagePreview" src="" alt="Aperçu" style="display:none;width:100%;max-height:160px;object-fit:cover;border-radius:8px;margin-bottom:8px;">
+                        <input type="file" id="menuImageFile" accept="image/*" onchange="previewMenuImage(this)">
                         <small class="form-help">Formats acceptés: PNG, JPG, JPEG, GIF, WebP</small>
-                    </div>
-                    <div class="form-group">
-                        <label>Emoji (si pas d'image)</label>
-                        <input type="text" id="menuImage" placeholder="Ex: 🍗">
                     </div>
                     <div class="form-row">
                         <div class="form-group">
@@ -674,7 +739,8 @@
                     </div>
                     <div class="form-group">
                         <label>Image de la Catégorie</label>
-                        <input type="file" id="categoryImage" accept="image/*">
+                        <img id="categoryImagePreview" src="" alt="Aperçu" style="display:none;width:100%;max-height:140px;object-fit:cover;border-radius:8px;margin-bottom:8px;">
+                        <input type="file" id="categoryImage" accept="image/*" onchange="previewCategoryImage(this)">
                         <small class="form-help">Formats acceptés: PNG, JPG, JPEG, GIF, WebP</small>
                     </div>
                     <div class="form-group">

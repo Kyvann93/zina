@@ -108,14 +108,14 @@ class DatabaseService:
 
     # ── Category operations (3 queries total) ─────────────────────────────────
 
-    async def get_categories(self) -> List[CategoryResponse]:
+    async def get_categories(self, available_only: bool = True) -> List[CategoryResponse]:
         try:
             cats_data = self.supabase.table('categories').select('*').execute().data or []
             if not cats_data:
                 return []
 
             # All products + all options in two queries
-            all_products_raw = self._fetch_all_products_raw(available_only=True)
+            all_products_raw = self._fetch_all_products_raw(available_only=available_only)
             product_ids = [p['product_id'] for p in all_products_raw]
             options_map = self._fetch_options_map(product_ids)
             cat_names = {c['category_id']: c['category_name'] for c in cats_data}

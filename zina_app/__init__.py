@@ -2,6 +2,7 @@
 ZINA Cantine BAD - Application Package
 """
 
+import os
 from flask import Flask
 from flask_cors import CORS
 
@@ -19,8 +20,10 @@ def create_app(config_object=None):
     
     app.config.from_object(config_object)
     
-    # Initialize extensions
-    CORS(app)
+    # Initialize extensions — restrict CORS to origins listed in CORS_ORIGINS env var
+    cors_env = os.environ.get('CORS_ORIGINS', '').strip()
+    allowed_origins = [o.strip() for o in cors_env.split(',') if o.strip()] if cors_env else '*'
+    CORS(app, origins=allowed_origins)
     
     # Register blueprints
     from zina_app.api import api_bp

@@ -1758,7 +1758,7 @@ input:not(:checked) + .slider .slider-text.en {
     width: 34px;
     height: 34px;
     border-radius: 50%;
-    background: var(--primary);
+    background: var(--light-gray);
     color: var(--white);
     border: none;
     display: flex;
@@ -3411,6 +3411,13 @@ button.btn-retry{
         grid-template-columns: repeat(3, 1fr);
         gap: 1rem;
     }
+}
+
+/* Laptop / wide desktop: 4-column grid */
+@media (min-width: 1100px) {
+    .menu-grid:not(.menu-grid-grouped) {
+        grid-template-columns: repeat(4, 1fr);
+    }
 
     /* Image: full width on desktop cards too */
     .menu-item-image {
@@ -4677,12 +4684,12 @@ button.btn-retry{
     /* Brand-derived dark palette — very deep maroon / near-black */
     --white: #130406;           /* card / surface backgrounds */
     --off-white: #0a0203;       /* page background — deepest */
-    --light-gray: #321014;      /* borders and subtle dividers */
+    --light-gray: #fdfdfd;      /* borders and subtle dividers */
     --medium-gray: #a07478;     /* secondary / muted text */
     --dark-gray: #f2dfe0;       /* primary text — warm cream */
     --black: #f2dfe0;
     /* Primary brand stays vivid in dark mode */
-    --primary: #c85c64;
+    --primary: #000000;
     --primary-dark: #581b1f;
     --primary-light: #e8a0a5;
     --primary-gradient: linear-gradient(135deg, #7a2328 0%, #c85c64 100%);
@@ -5447,7 +5454,7 @@ button.btn-retry{
     border: none;
     color: var(--primary, #581b1f);
     font-size: 0.82rem;
-    font-weight: 600;
+    font-weight: 800;
     cursor: pointer;
     display: flex;
     align-items: center;

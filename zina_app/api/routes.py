@@ -6,7 +6,9 @@ Handles menu, categories, products, orders, and company info endpoints
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from flask import jsonify, request, current_app, redirect, url_for, flash, session
+from urllib.parse import urlparse
+import urllib.request
+from flask import jsonify, request, current_app, redirect, url_for, flash, session, Response
 import random
 from zina_app.api import api_bp
 from zina_app.api.constants import CATEGORY_EMOJIS, CATEGORY_DEFAULT_IMAGES, CATEGORY_DEFAULT_IMAGE_FALLBACK
@@ -61,15 +63,15 @@ async def get_menu():
                     for product in (category.products or [])
                 ]
             except Exception as cat_error:
-                print(f"Error processing category {category.category_id}: {cat_error}")
+                current_app.logger.error('request error: %s', e)
                 continue
         
         return jsonify(menu_data)
     except Exception as e:
-        print(f"Error in get_menu: {str(e)}")
+        current_app.logger.error('get_menu error: %s', e)
         import traceback
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({'error': 'Une erreur est survenue'}), 500
 
 
 @api_bp.route('/categories')
@@ -106,7 +108,7 @@ def get_categories():
             })
         return jsonify(result)
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Une erreur est survenue'}), 500
 
 
 @api_bp.route('/sous-categories')
@@ -134,7 +136,7 @@ def get_sous_categories():
             })
         return jsonify(result)
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Une erreur est survenue'}), 500
 
 
 @api_bp.route('/menu/feed')
@@ -195,7 +197,7 @@ def get_menu_feed():
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Une erreur est survenue'}), 500
 
 
 @api_bp.route('/products/<int:product_id>')
@@ -225,7 +227,7 @@ async def get_product(product_id):
         else:
             return jsonify({"error": "Product not found"}), 404
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({'error': 'Une erreur est survenue'}), 500
 
 
 @api_bp.route('/register', methods=['POST'])
@@ -290,9 +292,8 @@ def register_user():
             return redirect(url_for('main.register'))
 
     except Exception as e:
-        print(f"Registration error: {str(e)}")
-        
-        flash(f"Une erreur est survenue lors de l'inscription: {str(e)}", 'error')
+        current_app.logger.error('register_user error: %s', e)
+        flash("Une erreur est survenue lors de l'inscription. Veuillez réessayer.", 'error')
         return redirect(url_for('main.register'))
 
 @api_bp.route('/login_user', methods=['POST'])
@@ -300,7 +301,6 @@ def login_user():
     """Handle user login"""
     try:
         data = request.form
-        print("donne recuperee du login",data)
         full_name = data.get('full_name')
         phone = data.get('phone').replace(" ", "")  # Remove spaces from phone number
 
@@ -315,22 +315,18 @@ def login_user():
         )
         response = supabase.table('users').select('*').eq('full_name', full_name).eq('phone', phone).execute()
         if response.data:
-            jsonify({"message": "Connexion réussie !", "category": 'success'})
             user = response.data[0]
-            print("user trouvé", user)
             session["is_logged_in"] = True
-            session['user_id'] = user['user_id']  # or user['user_id'] depending on your column name
+            session['user_id'] = user['user_id']
             session['user_name'] = user['full_name']
-            session['is_logged_in'] = True
-            
             return redirect(url_for('main.ordering'))
         else:
             flash("Nom complet ou numéro de téléphone incorrect", 'error')
             return redirect(url_for('main.login'))
 
     except Exception as e:
-        print(f"Login error: {str(e)}")
-        flash(f"Une erreur est survenue lors de la connexion: {str(e)}", 'error')
+        current_app.logger.error('login_user error: %s', e)
+        flash("Une erreur est survenue lors de la connexion. Veuillez réessayer.", 'error')
         return redirect(url_for('main.login'))
 @api_bp.route('/order', methods=['POST'])
 async def place_order():
@@ -464,7 +460,7 @@ async def place_order():
         print("Une erreur est survenu", e)
         import traceback
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({'error': 'Une erreur est survenue'}), 500
 
 
 @api_bp.route('/payment/wave/initiate', methods=['POST'])
@@ -514,7 +510,7 @@ def initiate_wave_payment():
             return jsonify({'status': 'error', 'message': 'Erreur Wave API', 'details': wave_response.text}), 502
 
     except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        return jsonify({'status': 'error', 'message': 'Une erreur est survenue'}), 500
 
 
 @api_bp.route('/payment/wave/webhook', methods=['POST'])
@@ -546,7 +542,7 @@ def wave_webhook():
 
     except Exception as e:
         print(f"Wave webhook error: {e}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        return jsonify({'status': 'error', 'message': 'Une erreur est survenue'}), 500
 
 
 @api_bp.route('/payment/wave/status/<order_id>', methods=['GET'])
@@ -570,7 +566,7 @@ def wave_payment_status(order_id):
         return jsonify({'status': 'error', 'message': 'Commande introuvable'}), 404
 
     except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        return jsonify({'status': 'error', 'message': 'Une erreur est survenue'}), 500
 
 
 @api_bp.route('/orders/<int:order_id>')
@@ -607,7 +603,7 @@ async def get_order(order_id):
         else:
             return jsonify({"error": "Order not found"}), 404
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({'error': 'Une erreur est survenue'}), 500
 
 
 @api_bp.route('/menu/today')
@@ -644,7 +640,7 @@ async def get_menu_of_the_day():
 
         return jsonify(todays_menu)
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({'error': 'Une erreur est survenue'}), 500
 
 
 @api_bp.route('/guest/orders')
@@ -701,19 +697,23 @@ async def get_guest_orders():
 
         return jsonify(guest_orders)
     except Exception as e:
-        print(f"Error in get_guest_orders: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        current_app.logger.error('get_guest_orders error: %s', e)
+        return jsonify({'error': 'Une erreur est survenue'}), 500
 
 
 @api_bp.route('/user/orders')
 async def get_user_orders():
-    """Get orders for the current user"""
+    """Get orders for the current authenticated user"""
     try:
-        # Get user_id from query parameter (for testing) or session
         user_id = request.args.get('user_id')
-        
+
         if not user_id:
             return jsonify({"error": "User ID required"}), 400
+
+        # Enforce that the requesting session owns these orders
+        session_user_id = session.get('user_id')
+        if not session_user_id or str(session_user_id) != str(user_id):
+            return jsonify({"error": "Non autorisé"}), 403
 
         # Parse user_id safely
         try:
@@ -741,67 +741,25 @@ async def get_user_orders():
 
         return jsonify(formatted_orders)
     except Exception as e:
-        print(f"Error in get_user_orders: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        current_app.logger.error('get_user_orders error: %s', e)
+        return jsonify({"error": "Une erreur est survenue"}), 500
 
 
-@api_bp.route('/admin/orders')
-async def get_admin_orders():
-    """Get all orders for admin dashboard"""
-    try:
-        db = get_db_service()
-        # Get all orders from the database
-        response = db.supabase.table('orders').select('*').order('created_at', desc=True).execute()
-
-        orders = []
-        for order_data in response.data:
-            # Payment handled at counter - no payment record during order creation
-           
-
-            # Get order items if table exists
-            items = []
-            try:
-                items_response = db.supabase.table('order_items').select('*').eq('order_id', order_data['order_id']).execute()
-                if items_response.data:
-                    for item in items_response.data:
-                        product = await db.get_product_by_id(item['product_id'])
-                        if product:
-                            items.append({
-                                'product_id': product.product_id,
-                                'product_name': product.product_name,
-                                'quantity': item['quantity'],
-                                'unit_price': float(item['unit_price'])
-                            })
-            except Exception:
-                pass  # order_items table might not exist
-
-            orders.append({
-                'order_id': order_data['order_id'],
-                'user_id': order_data['user_id'],
-                'total_amount': float(order_data['total_amount']),
-                'order_status': order_data['order_status'],
-                'created_at': order_data['created_at'],
-                'pickup_time': order_data.get('pickup_time'),
-                'prep_time_minutes': order_data.get('prep_time_minutes', 15),
-                'items': items,
-                
-            })
-
-        return jsonify(orders)
-    except Exception as e:
-        print(f"Error in get_admin_orders: {str(e)}")
-        return jsonify({"error": str(e)}), 500
 
 
 @api_bp.route('/user/profile')
 async def get_user_profile():
-    """Get user profile data by user_id"""
+    """Get user profile data — only the authenticated user's own profile"""
     try:
-        # Get user_id from query parameter
         user_id = request.args.get('user_id')
-        
+
         if not user_id:
             return jsonify({"error": "User ID required"}), 400
+
+        # Enforce that the requesting session owns this profile
+        session_user_id = session.get('user_id')
+        if not session_user_id or str(session_user_id) != str(user_id):
+            return jsonify({"error": "Non autorisé"}), 403
 
         from supabase import create_client
         supabase = create_client(
@@ -830,34 +788,10 @@ async def get_user_profile():
             return jsonify({"error": "User not found"}), 404
             
     except Exception as e:
-        print(f"Error in get_user_profile: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        current_app.logger.error('get_user_profile error: %s', e)
+        return jsonify({"error": "Une erreur est survenue"}), 500
 
 
-@api_bp.route('/admin/users')
-async def get_admin_users():
-    """Get all users for admin dashboard"""
-    try:
-        db = get_db_service()
-        # Get all users from the database
-        response = db.supabase.table('users').select('*').order('created_at', desc=True).execute()
-
-        users = []
-        for user_data in response.data:
-            users.append({
-                'id': user_data.get('id'),
-                'full_name': user_data.get('full_name'),
-                'email': user_data.get('email'),
-                'phone': user_data.get('phone'),
-                'department': user_data.get('department'),
-                'employee_id': user_data.get('employee_id'),
-                'created_at': user_data.get('created_at')
-            })
-        print("utilisateur",users)
-        return jsonify(users)
-    except Exception as e:
-        print(f"Error in get_admin_users: {str(e)}")
-        return jsonify({"error": str(e)}), 500
 
 
 @api_bp.route('/info')
@@ -941,7 +875,7 @@ def get_available_category_images():
             "count": len(available_images)
         })
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({'error': 'Une erreur est survenue'}), 500
 
 
 @api_bp.route('/products', methods=['POST'])
@@ -1032,8 +966,8 @@ async def create_product():
             return jsonify({"error": "Failed to create product"}), 500
             
     except Exception as e:
-        print(f"Error in create_product: {e}")
-        return jsonify({"error": str(e)}), 500
+        current_app.logger.error('request error: %s', e)
+        return jsonify({'error': 'Une erreur est survenue'}), 500
 
 
 @api_bp.route('/products/<int:product_id>/image', methods=['POST'])
@@ -1098,12 +1032,12 @@ async def upload_product_image(product_id):
                 return jsonify({"error": "Failed to update product image"}), 500
                 
         except Exception as e:
-            print(f"Error updating product image: {e}")
+            current_app.logger.error('request error: %s', e)
             return jsonify({"error": "Failed to save image"}), 500
             
     except Exception as e:
-        print(f"Error in upload_product_image: {e}")
-        return jsonify({"error": str(e)}), 500
+        current_app.logger.error('request error: %s', e)
+        return jsonify({'error': 'Une erreur est survenue'}), 500
 
 
 @api_bp.route('/categories', methods=['POST'])
@@ -1177,8 +1111,8 @@ async def create_category():
             return jsonify({"error": "Failed to create category"}), 500
             
     except Exception as e:
-        print(f"Error in create_category: {e}")
-        return jsonify({"error": str(e)}), 500
+        current_app.logger.error('request error: %s', e)
+        return jsonify({'error': 'Une erreur est survenue'}), 500
 
 
 @api_bp.route('/categories/<int:category_id>/image', methods=['POST'])
@@ -1244,12 +1178,38 @@ async def upload_category_image(category_id):
                 return jsonify({"error": "Failed to update category image"}), 500
                 
         except Exception as e:
-            print(f"Error updating category image: {e}")
+            current_app.logger.error('request error: %s', e)
             return jsonify({"error": "Failed to save image"}), 500
             
     except Exception as e:
-        print(f"Error in upload_category_image: {e}")
-        return jsonify({"error": str(e)}), 500
+        current_app.logger.error('request error: %s', e)
+        return jsonify({'error': 'Une erreur est survenue'}), 500
+
+
+_PROXY_ALLOWED_HOSTS = {'supabase.co'}
+
+
+@api_bp.route('/img-proxy')
+def image_proxy():
+    """Proxy external images through the app server to avoid QUIC/HTTP3 errors in browsers.
+    Only proxies URLs from trusted hosts (Supabase storage)."""
+    url = request.args.get('url', '').strip()
+    if not url:
+        return '', 400
+    try:
+        parsed = urlparse(url)
+        host = parsed.netloc.lower()
+        if not any(host == h or host.endswith('.' + h) for h in _PROXY_ALLOWED_HOSTS):
+            return '', 403
+        req = urllib.request.Request(url, headers={'User-Agent': 'ZinaApp/1.0'})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = resp.read()
+            content_type = resp.headers.get('Content-Type', 'image/jpeg')
+        response = Response(data, status=200, content_type=content_type)
+        response.headers['Cache-Control'] = 'public, max-age=86400'
+        return response
+    except Exception:
+        return '', 502
 
 
 @api_bp.route('/categories/<int:category_id>/image')
@@ -1270,4 +1230,4 @@ async def get_category_image_info(category_id):
             "description": category.description
         })
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({'error': 'Une erreur est survenue'}), 500

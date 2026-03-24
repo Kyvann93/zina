@@ -4,6 +4,15 @@
  */
 
 // ========================================
+// Image proxy — routes Supabase URLs through /api/img-proxy to avoid
+// browser QUIC/HTTP3 errors (ERR_QUIC_PROTOCOL_ERROR) with external hosts.
+// ========================================
+function proxyImg(url) {
+    if (!url || !url.startsWith('http')) return url;
+    return '/api/img-proxy?url=' + encodeURIComponent(url);
+}
+
+// ========================================
 // Global State
 // ========================================
 let menus = [];
@@ -12,6 +21,37 @@ let orders = [];
 let users = [];
 let currentSection = 'dashboard';
 let editingCategoryId = null;
+let selectedMenuIds = new Set();
+
+function showAdminLoginOverlay() {
+    const loginOverlay = document.getElementById('loginOverlay');
+    const adminWrapper = document.getElementById('adminWrapper');
+    if (loginOverlay) {
+        loginOverlay.style.opacity = '1';
+        loginOverlay.style.pointerEvents = 'auto';
+        loginOverlay.style.display = 'flex';
+    }
+    if (adminWrapper) {
+        adminWrapper.style.display = 'none';
+    }
+}
+
+async function adminFetch(url, options = {}) {
+    const merged = {
+        credentials: 'same-origin',
+        ...options,
+        headers: {
+            ...(options.headers || {}),
+        },
+    };
+
+    const response = await fetch(url, merged);
+    if (response.status === 401) {
+        showAdminLoginOverlay();
+        throw new Error('Unauthorized');
+    }
+    return response;
+}
 
 // ========================================
 // Page Loader
@@ -101,15 +141,45 @@ window.addEventListener('load', function() {
     // Complete the loader and ensure it hides
     completeLoader();
     
-    // Wait for loader to fully hide, then verify session with backend
+    // Wait for loader to fully hide
     setTimeout(() => {
-        const isAdmin = sessionStorage.getItem('zina_admin');
-        if (isAdmin) {
-            checkAdminSession();
-        } else {
-            document.getElementById('loginOverlay').style.display = 'flex';
-            document.getElementById('adminWrapper').style.display = 'none';
-        }
+        fetch('/api/admin/session', { credentials: 'same-origin' })
+            .then(r => r.json())
+            .then(data => {
+                const authenticated = !!(data && data.authenticated);
+
+                const loginOverlay = document.getElementById('loginOverlay');
+                const adminWrapper = document.getElementById('adminWrapper');
+
+                if (authenticated) {
+                    if (loginOverlay) {
+                        loginOverlay.style.display = 'none';
+                    }
+                    if (adminWrapper) {
+                        adminWrapper.style.display = 'flex';
+                    }
+                    loadDashboardData();
+                    const section = getSectionFromHash() || localStorage.getItem('adminCurrentSection') || 'menu';
+                    showSection(section);
+                } else {
+                    if (loginOverlay) {
+                        loginOverlay.style.display = 'flex';
+                    }
+                    if (adminWrapper) {
+                        adminWrapper.style.display = 'none';
+                    }
+                }
+            })
+            .catch(() => {
+                const loginOverlay = document.getElementById('loginOverlay');
+                const adminWrapper = document.getElementById('adminWrapper');
+                if (loginOverlay) {
+                    loginOverlay.style.display = 'flex';
+                }
+                if (adminWrapper) {
+                    adminWrapper.style.display = 'none';
+                }
+            });
     }, 1000);
 });
 
@@ -118,20 +188,6 @@ window.addEventListener('load', function() {
 // ========================================
 document.addEventListener('DOMContentLoaded', function() {
     startLoader();
-    
-    // Restore last section from localStorage
-    const savedSection = localStorage.getItem('adminCurrentSection');
-    if (savedSection) {
-        // Small delay to ensure DOM is ready
-        setTimeout(() => {
-            showSection(savedSection);
-        }, 100);
-    } else {
-        // Default to menu section if no saved section
-        setTimeout(() => {
-            showSection('menu');
-        }, 100);
-    }
 });
 
 // ========================================
@@ -147,61 +203,60 @@ function handleAdminLogin(event) {
     const submitBtn = event.target.querySelector('button[type="submit"]');
     if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Connexion...'; }
 
+    const username = usernameField.value;
+    const password = passwordField.value;
+
     fetch('/api/admin/login', {
         method: 'POST',
+        credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: usernameField.value.trim(), password: passwordField.value })
+        body: JSON.stringify({ username, password })
     })
-    .then(r => r.json())
-    .then(data => {
-        if (data.status === 'success') {
-            sessionStorage.setItem('zina_admin', 'true');
+        .then(r => r.json().then(data => ({ ok: r.ok, data })))
+        .then(({ ok, data }) => {
+            if (!ok) {
+                usernameField.value = '';
+                passwordField.value = '';
+                showToast((data && data.message) ? data.message : 'Identifiant ou mot de passe incorrect', 'error');
+                return;
+            }
+
             const loginOverlay = document.getElementById('loginOverlay');
             const adminWrapper = document.getElementById('adminWrapper');
-            if (loginOverlay) { loginOverlay.style.opacity = '0'; loginOverlay.style.pointerEvents = 'none'; }
+
+            if (loginOverlay) {
+                loginOverlay.style.opacity = '0';
+                loginOverlay.style.pointerEvents = 'none';
+            }
+
             setTimeout(() => {
                 if (loginOverlay) loginOverlay.style.display = 'none';
                 if (adminWrapper) adminWrapper.style.display = 'flex';
-                startClock();
                 loadDashboardData();
+                const section = getSectionFromHash() || localStorage.getItem('adminCurrentSection') || 'menu';
+                showSection(section);
                 showToast('Connexion réussie !', 'success');
             }, 300);
-        } else {
-            passwordField.value = '';
-            showToast(data.message || 'Identifiant ou mot de passe incorrect', 'error');
-            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> <span>Se Connecter</span>'; }
-        }
-    })
-    .catch(() => {
-        showToast('Erreur de connexion au serveur', 'error');
-        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> <span>Se Connecter</span>'; }
-    });
-}
-
-function checkAdminSession() {
-    // Verify session is still valid server-side
-    fetch('/api/admin/orders', { method: 'GET' })
-        .then(r => {
-            if (r.status === 401) {
-                sessionStorage.removeItem('zina_admin');
-                document.getElementById('loginOverlay').style.display = 'flex';
-                document.getElementById('adminWrapper').style.display = 'none';
-            } else {
-                document.getElementById('loginOverlay').style.display = 'none';
-                document.getElementById('adminWrapper').style.display = 'flex';
-                startClock();
-                loadDashboardData();
-            }
         })
         .catch(() => {
-            // Network error — assume session OK if sessionStorage says so
-            const loginOverlay = document.getElementById('loginOverlay');
-            const adminWrapper = document.getElementById('adminWrapper');
-            if (loginOverlay) loginOverlay.style.display = 'none';
-            if (adminWrapper) adminWrapper.style.display = 'flex';
-            startClock();
-            loadDashboardData();
+            showToast('Erreur réseau lors de la connexion', 'error');
+        })
+        .finally(() => {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Se connecter';
+            }
         });
+}
+
+function handleLogout() {
+    if (confirm('Voulez-vous vraiment vous déconnecter ?')) {
+        fetch('/api/admin/logout', { method: 'POST', credentials: 'same-origin' })
+            .finally(() => {
+                localStorage.removeItem('adminCurrentSection'); // Clear saved section
+                location.reload();
+            });
+    }
 }
 
 // ========================================
@@ -257,16 +312,6 @@ function refreshDashboard() {
     }, 1500);
 }
 
-function handleLogout() {
-    if (confirm('Voulez-vous vraiment vous déconnecter ?')) {
-        fetch('/api/admin/logout', { method: 'POST' }).finally(() => {
-            sessionStorage.removeItem('zina_admin');
-            localStorage.removeItem('adminCurrentSection');
-            location.reload();
-        });
-    }
-}
-
 // ========================================
 // Navigation
 // ========================================
@@ -275,6 +320,18 @@ function showSection(section) {
     
     // Save current section to localStorage
     localStorage.setItem('adminCurrentSection', section);
+
+    // Update breadcrumb title
+    const sectionTitles = {
+        dashboard:  'Tableau de Bord',
+        menu:       'Plats & Menus',
+        categories: 'Catégories',
+        orders:     'Commandes',
+        users:      'Employés',
+        settings:   'Paramètres'
+    };
+    const pageTitleEl = document.getElementById('pageTitle');
+    if (pageTitleEl) pageTitleEl.textContent = sectionTitles[section] || section;
 
     // Update nav items
     document.querySelectorAll('.nav-item').forEach(item => {
@@ -295,6 +352,12 @@ function showSection(section) {
         targetSection.classList.add('active');
     }
 
+    // Clear menu selection when switching sections
+    if (section !== 'menu') {
+        selectedMenuIds.clear();
+        updateBulkBar();
+    }
+
     // Load section data
     setTimeout(() => {
         switch(section) {
@@ -304,7 +367,7 @@ function showSection(section) {
                 break;
             case 'categories':
                 showSectionDataLoader('categories');
-                loadCategories();
+                loadCategoriesFromBackend();
                 break;
             case 'orders':
                 showSectionDataLoader('orders');
@@ -356,7 +419,7 @@ function loadDashboardData() {
     loadCategoriesFromBackend();
 
     // Load orders from API
-    fetch('/api/admin/orders')
+    adminFetch('/api/admin/orders')
         .then(response => response.json())
         .then(data => {
             orders = data && data.length > 0 ? data : [];
@@ -374,7 +437,7 @@ function loadDashboardData() {
     // Show loader first
     showSectionDataLoader('users');
     
-    fetch('/api/admin/users')
+    adminFetch('/api/admin/users')
         .then(response => {
             if (response.ok) {
                 return response.json();
@@ -393,7 +456,8 @@ function loadDashboardData() {
                     phone: user.phone || '-',
                     joined: user.created_at ? formatDate(user.created_at) : '-',
                     orders: user.order_count || 0,
-                    userId: user.user_id
+                    userId: user.user_id,
+                    department: user.department || '-'
                 }));
                 hideSectionDataLoader('users');
                 loadUsers();
@@ -414,290 +478,9 @@ function loadDashboardData() {
     updatePopularItems();
 }
 
-function convertAPIMenu(apiData) {
-    const converted = [];
-    let id = 1;
-    for (const [category, items] of Object.entries(apiData)) {
-        items.forEach(item => {
-            converted.push({
-                id: id++,
-                name: item.name,
-                description: item.description || '',
-                price: item.price,
-                category: category,
-                image: item.image || '🍽️',
-                available: item.is_available !== undefined ? item.is_available : true,
-                popular: false,
-                prepTime: 15
-            });
-        });
-    }
-    return converted;
-}
-
-function updateDashboardStats() {
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    const todayStart = now.getTime();
-
-    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
-
-    // Filtres temporels
-    const todayOrdersList = orders.filter(o => o.created_at && new Date(o.created_at).getTime() >= todayStart);
-    const monthOrdersList  = orders.filter(o => o.created_at && new Date(o.created_at).getTime() >= thisMonthStart);
-
-    // CA du jour
-    const todayRevenue = todayOrdersList.reduce((s, o) => s + (o.total_amount || 0), 0);
-
-    // Ticket moyen (du jour)
-    const avgTicket = todayOrdersList.length > 0
-        ? Math.round(todayRevenue / todayOrdersList.length)
-        : 0;
-
-    // Taux de complétion (toutes commandes)
-    const completedCount = orders.filter(o => o.order_status === 'completed').length;
-    const completionRate = orders.length > 0 ? Math.round((completedCount / orders.length) * 100) : 0;
-
-    // En attente
-    const pendingCount = orders.filter(o => o.order_status === 'pending').length;
-
-    // Menus disponibles
-    const availableCount = menus.filter(m => m.available !== false).length;
-
-    // ——— Mise à jour DOM ———
-    const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-
-    setEl('todayRevenue', todayRevenue.toLocaleString('fr-FR'));
-    setEl('todayOrders',  todayOrdersList.length);
-    setEl('avgTicket',    avgTicket.toLocaleString('fr-FR'));
-    setEl('completionRate', completionRate + '%');
-    setEl('pendingOrders',  pendingCount);
-    setEl('availableMenus', availableCount);
-    setEl('totalUsers',     users.length);
-    setEl('monthOrders',    monthOrdersList.length);
-    setEl('totalMenus',     menus.length);
-
-    // Barre de progression complétion
-    const bar = document.getElementById('completionBar');
-    if (bar) bar.style.width = completionRate + '%';
-
-    // Badge pending dans sidebar
-    const navBadge = document.getElementById('navPendingCount');
-    if (navBadge) {
-        if (pendingCount > 0) {
-            navBadge.textContent = pendingCount;
-            navBadge.style.display = '';
-        } else {
-            navBadge.style.display = 'none';
-        }
-    }
-
-    updateStatusBreakdown();
-}
-
-function updateStatusBreakdown() {
-    const el = document.getElementById('statusBreakdown');
-    if (!el) return;
-
-    const statuses = [
-        { key: 'pending',    label: 'En attente', color: '#f59e0b' },
-        { key: 'processing', label: 'En cours',   color: '#3b82f6' },
-        { key: 'completed',  label: 'Livrées',    color: '#10b981' },
-        { key: 'cancelled',  label: 'Annulées',   color: '#ef4444' }
-    ];
-
-    const total = orders.length || 1;
-
-    if (orders.length === 0) {
-        el.innerHTML = '<p style="color:var(--medium-gray);font-size:0.8rem;text-align:center;padding:1rem 0;">Aucune donnée disponible</p>';
-        return;
-    }
-
-    el.innerHTML = statuses.map(s => {
-        const count = orders.filter(o => o.order_status === s.key).length;
-        const pct   = Math.round((count / total) * 100);
-        return `
-            <div class="breakdown-item">
-                <span class="breakdown-label">${s.label}</span>
-                <div class="breakdown-bar">
-                    <div class="breakdown-fill" style="width:${pct}%;background:${s.color}"></div>
-                </div>
-                <span class="breakdown-count">${count}</span>
-            </div>`;
-    }).join('');
-}
-
-function updateRecentOrdersTable() {
-    const tbody = document.getElementById('dashboardOrdersBody');
-    if (!tbody) return;
-    
-    if (orders.length === 0) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="5" style="text-align: center; padding: 2rem;">
-                    <i class="fas fa-receipt" style="font-size: 2rem; margin-bottom: 1rem; opacity: 0.5;"></i>
-                    <p style="color: #666;">Aucune commande trouvée</p>
-                </td>
-            </tr>
-        `;
-        return;
-    }
-    
-    // Sort orders by date (most recent first)
-    const sortedOrders = orders.sort((a, b) => {
-        const dateA = new Date(a.created_at || 0);
-        const dateB = new Date(b.created_at || 0);
-        return dateB - dateA;
-    });
-    
-    // Display all existing orders (not limited to 5)
-    tbody.innerHTML = sortedOrders.map(order => {
-        const createdDate = order.created_at ? new Date(order.created_at) : new Date();
-        const dateStr = createdDate.toLocaleDateString('fr-FR');
-        const timeStr = createdDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-        const statusClass = getStatusClass(order.order_status);
-        const statusText = getStatusText(order.order_status);
-        
-        return `
-            <tr>
-                <td>#${order.order_id}</td>
-                <td>${order.user_name || (order.user_email || 'Client')}</td>
-                <td>${formatPrice(order.total_amount)}</td>
-                <td><span class="status-badge ${statusClass}">${statusText}</span></td>
-                <td>${dateStr} ${timeStr}</td>
-            </tr>
-        `;
-    }).join('');
-}
-
-function updatePopularItems() {
-    // Calculate popular items from orders
-    const itemCounts = {};
-    
-    orders.forEach(order => {
-        if (order.items && order.items.length > 0) {
-            order.items.forEach(item => {
-                const itemName = item.product_name || item.name;
-                if (itemName) {
-                    itemCounts[itemName] = (itemCounts[itemName] || 0) + item.quantity;
-                }
-            });
-        }
-    });
-    
-    // Sort items by popularity
-    const popularItems = Object.entries(itemCounts)
-        .sort(([,a], [,b]) => b - a)
-        .slice(0, 5); // Top 5 items
-    
-    // Update popular items display
-    const popularList = document.getElementById('popularItemsList');
-    if (!popularList) return;
-    
-    if (popularItems.length === 0) {
-        popularList.innerHTML = `
-            <div style="text-align: center; padding: 2rem; color: #666;">
-                <i class="fas fa-utensils" style="font-size: 2rem; margin-bottom: 1rem; opacity: 0.5;"></i>
-                <p>Aucune donnée disponible</p>
-            </div>
-        `;
-        return;
-    }
-    
-    popularList.innerHTML = popularItems.map((item, index) => `
-        <div class="popular-item">
-            <span class="popular-rank">${index + 1}</span>
-            <span class="popular-name">${item[0]}</span>
-            <span class="popular-count">${item[1]} commandes</span>
-        </div>
-    `).join('');
-}
-
-// getStatusClass, getStatusText, formatPrice → see utils.js
-
-// ========================================
-// Test Functions
-// ========================================
-function testDashboardData() {
-    console.log('=== Testing Dashboard Data Display (No Hardcoded Values) ===');
-    
-    // Create test orders data with different dates
-    const now = new Date();
-    const yesterday = new Date(now.getTime() - 24 * 60 * 60000);
-    const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 60 * 60000);
-    
-    const testOrders = [
-        {
-            order_id: 4827,
-            user_name: 'Jean Kouamé',
-            total_amount: 14300,
-            order_status: 'completed',
-            created_at: now.toISOString(),
-            items: [
-                { product_name: 'Riz Gras au Poulet', quantity: 2 },
-                { product_name: 'Jus Orange', quantity: 1 }
-            ]
-        },
-        {
-            order_id: 4826,
-            user_name: 'Marie Diallo',
-            total_amount: 8500,
-            order_status: 'preparing',
-            created_at: yesterday.toISOString(),
-            items: [
-                { product_name: 'Alloco & Poisson', quantity: 1 }
-            ]
-        },
-        {
-            order_id: 4825,
-            user_name: 'Patrick Aka',
-            total_amount: 12000,
-            order_status: 'pending',
-            created_at: twoDaysAgo.toISOString(),
-            items: [
-                { product_name: 'Attiéké', quantity: 3 }
-            ]
-        }
-    ];
-    
-    // Test with sample data
-    const originalOrders = orders;
-    orders = testOrders;
-    
-    console.log('Test orders:', testOrders);
-    console.log('Today should show:', testOrders.filter(o => new Date(o.created_at).toDateString() === now.toDateString()).length, 'orders');
-    
-    // Update dashboard displays
-    updateDashboardStats();
-    updateRecentOrdersTable();
-    updatePopularItems();
-    
-    // Restore original data after 5 seconds
-    setTimeout(() => {
-        orders = originalOrders;
-        updateDashboardStats();
-        updateRecentOrdersTable();
-        updatePopularItems();
-        console.log('Restored original orders data');
-    }, 5000);
-    
-    console.log('✅ Dashboard test completed!');
-    console.log('- Recent orders table should show real data from API');
-    console.log('- Popular items should be calculated from order data');
-    console.log('- No hardcoded values should be visible');
-    console.log('- Check HTML: ordersTableBody and popularItemsList should be populated');
-}
-
-// Make test function available globally
-window.testDashboardData = testDashboardData;
-// ========================================
-function loadMenus() {
-    loadMenusFromBackend();
-}
-
 function loadMenusFromBackend() {
     showSectionDataLoader('menu');
-    fetch('/api/admin/menus')
+    adminFetch('/api/admin/menus')
         .then(response => response.json())
         .then(data => {
             if (data && data.length > 0) {
@@ -709,13 +492,14 @@ function loadMenusFromBackend() {
                     category: menu.category,
                     category_id: menu.category_id || null,
                     image: menu.image || '🍽️',
-                    available: menu.available !== undefined ? menu.available : true,
+                    available: menu.available !== false,
                     popular: false,
                     prepTime: 15
                 }));
             } else {
                 menus = [];
             }
+            selectedMenuIds.clear();
             hideSectionDataLoader('menu');
             renderMenus();
         })
@@ -727,243 +511,16 @@ function loadMenusFromBackend() {
         });
 }
 
-function renderMenus() {
-    const grid = document.getElementById('menuGrid');
-
-    if (menus.length === 0) {
-        grid.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><h3>Aucun plat</h3><p>Commencez par ajouter un plat</p></div>';
-        hideSectionDataLoader('menu');
-        return;
-    }
-
-    const categoryFilter = document.getElementById('categoryFilter').value;
-    const availabilityFilter = document.getElementById('availabilityFilter').value;
-
-    let filteredMenus = menus;
-
-    if (categoryFilter) {
-        filteredMenus = filteredMenus.filter(m => String(m.category_id) === String(categoryFilter));
-    }
-
-    if (availabilityFilter === 'available') {
-        filteredMenus = filteredMenus.filter(m => m.available);
-    } else if (availabilityFilter === 'unavailable') {
-        filteredMenus = filteredMenus.filter(m => !m.available);
-    }
-
-    grid.innerHTML = filteredMenus.map(menu => `
-        <div class="menu-card">
-            <div class="menu-card-image">
-                 
-                <img src="${menu.image}" alt="${menu.name}" onerror="this.src='/static/images/food/salade.jpg'">
-                <div class="menu-card-badges">
-                    ${menu.popular ? '<span class="menu-badge popular"><i class="fas fa-fire"></i></span>' : ''}
-                    ${!menu.available ? '<span class="menu-badge" style="background: var(--danger); color: white;">Indisponible</span>' : ''}
-                </div>
-            </div>
-            <div class="menu-card-content">
-                <div class="menu-card-header">
-                    <h4 class="menu-card-title">${menu.name}</h4>
-                    <span class="menu-card-price">${menu.price.toLocaleString('fr-FR')} FCFA</span>
-                </div>
-                <p class="menu-card-description">${menu.description || ''}</p>
-                <div class="menu-card-footer">
-                    <div class="menu-card-meta">
-                        <span><i class="fas fa-clock"></i> ${menu.prepTime} min</span>
-                        <span><i class="fas fa-tag"></i> ${menu.category}</span>
-                    </div>
-                    <div class="menu-card-actions">
-                        <button class="action-btn edit" onclick="editMenu(${menu.id})" title="Modifier">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="action-btn delete" onclick="deleteMenu(${menu.id})" title="Supprimer">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `).join('');
-    
-    hideSectionDataLoader('menu');
-}
-
-function filterMenus() {
-    loadMenus();
-}
-
-function openMenuModal(menuId = null) {
-    const modal = document.getElementById('menuModal');
-    const form = document.getElementById('menuForm');
-
-    form.reset();
-
-    // Check if there are categories available
-    if (categories.length === 0) {
-        showToast('Veuillez d\'abord créer une catégorie', 'error');
-        return;
-    }
-
-    if (menuId) {
-        const menu = menus.find(m => m.id === menuId);
-        if (menu) {
-            document.getElementById('menuModalTitle').textContent = 'Modifier un Plat';
-            document.getElementById('menuId').value = menu.id;
-            document.getElementById('menuName').value = menu.name;
-            document.getElementById('menuCategory').value = menu.category_id || '';
-            document.getElementById('menuPrice').value = menu.price;
-            document.getElementById('menuPrepTime').value = menu.prepTime;
-            document.getElementById('menuDescription').value = menu.description;
-            document.getElementById('menuImage').value = menu.image;
-            document.getElementById('menuAvailable').value = menu.available.toString();
-            document.getElementById('menuPopular').checked = menu.popular;
-        }
-    } else {
-        document.getElementById('menuModalTitle').textContent = 'Ajouter un Plat';
-        document.getElementById('menuId').value = '';
-    }
-
-    modal.classList.add('active');
-}
-
-function closeMenuModal() {
-    document.getElementById('menuModal').classList.remove('active');
-}
-
-function saveMenu(event) {
-    event.preventDefault();
-
-    const formData = new FormData();
-    formData.append('name', document.getElementById('menuName').value);
-    formData.append('category_id', document.getElementById('menuCategory').value);
-    formData.append('price', document.getElementById('menuPrice').value);
-    formData.append('description', document.getElementById('menuDescription').value);
-    formData.append('is_available', document.getElementById('menuAvailable').value === 'true');
-    
-    // Add image if selected
-    const imageFile = document.getElementById('menuImageFile').files[0];
-    if (imageFile) {
-        formData.append('image', imageFile);
-    }
-
-    const menuId = document.getElementById('menuId').value;
-
-    const saveBtn = document.querySelector('#menuModal .btn-confirm');
-    setButtonLoading(saveBtn, menuId ? 'Modification...' : 'Enregistrement...');
-    closeMenuModal();
-
-    if (menuId) {
-        // Update existing menu - for now just update basic info
-        const menuData = {
-            product_name: document.getElementById('menuName').value,
-            category_id: parseInt(document.getElementById('menuCategory').value),
-            price: parseInt(document.getElementById('menuPrice').value),
-            description: document.getElementById('menuDescription').value,
-            is_available: document.getElementById('menuAvailable').value === 'true'
-        };
-
-        showSectionDataLoader('menu');
-        fetch(`/api/admin/menus/${menuId}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(menuData)
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                showToast('Plat modifié avec succès', 'success');
-            } else {
-                showToast('Erreur: ' + (data.message || 'Échec de la modification'), 'error');
-            }
-            loadMenusFromBackend();
-        })
-        .catch(error => {
-            console.error('Error updating menu:', error);
-            showToast('Erreur lors de la modification', 'error');
-            hideSectionDataLoader('menu');
-        })
-        .finally(() => resetButton(saveBtn));
-    } else {
-        // Create new menu with image
-        showSectionDataLoader('menu');
-        fetch('/api/products', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                showToast('Plat ajouté avec succès', 'success');
-            } else {
-                showToast('Erreur: ' + (data.error || 'Échec de l\'ajout'), 'error');
-            }
-            loadMenusFromBackend();
-        })
-        .catch(error => {
-            console.error('Error creating menu:', error);
-            showToast('Erreur lors de l\'ajout', 'error');
-            hideSectionDataLoader('menu');
-        })
-        .finally(() => resetButton(saveBtn));
-    }
-}
-
-function getCategoryID(categoryName) {
-    // Map category names to IDs from the backend
-    const categoryMap = {
-        'breakfast': 1,
-        'lunch': 2,
-        'snacks': 3,
-        'salads': 4,
-        'drinks': 5,
-        'desserts': 6,
-        'specials': 7
-    };
-    return categoryMap[categoryName] || 1;
-}
-
-function editMenu(id) {
-    openMenuModal(id);
-}
-
-function deleteMenu(id) {
-    showConfirmModal(
-        'Supprimer un plat',
-        'Voulez-vous vraiment supprimer ce plat ?',
-        function() {
-            showSectionDataLoader('menu');
-            fetch(`/api/admin/menus/${id}`, { method: 'DELETE' })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    showToast('Plat supprimé avec succès', 'success');
-                } else {
-                    showToast('Erreur: ' + (data.message || 'Échec de la suppression'), 'error');
-                }
-                loadMenus();
-            })
-            .catch(error => {
-                console.error('Error deleting menu:', error);
-                showToast('Erreur lors de la suppression', 'error');
-                hideSectionDataLoader('menu');
-            });
-        }
-    );
-}
-
-// ========================================
-// Category Management
-// ========================================
-function loadCategories() {
+function loadCategoriesFromBackend() {
     showSectionDataLoader('categories');
-    fetch('/api/categories')
+    adminFetch('/api/admin/categories')
         .then(response => response.json())
         .then(data => {
             if (data && data.length > 0) {
                 categories = data.map(cat => ({
                     id: cat.id,
                     name: cat.name,
-                    image: cat.image,
+                    image: cat.image_url || cat.image || '',
                     description: cat.description || '',
                     emoji: cat.emoji || '📁',
                     icon: cat.emoji || '📁',
@@ -989,155 +546,29 @@ function loadCategories() {
         });
 }
 
-function populateCategoryDropdowns() {
-    // Populate filter dropdown
-    const filterSelect = document.getElementById('categoryFilter');
-    const menuSelect = document.getElementById('menuCategory');
-    
-    // Save current selected values
-    const currentFilterValue = filterSelect.value;
-    const currentMenuValue = menuSelect.value;
-    
-    // Clear existing options (keep the first "all categories" option for filter)
-    filterSelect.innerHTML = '<option value="" disabled selected>📋 Toutes les catégories</option>';
-    menuSelect.innerHTML = '<option value="" disabled selected>🍽️ Sélectionnez une catégorie</option>';
-    
-    // Add options for each category with emoji
-    categories.forEach(cat => {
-        const option1 = document.createElement('option');
-        option1.value = cat.id;
-        option1.textContent = `${cat.emoji || '🍽️'} ${cat.name}`;
-        filterSelect.appendChild(option1);
-        
-        const option2 = document.createElement('option');
-        option2.value = cat.id;
-        option2.textContent = `${cat.emoji || '🍽️'} ${cat.name}`;
-        menuSelect.appendChild(option2);
-    });
-    
-    // Restore selected values if they still exist
-    if (currentFilterValue) {
-        filterSelect.value = currentFilterValue;
-    }
-    if (currentMenuValue) {
-        menuSelect.value = currentMenuValue;
-    }
-}
-
-function loadCategoriesFromBackend() {
-    loadCategories();
-}
-
-function renderCategories() {
-    const grid = document.getElementById('categoriesGrid');
-
-    if (categories.length === 0) {
-        grid.innerHTML = '<div class="empty-state"><i class="fas fa-list"></i><h3>Aucune catégorie</h3><p>Commencez par ajouter une catégorie</p></div>';
-        hideSectionDataLoader('categories');
-        return;
-    }
-
-    grid.innerHTML = categories.map(cat => `
-        <div class="category-card" style="border-top: 4px solid ${cat.color}">
-            <div class="category-icon">
-                ${cat.image ? `<img src="${cat.image}" alt="${cat.name}" class="category-image">` : cat.icon}
-            </div>
-            <h3 class="category-name">${cat.name}</h3>
-            <p class="category-count">${cat.count} plats</p>
-            <div class="category-actions">
-                <button class="action-btn edit" onclick="editCategory(${cat.id})">
-                    <i class="fas fa-edit"></i>
-                </button>
-                <button class="action-btn delete" onclick="deleteCategory(${cat.id})">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </div>
-        </div>
-    `).join('');
-    
-    hideSectionDataLoader('categories');
-}
-
-function openCategoryModal(catId = null) {
-    const modal = document.getElementById('categoryModal');
-    const form = document.getElementById('categoryForm');
-
-    form.reset();
-    editingCategoryId = null;
-
-    if (catId) {
-        const cat = categories.find(c => c.id === catId);
-        if (cat) {
-            editingCategoryId = catId;
-            document.getElementById('categoryModalTitle').textContent = 'Modifier une Catégorie';
-            document.getElementById('categoryName').value = cat.name;
-            document.getElementById('categoryDescription').value = cat.description || '';
-            document.getElementById('categoryIcon').value = cat.icon || '';
-            document.getElementById('categoryColor').value = cat.color || '#581b1f';
-        } else {
-            document.getElementById('categoryModalTitle').textContent = 'Ajouter une Catégorie';
+function deleteMenu(id) {
+    showConfirmModal(
+        'Supprimer un plat',
+        'Voulez-vous vraiment supprimer ce plat ?',
+        function() {
+            showSectionDataLoader('menu');
+            adminFetch(`/api/admin/menus/${id}`, { method: 'DELETE' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showToast('Plat supprimé avec succès', 'success');
+                } else {
+                    showToast('Erreur: ' + (data.message || 'Échec de la suppression'), 'error');
+                }
+                loadMenus();
+            })
+            .catch(error => {
+                console.error('Error deleting menu:', error);
+                showToast('Erreur lors de la suppression', 'error');
+                hideSectionDataLoader('menu');
+            });
         }
-    } else {
-        document.getElementById('categoryModalTitle').textContent = 'Ajouter une Catégorie';
-    }
-
-    modal.classList.add('active');
-}
-
-function closeCategoryModal() {
-    document.getElementById('categoryModal').classList.remove('active');
-}
-
-function saveCategory(event) {
-    event.preventDefault();
-
-    const formData = new FormData();
-    formData.append('name', document.getElementById('categoryName').value);
-    formData.append('description', document.getElementById('categoryDescription').value);
-    
-    // Add image if selected
-    const imageFile = document.getElementById('categoryImage').files[0];
-    if (imageFile) {
-        formData.append('image', imageFile);
-    }
-
-    // Send to backend as JSON
-    const categoryData = {
-        category_name: document.getElementById('categoryName').value,
-        description: document.getElementById('categoryDescription').value
-    };
-
-    const saveBtn = document.querySelector('#categoryModal .btn-confirm');
-    setButtonLoading(saveBtn, 'Enregistrement...');
-    const catIdToUpdate = editingCategoryId;
-    closeCategoryModal();
-    showSectionDataLoader('categories');
-
-    const url = catIdToUpdate ? `/api/admin/categories/${catIdToUpdate}` : '/api/admin/categories';
-    fetch(url, {
-        method: catIdToUpdate ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(categoryData)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.status === 'success') {
-            showToast('Catégorie enregistrée avec succès', 'success');
-        } else {
-            showToast('Erreur: ' + (data.message || 'Échec de l\'enregistrement'), 'error');
-        }
-        loadCategoriesFromBackend();
-    })
-    .catch(error => {
-        console.error('Error saving category:', error);
-        showToast('Erreur lors de l\'enregistrement', 'error');
-        hideSectionDataLoader('categories');
-    })
-    .finally(() => resetButton(saveBtn));
-}
-
-function editCategory(id) {
-    openCategoryModal(id);
+    );
 }
 
 function deleteCategory(id) {
@@ -1146,7 +577,7 @@ function deleteCategory(id) {
         'Voulez-vous vraiment supprimer cette catégorie ?',
         function() {
             showSectionDataLoader('categories');
-            fetch(`/api/admin/categories/${id}`, { method: 'DELETE' })
+            adminFetch(`/api/admin/categories/${id}`, { method: 'DELETE' })
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
@@ -1154,7 +585,7 @@ function deleteCategory(id) {
                 } else {
                     showToast('Erreur: ' + (data.message || 'Échec de la suppression'), 'error');
                 }
-                loadCategories();
+                loadCategoriesFromBackend();
             })
             .catch(error => {
                 console.error('Error deleting category:', error);
@@ -1173,7 +604,7 @@ function loadOrders() {
     const filter = document.getElementById('ordersFilter').value;
 
     showSectionDataLoader('orders');
-    fetch('/api/admin/orders')
+    adminFetch('/api/admin/orders')
         .then(response => response.json())
         .then(apiOrders => {
             // Convert API orders to our format
@@ -1238,7 +669,7 @@ function viewOrderDetails(id) {
     document.getElementById('orderDetailsModal').classList.add('active');
 
     // Fetch order details from API
-    fetch(`/api/orders/${id}`)
+    adminFetch(`/api/admin/orders/${id}`)
         .then(response => response.json())
         .then(order => {
             if (!order || order.error) {
@@ -1314,10 +745,12 @@ function viewOrderDetails(id) {
                 <div class="form-group" style="margin-top: 1rem;">
                     <label>Mettre à jour le statut</label>
                     <select id="orderStatusUpdate">
-                        <option value="pending" ${order.order_status === 'pending' ? 'selected' : ''}>En attente</option>
-                        <option value="processing" ${order.order_status === 'processing' ? 'selected' : ''}>En cours</option>
-                        <option value="completed" ${order.order_status === 'completed' ? 'selected' : ''}>Complété</option>
-                        <option value="cancelled" ${order.order_status === 'cancelled' ? 'selected' : ''}>Annulé</option>
+                        <option value="pending"   ${order.order_status === 'pending'   ? 'selected' : ''}>En attente</option>
+                        <option value="confirmed" ${order.order_status === 'confirmed' ? 'selected' : ''}>Confirmée</option>
+                        <option value="preparing" ${order.order_status === 'preparing' ? 'selected' : ''}>En préparation</option>
+                        <option value="ready"     ${order.order_status === 'ready'     ? 'selected' : ''}>Prête</option>
+                        <option value="completed" ${order.order_status === 'completed' ? 'selected' : ''}>Terminée</option>
+                        <option value="cancelled" ${order.order_status === 'cancelled' ? 'selected' : ''}>Annulée</option>
                     </select>
                 </div>
             `;
@@ -1347,7 +780,7 @@ function updateOrderStatus() {
     const btn = document.getElementById('updateStatusBtn');
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mise à jour...'; }
 
-    fetch(`/api/admin/orders/${orderId}/status`, {
+    adminFetch(`/api/admin/orders/${orderId}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })
@@ -1372,11 +805,592 @@ function updateOrderStatus() {
 }
 
 // ========================================
+// Menu Management
+// ========================================
+function loadMenus() {
+    loadMenusFromBackend();
+}
+
+function renderMenus() {
+    const grid = document.getElementById('menuGrid');
+    if (!grid) return;
+
+    if (menus.length === 0) {
+        grid.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><h3>Aucun plat</h3><p>Commencez par ajouter un plat</p></div>';
+        hideSectionDataLoader('menu');
+        return;
+    }
+
+    const categoryFilter = document.getElementById('categoryFilter')?.value || '';
+    const availabilityFilter = document.getElementById('availabilityFilter')?.value || '';
+    const searchQuery = (document.getElementById('menuSearch')?.value || '').toLowerCase().trim();
+
+    let filteredMenus = menus;
+
+    if (categoryFilter) {
+        filteredMenus = filteredMenus.filter(m => String(m.category_id) === String(categoryFilter));
+    }
+    if (availabilityFilter === 'available') {
+        filteredMenus = filteredMenus.filter(m => m.available);
+    } else if (availabilityFilter === 'unavailable') {
+        filteredMenus = filteredMenus.filter(m => !m.available);
+    }
+    if (searchQuery) {
+        filteredMenus = filteredMenus.filter(m =>
+            (m.name || '').toLowerCase().includes(searchQuery) ||
+            (m.description || '').toLowerCase().includes(searchQuery) ||
+            (m.category || '').toLowerCase().includes(searchQuery)
+        );
+    }
+
+    if (filteredMenus.length === 0) {
+        grid.innerHTML = '<div class="empty-state"><i class="fas fa-search"></i><h3>Aucun résultat</h3><p>Essayez d\'autres critères</p></div>';
+        hideSectionDataLoader('menu');
+        return;
+    }
+
+    grid.innerHTML = filteredMenus.map(menu => `
+        <div class="menu-card${selectedMenuIds.has(menu.id) ? ' selected' : ''}" data-id="${menu.id}">
+            <label class="mc-select" onclick="event.stopPropagation()">
+                <input type="checkbox" ${selectedMenuIds.has(menu.id) ? 'checked' : ''}
+                       onchange="toggleMenuSelection(${menu.id})">
+                <span class="mc-sel-box">
+                    <svg class="mc-sel-check" viewBox="0 0 12 10" fill="none">
+                        <path d="M1 5L4.5 8.5L11 1" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </span>
+            </label>
+            <div class="menu-card-image">
+                <img src="${proxyImg(menu.image)}" alt="${menu.name}" onerror="this.src='/static/images/food/salade.jpg'">
+                <div class="menu-card-badges">
+                    ${!menu.available ? '<span class="menu-badge" style="background:var(--danger);color:white;">Indisponible</span>' : ''}
+                </div>
+            </div>
+            <div class="menu-card-content">
+                <div class="menu-card-header">
+                    <h4 class="menu-card-title">${menu.name}</h4>
+                    <span class="menu-card-price">${menu.price.toLocaleString('fr-FR')} FCFA</span>
+                </div>
+                <p class="menu-card-description">${menu.description || ''}</p>
+                <div class="menu-card-footer">
+                    <div class="menu-card-meta">
+                        <span><i class="fas fa-tag"></i> ${menu.category}</span>
+                    </div>
+                    <div class="menu-card-actions">
+                        <button class="action-btn toggle-avail ${menu.available ? 'is-available' : 'is-unavailable'}"
+                                onclick="quickToggleAvailability(${menu.id})"
+                                title="${menu.available ? 'Rendre indisponible' : 'Rendre disponible'}">
+                            <i class="fas fa-${menu.available ? 'eye-slash' : 'eye'}"></i>
+                        </button>
+                        <button class="action-btn edit" onclick="editMenu(${menu.id})" title="Modifier">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="action-btn delete" onclick="deleteMenu(${menu.id})" title="Supprimer">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+    hideSectionDataLoader('menu');
+}
+
+function filterMenus() {
+    renderMenus();
+}
+
+// ========================================
+// Menu Selection & Bulk Actions
+// ========================================
+function toggleMenuSelection(id) {
+    if (selectedMenuIds.has(id)) {
+        selectedMenuIds.delete(id);
+    } else {
+        selectedMenuIds.add(id);
+    }
+    const card = document.querySelector(`.menu-card[data-id="${id}"]`);
+    if (card) {
+        card.classList.toggle('selected', selectedMenuIds.has(id));
+        const cb = card.querySelector('.mc-select input');
+        if (cb) cb.checked = selectedMenuIds.has(id);
+    }
+    updateBulkBar();
+}
+
+function selectAllMenus() {
+    document.querySelectorAll('.menu-card[data-id]').forEach(card => {
+        selectedMenuIds.add(parseInt(card.dataset.id));
+        card.classList.add('selected');
+        const cb = card.querySelector('.mc-select input');
+        if (cb) cb.checked = true;
+    });
+    updateBulkBar();
+}
+
+function deselectAllMenus() {
+    selectedMenuIds.clear();
+    document.querySelectorAll('.menu-card[data-id]').forEach(card => {
+        card.classList.remove('selected');
+        const cb = card.querySelector('.mc-select input');
+        if (cb) cb.checked = false;
+    });
+    updateBulkBar();
+}
+
+function toggleSelectAll(checkbox) {
+    if (checkbox.checked) {
+        selectAllMenus();
+    } else {
+        deselectAllMenus();
+    }
+}
+
+function updateBulkBar() {
+    const bar = document.getElementById('bulkActionBar');
+    const count = selectedMenuIds.size;
+    if (bar) {
+        bar.style.display = count > 0 ? 'flex' : 'none';
+        const countEl = document.getElementById('bulkCount');
+        if (countEl) countEl.textContent = count;
+    }
+    const selectAllCb = document.getElementById('selectAllMenus');
+    const checkmark = document.getElementById('selectAllCheckmark');
+    const minus = document.getElementById('selectAllMinus');
+    if (selectAllCb) {
+        const visibleCards = document.querySelectorAll('.menu-card[data-id]');
+        const total = visibleCards.length;
+        const allSelected = total > 0 && Array.from(visibleCards).every(c => selectedMenuIds.has(parseInt(c.dataset.id)));
+        const someSelected = !allSelected && count > 0;
+        selectAllCb.checked = allSelected;
+        selectAllCb.indeterminate = someSelected;
+        if (checkmark) checkmark.style.display = allSelected ? 'block' : 'none';
+        if (minus) minus.style.display = someSelected ? 'block' : 'none';
+    }
+}
+
+function quickToggleAvailability(id) {
+    const menu = menus.find(m => m.id === id);
+    if (!menu) return;
+    const newVal = !menu.available;
+    adminFetch(`/api/admin/menus/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_available: newVal })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.status === 'success') {
+            menu.available = newVal;
+            showToast(`"${menu.name}" marqué ${newVal ? 'disponible' : 'indisponible'}`, 'success');
+            renderMenus();
+        } else {
+            showToast(data.message || 'Erreur', 'error');
+        }
+    })
+    .catch(() => showToast('Erreur réseau', 'error'));
+}
+
+function bulkSetAvailable(isAvailable) {
+    const ids = Array.from(selectedMenuIds);
+    if (!ids.length) return;
+    adminFetch('/api/admin/menus/bulk', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids, data: { is_available: isAvailable } })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.status === 'success') {
+            ids.forEach(id => {
+                const m = menus.find(m => m.id === id);
+                if (m) m.available = isAvailable;
+            });
+            showToast(data.message, 'success');
+            deselectAllMenus();
+            renderMenus();
+        } else {
+            showToast(data.message || 'Erreur', 'error');
+        }
+    })
+    .catch(() => showToast('Erreur réseau', 'error'));
+}
+
+function bulkDeleteMenus() {
+    const ids = Array.from(selectedMenuIds);
+    if (!ids.length) return;
+    showConfirmModal(
+        'Supprimer les plats sélectionnés',
+        `Voulez-vous vraiment supprimer ${ids.length} plat(s) ? Cette action est irréversible.`,
+        function () {
+            adminFetch('/api/admin/menus/bulk', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    menus = menus.filter(m => !ids.includes(m.id));
+                    showToast(data.message, 'success');
+                    deselectAllMenus();
+                    renderMenus();
+                } else {
+                    showToast(data.message || 'Erreur', 'error');
+                }
+            })
+            .catch(() => showToast('Erreur réseau', 'error'));
+        }
+    );
+}
+
+function openMenuModal(menuId = null) {
+    const modal = document.getElementById('menuModal');
+    const form = document.getElementById('menuForm');
+    form.reset();
+    const editIdEl = document.getElementById('menuId');
+    if (editIdEl) editIdEl.value = '';
+
+    const preview = document.getElementById('menuImagePreview');
+    if (preview) { preview.src = ''; preview.style.display = 'none'; }
+
+    if (menuId) {
+        const menu = menus.find(m => m.id === Number(menuId));
+        if (menu) {
+            if (editIdEl) editIdEl.value = menu.id;
+            const titleEl = document.getElementById('menuModalTitle');
+            if (titleEl) titleEl.textContent = 'Modifier un Plat';
+            document.getElementById('menuName').value = menu.name;
+            document.getElementById('menuPrice').value = menu.price;
+            const catEl = document.getElementById('menuCategory');
+            if (catEl) catEl.value = menu.category_id || '';
+            const prepEl = document.getElementById('menuPrepTime');
+            if (prepEl) prepEl.value = menu.prepTime || 15;
+            document.getElementById('menuDescription').value = menu.description || '';
+            const availEl = document.getElementById('menuAvailable');
+            if (availEl) availEl.value = String(menu.available !== false);
+            if (preview && menu.image && (menu.image.startsWith('http') || menu.image.startsWith('static'))) {
+                preview.src = menu.image.startsWith('http') ? menu.image : '/' + menu.image;
+                preview.style.display = 'block';
+            }
+        }
+    } else {
+        const titleEl = document.getElementById('menuModalTitle');
+        if (titleEl) titleEl.textContent = 'Ajouter un Plat';
+    }
+    modal.classList.add('active');
+}
+
+function closeMenuModal() {
+    document.getElementById('menuModal').classList.remove('active');
+}
+
+function saveMenu(event) {
+    event.preventDefault();
+    const editIdEl = document.getElementById('menuId');
+    const menuId = editIdEl && editIdEl.value ? parseInt(editIdEl.value) : null;
+
+    const menuData = {
+        product_name: document.getElementById('menuName').value.trim(),
+        price: parseFloat(document.getElementById('menuPrice').value),
+        category_id: parseInt(document.getElementById('menuCategory').value),
+        description: document.getElementById('menuDescription').value.trim(),
+        is_available: document.getElementById('menuAvailable')?.value !== 'false'
+    };
+
+    // Capture the file before closing the modal (form.reset() would clear it)
+    const fileInput = document.getElementById('menuImageFile');
+    const imageFile = fileInput && fileInput.files[0] ? fileInput.files[0] : null;
+
+    closeMenuModal();
+    showSectionDataLoader('menu');
+
+    const url = menuId ? `/api/admin/menus/${menuId}` : '/api/admin/menus';
+    adminFetch(url, {
+        method: menuId ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(menuData)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.status !== 'success') {
+            showToast('Erreur: ' + (data.message || 'Échec'), 'error');
+            hideSectionDataLoader('menu');
+            return;
+        }
+        const savedId = menuId || data.id;
+        if (imageFile && savedId) {
+            const fd = new FormData();
+            fd.append('image', imageFile);
+            return adminFetch(`/api/admin/menus/${savedId}/image`, { method: 'POST', body: fd })
+                .then(() => showToast(menuId ? 'Plat mis à jour' : 'Plat créé', 'success'))
+                .catch(() => showToast('Plat enregistré (image non uploadée)', 'warning'))
+                .finally(() => loadMenusFromBackend());
+        }
+        showToast(menuId ? 'Plat mis à jour' : 'Plat créé', 'success');
+        loadMenusFromBackend();
+    })
+    .catch(err => {
+        console.error('saveMenu error:', err);
+        showToast('Erreur lors de l\'enregistrement', 'error');
+        hideSectionDataLoader('menu');
+    });
+}
+
+function editMenu(id) {
+    openMenuModal(id);
+}
+
+// ========================================
+// Categories Management
+// ========================================
+function renderCategories() {
+    const grid = document.getElementById('categoriesGrid');
+    if (!grid) return;
+
+    if (categories.length === 0) {
+        grid.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><h3>Aucune catégorie</h3><p>Commencez par ajouter une catégorie</p></div>';
+        return;
+    }
+
+    grid.innerHTML = categories.map(cat => `
+        <div class="category-card" id="cat-${cat.id}">
+            ${cat.image
+                ? `<img src="${proxyImg(cat.image)}" alt="${cat.name}" style="width:100%;height:100px;object-fit:cover;border-radius:8px 8px 0 0;display:block;" onerror="this.style.display='none'">`
+                : `<div style="width:100%;height:80px;display:flex;align-items:center;justify-content:center;font-size:2.5rem;">${cat.emoji}</div>`
+            }
+            <h3 class="category-name">${cat.emoji} ${cat.name}</h3>
+            <p class="category-count">${cat.count} plats</p>
+            <div class="category-actions">
+                <button class="action-btn edit" onclick="editCategory(${cat.id})">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="action-btn delete" onclick="deleteCategory(${cat.id})">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function populateCategoryDropdowns() {
+    const filterSelect = document.getElementById('categoryFilter');
+    const menuSelect = document.getElementById('menuCategory');
+    if (!filterSelect || !menuSelect) return;
+
+    const prevFilter = filterSelect.value;
+    const prevMenu = menuSelect.value;
+
+    filterSelect.innerHTML = '<option value="">📋 Toutes les catégories</option>';
+    menuSelect.innerHTML = '<option value="" disabled selected>🍽️ Sélectionnez une catégorie</option>';
+
+    categories.forEach(cat => {
+        [filterSelect, menuSelect].forEach(sel => {
+            const opt = document.createElement('option');
+            opt.value = cat.id;
+            opt.textContent = `${cat.emoji || '🍽️'} ${cat.name}`;
+            sel.appendChild(opt);
+        });
+    });
+
+    if (prevFilter) filterSelect.value = prevFilter;
+    if (prevMenu) menuSelect.value = prevMenu;
+}
+
+function openCategoryModal(catId = null) {
+    const modal = document.getElementById('categoryModal');
+    const form = document.getElementById('categoryForm');
+    form.reset();
+    editingCategoryId = null;
+
+    const preview = document.getElementById('categoryImagePreview');
+    if (preview) preview.style.display = 'none';
+
+    if (catId) {
+        const cat = categories.find(c => c.id === Number(catId));
+        if (cat) {
+            editingCategoryId = cat.id;
+            document.getElementById('categoryModalTitle').textContent = 'Modifier une Catégorie';
+            document.getElementById('categoryName').value = cat.name;
+            document.getElementById('categoryDescription').value = cat.description || '';
+            if (preview && cat.image) {
+                preview.src = cat.image;
+                preview.style.display = 'block';
+            }
+        } else {
+            document.getElementById('categoryModalTitle').textContent = 'Ajouter une Catégorie';
+        }
+    } else {
+        document.getElementById('categoryModalTitle').textContent = 'Ajouter une Catégorie';
+    }
+    modal.classList.add('active');
+}
+
+function closeCategoryModal() {
+    document.getElementById('categoryModal').classList.remove('active');
+}
+
+function saveCategory(event) {
+    event.preventDefault();
+
+    const name = document.getElementById('categoryName').value.trim();
+    if (!name) { showToast('Le nom est requis', 'error'); return; }
+
+    const categoryData = {
+        category_name: name,
+        description: document.getElementById('categoryDescription').value.trim()
+    };
+
+    const catIdToUpdate = editingCategoryId;
+    // Capture file before modal closes (form reset would clear it)
+    const imageFile = document.getElementById('categoryImage')?.files[0] || null;
+
+    closeCategoryModal();
+    showSectionDataLoader('categories');
+
+    const url = catIdToUpdate ? `/api/admin/categories/${catIdToUpdate}` : '/api/admin/categories';
+    adminFetch(url, {
+        method: catIdToUpdate ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(categoryData)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.status !== 'success') {
+            showToast('Erreur: ' + (data.message || 'Échec'), 'error');
+            hideSectionDataLoader('categories');
+            return;
+        }
+        const savedId = catIdToUpdate || data.id;
+        if (imageFile && savedId) {
+            const fd = new FormData();
+            fd.append('image', imageFile);
+            return fetch(`/api/categories/${savedId}/image`, {
+                method: 'POST', credentials: 'same-origin', body: fd
+            })
+            .then(() => showToast(catIdToUpdate ? 'Catégorie et image mises à jour' : 'Catégorie créée', 'success'))
+            .catch(() => showToast(catIdToUpdate ? 'Catégorie mise à jour (image non enregistrée)' : 'Catégorie créée (image non enregistrée)', 'warning'))
+            .finally(() => loadCategoriesFromBackend());
+        }
+        showToast(catIdToUpdate ? 'Catégorie mise à jour' : 'Catégorie créée', 'success');
+        loadCategoriesFromBackend();
+    })
+    .catch(err => {
+        console.error('saveCategory error:', err);
+        showToast('Erreur lors de l\'enregistrement', 'error');
+        hideSectionDataLoader('categories');
+    });
+}
+
+function editCategory(id) {
+    openCategoryModal(id);
+}
+
+// ========================================
+// Dashboard helpers
+// ========================================
+function convertAPIMenu(data) {
+    const result = [];
+    for (const [categoryKey, items] of Object.entries(data)) {
+        (items || []).forEach(item => {
+            result.push({
+                id: item.id,
+                name: item.name,
+                description: item.description || '',
+                price: item.price,
+                category: categoryKey,
+                category_id: item.category_id,
+                image: item.image || '',
+                available: item.is_available !== false,
+                popular: false,
+                prepTime: 15
+            });
+        });
+    }
+    return result;
+}
+
+function getSectionFromHash() {
+    return window.location.hash.replace('#', '') || null;
+}
+
+function updateDashboardStats() {
+    const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    setEl('totalMenus', menus.length);
+    setEl('availableMenus', menus.filter(m => m.available !== false).length);
+    setEl('pendingOrders', orders.filter(o => (o.order_status || o.status) === 'pending').length);
+    setEl('totalUsers', users.length);
+}
+
+function updateRecentOrdersTable() {
+    const tbody = document.getElementById('recentOrdersBody');
+    if (!tbody) return;
+    const recent = [...orders].sort((a, b) => {
+        return (b.created_at || '').localeCompare(a.created_at || '');
+    }).slice(0, 5);
+
+    if (!recent.length) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center">Aucune commande récente</td></tr>';
+        return;
+    }
+    tbody.innerHTML = recent.map(o => {
+        const status = o.order_status || o.status;
+        return `<tr>
+            <td>#${o.order_id || o.id}</td>
+            <td>${o.user_id || o.client || 'Client'}</td>
+            <td>${(o.total_amount || o.total || 0).toLocaleString('fr-FR')} FCFA</td>
+            <td><span class="status-badge ${getStatusClass(status)}">${getStatusText(status)}</span></td>
+            <td><button class="action-btn edit" onclick="viewOrderDetails(${o.order_id || o.id})"><i class="fas fa-eye"></i></button></td>
+        </tr>`;
+    }).join('');
+}
+
+function updatePopularItems() { /* computed from orders */ }
+function updateCategoryCounts() { /* computed on load */ }
+
+function setButtonLoading(btn, text) {
+    if (!btn) return;
+    btn._originalHTML = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${text}`;
+}
+
+function resetButton(btn) {
+    if (!btn) return;
+    btn.disabled = false;
+    if (btn._originalHTML) { btn.innerHTML = btn._originalHTML; delete btn._originalHTML; }
+}
+
+// ========================================
 // Users Management
 // ========================================
 function loadUsers() {
-    hideSectionDataLoader('users');
-    filterUsers();
+    showSectionDataLoader('users');
+    adminFetch('/api/admin/users')
+        .then(r => r.ok ? r.json() : [])
+        .then(data => {
+            if (data && data.length > 0) {
+                users = data.map(user => ({
+                    matricule: user.employee_id || user.user_id || '-',
+                    name: user.full_name || 'Utilisateur sans nom',
+                    email: user.email || '-',
+                    phone: user.phone || '-',
+                    joined: user.created_at ? formatDate(user.created_at) : '-',
+                    orders: user.order_count || 0,
+                    userId: user.user_id,
+                    department: user.department || '-'
+                }));
+            } else {
+                users = [];
+            }
+            hideSectionDataLoader('users');
+            filterUsers();
+        })
+        .catch(err => {
+            console.error('loadUsers error:', err);
+            hideSectionDataLoader('users');
+            filterUsers();
+        });
 }
 
 function filterUsers() {
@@ -1431,6 +1445,7 @@ function viewUser(matricule) {
             </div>
             <div class="detail-row"><strong><i class="fas fa-envelope"></i> Email</strong><span>${user.email}</span></div>
             <div class="detail-row"><strong><i class="fas fa-phone"></i> Téléphone</strong><span>${user.phone}</span></div>
+            ${user.department && user.department !== '-' ? `<div class="detail-row"><strong><i class="fas fa-building"></i> Département</strong><span>${user.department}</span></div>` : ''}
             <div class="detail-row"><strong><i class="fas fa-shopping-cart"></i> Commandes</strong><span><span class="status-badge info">${user.orders}</span></span></div>
             <div class="detail-row"><strong><i class="fas fa-calendar"></i> Inscrit le</strong><span>${user.joined}</span></div>
         </div>
@@ -1463,7 +1478,7 @@ function saveFeesSettings(event) {
 
 function loadUserOrderCounts() {
     // Fetch all orders and count by user_id
-    fetch('/api/admin/orders')
+    adminFetch('/api/admin/orders')
         .then(response => {
             if (response.ok) {
                 return response.json();
@@ -1532,6 +1547,29 @@ document.addEventListener('DOMContentLoaded', function() {
     if (confirmBtn) confirmBtn.addEventListener('click', confirmAction);
 });
 
+// ========================================
+// Image Preview Helpers
+// ========================================
+function previewMenuImage(input) {
+    const preview = document.getElementById('menuImagePreview');
+    if (!preview) return;
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = e => { preview.src = e.target.result; preview.style.display = 'block'; };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+function previewCategoryImage(input) {
+    const preview = document.getElementById('categoryImagePreview');
+    if (!preview) return;
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = e => { preview.src = e.target.result; preview.style.display = 'block'; };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
 // Export functions
 window.showSection = showSection;
 window.showSectionLoader = showSectionLoader;
@@ -1550,6 +1588,8 @@ window.closeCategoryModal = closeCategoryModal;
 window.saveCategory = saveCategory;
 window.editCategory = editCategory;
 window.deleteCategory = deleteCategory;
+window.previewMenuImage = previewMenuImage;
+window.previewCategoryImage = previewCategoryImage;
 window.loadOrders = loadOrders;
 window.viewOrderDetails = viewOrderDetails;
 window.closeOrderDetails = closeOrderDetails;
@@ -1563,3 +1603,11 @@ window.saveHoursSettings = saveHoursSettings;
 window.saveFeesSettings = saveFeesSettings;
 window.startClock = startClock;
 window.refreshDashboard = refreshDashboard;
+window.toggleMenuSelection = toggleMenuSelection;
+window.selectAllMenus = selectAllMenus;
+window.deselectAllMenus = deselectAllMenus;
+window.toggleSelectAll = toggleSelectAll;
+window.updateBulkBar = updateBulkBar;
+window.quickToggleAvailability = quickToggleAvailability;
+window.bulkSetAvailable = bulkSetAvailable;
+window.bulkDeleteMenus = bulkDeleteMenus;

@@ -4,8 +4,13 @@
  */
 
 // ========================================
-// Menu Database (60+ Items)
+// Image proxy helper — avoids ERR_QUIC_PROTOCOL_ERROR with Supabase CDN
 // ========================================
+function proxyImg(url) {
+    if (!url || !url.startsWith('http')) return url;
+    return '/api/img-proxy?url=' + encodeURIComponent(url);
+}
+
 // ========================================
 // Global State
 // ========================================
@@ -1144,15 +1149,18 @@ function getCategoryEmoji(name) {
 // Custom SVG icons — map category keywords → filename under /static/images/food/icons/
 var CATEGORY_SVG_BASE = '/static/images/food/icons/';
 var CATEGORY_SVG_MAP = [
-    ['petit dejeuner', 'petit%20dejeuner.svg'], ['breakfast', 'petit%20dejeuner.svg'],
-    ['déjeuner', 'd%C3%A9jeuner.svg'],  ['dejeuner', 'd%C3%A9jeuner.svg'],
-    ['boisson', 'boissons.svg'], ['drink', 'boissons.svg'],
+    ['petit déjeuner', 'petitdejeuner.svg'], ['breakfast', 'petitdejeuner.svg'],
+    ['petit-déjeuner', 'petitdejeuner.svg'],  
+    ['petit-dejeuner', 'petitdejeuner.svg'],  
+    ['Petit déjeuner', 'petitdejeuner.svg'],
+    ['Dejeuner', 'déjeuner.svg'], ['déjeuner', 'déjeuner.svg'], ['dejeuner', 'déjeuner.svg'],
+    ['boisson', 'boissons.svg'], ['Boisson', 'boissons.svg'], ['drink', 'boissons.svg'],
     ['jus', 'boissons.svg'], ['eau', 'boissons.svg'],
     ['café', 'boissons.svg'], ['cafe', 'boissons.svg'],
     ['thé', 'boissons.svg'], ['the', 'boissons.svg'],
-    ['dessert', 'desserts.svg'], ['gâteau', 'desserts.svg'],
+    ['dessert', 'desserts.svg'], ['Dessert', 'desserts.svg'], ['gâteau', 'desserts.svg'],
     ['gateau', 'desserts.svg'], ['pâtisserie', 'desserts.svg'],
-    ['snack', 'snacks.svg'], ['sandwich', 'snacks.svg'], ['burger', 'snacks.svg'],
+    ['snack', 'snacks.svg'], ['Snacks et repas leger', 'snacks.svg'], ['sandwich', 'snacks.svg'], ['burger', 'snacks.svg'],
 ];
 
 function getCategoryIconHTML(name) {
@@ -1263,7 +1271,7 @@ function fetchMenuPage() {
                         category:         item.category || '',
                         image:            item.image || '',
                         available:        item.available !== undefined ? item.available : true,
-                        popular:          false,
+                        popular:          item.id % 3 === 0,
                         prepTime:         15,
                         options:          item.options || []
                     };
@@ -1345,12 +1353,12 @@ function buildMenuItemHTML(item) {
     const catInfo = window.apiCategories && item.category_id
         ? window.apiCategories[String(item.category_id)]
         : null;
-    const catTag = catInfo ? `${catInfo.emoji} ${catInfo.name}` : '';
+    const catTag = catInfo ? catInfo.name : '';
     return `
     <div class="menu-item${!item.available ? ' unavailable' : ''}" data-id="${item.id}">
         <div class="menu-item-image">
-            <img src="${item.image}" alt="${item.name}" loading="lazy"
-                 onerror="this.src='https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&h=300&fit=crop'">
+            <img src="${proxyImg(item.image)}" alt="${item.name}" loading="lazy"
+                 onerror="this.src='/static/images/food/salade.jpg'">
             <div class="menu-item-image-overlay"></div>
             ${item.popular ? '<span class="menu-badge badge-popular"><i class="fas fa-fire-flame-curved"></i> Pop</span>' : ''}
             ${catTag ? `<span class="menu-item-tag-float">${catTag}</span>` : ''}
@@ -1451,7 +1459,9 @@ function applyFilters(items) {
     } else if (currentFilter === 'popular') {
         result = result.filter(function(item) { return item.popular; });
     } else if (currentFilter === 'new') {
-        result = result.filter(function(item) { return item.id > 55; });
+        var ids = items.map(function(i) { return i.id; });
+        var cutoff = ids.length > 0 ? Math.floor((Math.max.apply(null, ids) + Math.min.apply(null, ids)) / 2) : 0;
+        result = result.filter(function(item) { return item.id >= cutoff; });
     }
     return result;
 }
@@ -1543,6 +1553,7 @@ function renderMenuGrouped(items) {
         var catItems = groups[cid].slice(0, 10);
         var catInfo  = window.apiCategories && window.apiCategories[cid];
         var catName  = catInfo ? catInfo.name  : (currentLanguage === 'fr' ? 'Divers' : 'Other');
+        var catEmoji = catInfo ? catInfo.emoji : '';
         var total    = groups[cid].length;
 
         var section = document.createElement('div');
@@ -1651,11 +1662,16 @@ function filterSubcategory(subcategory) {
 }
 
 function filterItems(filter) {
-    currentFilter = filter;
+    // Toggle off if clicking the same filter
+    if (currentFilter === filter) {
+        currentFilter = 'all';
+    } else {
+        currentFilter = filter;
+    }
 
     document.querySelectorAll('.filter-chip').forEach(chip => {
         chip.classList.remove('active');
-        if (chip.dataset.filter === filter) {
+        if (chip.dataset.filter === currentFilter) {
             chip.classList.add('active');
         }
     });
@@ -1675,8 +1691,8 @@ function searchMenu() {
     }
 
     const filtered = menuItems.filter(item =>
-        item.name.toLowerCase().includes(query) ||
-        item.description.toLowerCase().includes(query)
+        (item.name || '').toLowerCase().includes(query) ||
+        (item.description || '').toLowerCase().includes(query)
     );
     
     const grid = document.getElementById('menuGrid');
@@ -1782,7 +1798,7 @@ function updateCartUI() {
             // Normal item with qty controls
             return '<div class="cart-item" data-id="' + item.id + '">' +
                 '<div class="cart-item-image">' +
-                    '<img src="' + item.image + '" alt="' + item.name + '" onerror="this.parentElement.innerHTML=\'<i class=\\\"fas fa-utensils\\\"></i>\'">' +
+                    '<img src="' + proxyImg(item.image) + '" alt="' + item.name + '" onerror="this.parentElement.innerHTML=\'<i class=\\\"fas fa-utensils\\\"></i>\'">' +
                 '</div>' +
                 '<div class="cart-item-details">' +
                     '<div class="cart-item-title">' + item.name + '</div>' +
@@ -2773,7 +2789,7 @@ function renderFormulaStep(stepIndex) {
                 var isSelected = selected && String(selected.id) === String(item.id);
                 return '<div class="formula-item' + (isSelected ? ' selected' : '') + '" onclick="selectFormulaItem(' + stepIndex + ', ' + item.id + ')">' +
                     '<div class="formula-item-img">' +
-                        (item.image ? '<img src="' + item.image + '" alt="' + item.name + '" loading="lazy">' :
+                        (item.image ? '<img src="' + proxyImg(item.image) + '" alt="' + item.name + '" loading="lazy" onerror="this.parentElement.innerHTML=\'<i class=\\\"fas fa-utensils\\\"></i>\'">' :
                             '<div class="formula-item-placeholder"><i class="fas fa-utensils"></i></div>') +
                         (isSelected ? '<div class="formula-item-check"><i class="fas fa-check"></i></div>' : '') +
                     '</div>' +

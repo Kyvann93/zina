@@ -1490,6 +1490,96 @@ img.sidebar-logo { height: 32px; border-radius: 6px; }
     cursor: pointer;
 }
 
+/* ── Menu Card : circular checkbox overlay ─────────────────────────────── */
+.menu-card {
+    position: relative;
+}
+
+.mc-select {
+    position: absolute;
+    top: 0.7rem;
+    left: 0.7rem;
+    z-index: 10;
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+    display: block;
+}
+
+/* Hide the native input, keep it accessible */
+.mc-select input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    margin: 0;
+}
+
+/* The visual circle */
+.mc-sel-box {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.92);
+    border: 2.5px solid rgba(255, 255, 255, 0.65);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s ease, border-color 0.2s ease,
+                transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+                box-shadow 0.2s ease;
+}
+
+.mc-sel-check {
+    width: 12px;
+    height: 10px;
+    color: white;
+    opacity: 0;
+    transform: scale(0.4);
+    transition: opacity 0.15s ease, transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Hover state — subtle lift */
+.mc-select:hover .mc-sel-box {
+    background: rgba(255, 255, 255, 1);
+    border-color: rgba(255, 255, 255, 0.9);
+    transform: scale(1.06);
+}
+
+/* Checked state */
+.mc-select input:checked ~ .mc-sel-box {
+    background: var(--primary);
+    border-color: var(--primary);
+    transform: scale(1.1);
+    box-shadow: 0 3px 10px rgba(88, 27, 31, 0.4), 0 0 0 3px rgba(88, 27, 31, 0.15);
+}
+.mc-select input:checked ~ .mc-sel-box .mc-sel-check {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* ── Selected card state ────────────────────────────────────────────────── */
+.menu-card.selected {
+    outline: 2.5px solid var(--primary);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 5px rgba(88, 27, 31, 0.1), var(--shadow-lg);
+    transform: translateY(-3px);
+}
+.menu-card.selected .menu-card-image::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(88, 27, 31, 0.08);
+    pointer-events: none;
+}
+
+/* ── Quick availability toggle ──────────────────────────────────────────── */
+.action-btn.toggle-avail.is-available   { background: #64748b; color: #fff; }
+.action-btn.toggle-avail.is-unavailable { background: var(--success); color: #fff; }
+
 /* Menu Grid */
 .menu-grid {
     display: grid;
@@ -1534,7 +1624,7 @@ img.sidebar-logo { height: 32px; border-radius: 6px; }
 .menu-card-badges {
     position: absolute;
     top: 1rem;
-    left: 1rem;
+    right: 1rem;
     display: flex;
     gap: 0.5rem;
 }
