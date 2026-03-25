@@ -1293,6 +1293,7 @@ input:not(:checked) + .slider .slider-text.en {
     display: flex;
     align-items: center;
     width: 100%;
+    margin:auto;
 }
 
 .search-bar i,
@@ -1758,7 +1759,7 @@ input:not(:checked) + .slider .slider-text.en {
     width: 34px;
     height: 34px;
     border-radius: 50%;
-    background: var(--light-gray);
+    background: #6f3b3d;
     color: var(--white);
     border: none;
     display: flex;
@@ -2021,10 +2022,7 @@ input:not(:checked) + .slider .slider-text.en {
     -webkit-box-orient: vertical;
 }
 
-.cart-item-price {
-    color: var(--medium-gray);
-    font-size: 0.78rem;
-}
+
 
 .cart-qty-controls {
     display: flex;
@@ -2357,6 +2355,10 @@ input:not(:checked) + .slider .slider-text.en {
     padding: 2rem;
     text-align: center;
     border-radius: 20px 20px 0 0;
+    display:flex;
+    flex-direction : row;
+    align-items:center;
+    justify-content:center;
 }
 
 .receipt-header .success-icon {
@@ -4880,9 +4882,6 @@ button.btn-retry{
     color: #ffffff;
 }
 
-[data-theme="dark"] .cart-item-price {
-    color: #ffffff;
-}
 
 [data-theme="dark"] .cart-item-total {
     color: #ffffff;
@@ -5868,17 +5867,94 @@ button.btn-retry{
     }
 }
 
+/* ── Payment Method Modal ──────────────────────────────────────────────────── */
+
+.payment-method-content {
+    max-width: 420px;
+    width: 94%;
+}
+
+.payment-method-hint {
+    text-align: center;
+    color: var(--text-muted, #6b7280);
+    font-size: 0.88rem;
+    margin-bottom: 1.25rem;
+}
+
+.payment-method-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+.pm-option { cursor: pointer; }
+.pm-option input { display: none; }
+
+.pm-option-full { grid-column: 1 / -1; }
+
+.pm-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem 0.5rem;
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
+    background: #fff;
+    transition: border-color 0.18s, background 0.18s, box-shadow 0.18s;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #374151;
+}
+
+.pm-option-full .pm-card {
+    flex-direction: row;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 0.9rem 1rem;
+}
+
+.pm-option input:checked + .pm-card {
+    border-color: var(--primary, #581b1f);
+    background: rgba(88, 27, 31, 0.05);
+    box-shadow: 0 0 0 3px rgba(88, 27, 31, 0.12);
+}
+
+.pm-logo-img {
+    width: 56px;
+    height: 56px;
+    object-fit: contain;
+    border-radius: 10px;
+}
+
+.pm-icon-circle {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+
+@media (max-width: 400px) {
+    .payment-method-grid { grid-template-columns: 1fr; }
+    .pm-option-full { grid-column: 1; }
+}
+
 /* ── Wave Payment Modal ────────────────────────────────────────────────────── */
 
 .wave-payment-modal .modal-content,
 .wave-modal-content {
-    background: #ffffff;
-    border-radius: 20px;
+    background: #55ccf2;
+    border-radius: 24px;
     padding: 0;
-    max-width: 420px;
+    max-width: 400px;
     width: 92%;
     overflow: hidden;
-    box-shadow: 0 20px 60px rgba(27, 111, 228, 0.25);
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.25);
     animation: waveSlideIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
@@ -5887,47 +5963,55 @@ button.btn-retry{
     to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+/* Header */
 .wave-modal-header {
-    background: linear-gradient(135deg, #1B6FE4 0%, #0d4fa8 100%);
-    padding: 1.5rem 1.5rem 1.25rem;
+    background: transparent;
+    padding: 2rem 1.5rem 0.75rem;
     text-align: center;
-    color: white;
 }
 
 .wave-logo-wrap {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
-    margin-bottom: 0.75rem;
+    gap: 0.75rem;
+}
+
+.wave-header-logo {
+    width: 72px;
+    height: 72px;
+    object-fit: contain;
+}
+
+.wave-title-group {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    line-height: 1.1;
+}
+
+.wave-payez-avec {
+    font-size: 1rem;
+    font-weight: 500;
+    color: white;
+    letter-spacing: 0.3px;
 }
 
 .wave-brand-name {
-    font-size: 1.5rem;
-    font-weight: 700;
+    font-size: 2.4rem;
+    font-weight: 800;
     color: white;
-    letter-spacing: 0.5px;
+    letter-spacing: -0.5px;
+    line-height: 1;
 }
 
-.wave-modal-title {
-    font-size: 1.15rem;
-    font-weight: 600;
-    color: white;
-    margin: 0 0 0.3rem;
-}
-
-.wave-modal-subtitle {
-    font-size: 0.82rem;
-    color: rgba(255,255,255,0.8);
-    margin: 0;
-}
-
+/* QR section — blue background continues */
 .wave-qr-section {
-    padding: 1.5rem;
+    padding: 1.25rem 1.5rem 0.5rem;
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 240px;
+    min-height: 220px;
 }
 
 .wave-qr-loading {
@@ -5935,15 +6019,15 @@ button.btn-retry{
     flex-direction: column;
     align-items: center;
     gap: 1rem;
-    color: #6b7280;
+    color: rgba(255,255,255,0.85);
     font-size: 0.9rem;
 }
 
 .wave-spinner {
     width: 40px;
     height: 40px;
-    border: 3px solid #e5e7eb;
-    border-top-color: #1B6FE4;
+    border: 3px solid rgba(255,255,255,0.3);
+    border-top-color: white;
     border-radius: 50%;
     animation: waveSpin 0.8s linear infinite;
 }
@@ -5955,47 +6039,104 @@ button.btn-retry{
 .wave-qr-wrapper {
     flex-direction: column;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0;
 }
 
-.wave-qr-wrapper #waveQrCode {
-    border: 6px solid #f0f6ff;
-    border-radius: 12px;
-    padding: 6px;
+.wave-qr-card {
     background: white;
-    box-shadow: 0 4px 16px rgba(27, 111, 228, 0.15);
+    border-radius: 20px;
+    padding: 16px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.15);
 }
 
-.wave-qr-hint {
-    font-size: 0.78rem;
-    color: #6b7280;
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    margin: 0;
+.wave-qr-card #waveQrCode {
+    display: block;
+    line-height: 0;
 }
-
-.wave-qr-hint i { color: #1B6FE4; }
 
 .wave-qr-error {
     flex-direction: column;
     align-items: center;
     gap: 0.5rem;
-    color: #dc2626;
+    color: white;
     font-size: 0.9rem;
     text-align: center;
 }
 
 .wave-qr-error i { font-size: 2rem; }
 
+/* Scan hint */
+.wave-scan-hint {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.75rem 1.5rem 1.25rem;
+    color: white;
+}
+
+.wave-scan-hint i {
+    font-size: 1.3rem;
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+
+.wave-scan-hint p {
+    font-size: 0.83rem;
+    line-height: 1.45;
+    margin: 0;
+    font-weight: 500;
+}
+
+/* Wave unavailable state (inside QR section) */
+.wave-unavailable {
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0;
+    text-align: center;
+}
+
+.wave-unavail-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: white;
+    margin: 0;
+}
+
+.wave-unavail-sub {
+    font-size: 0.82rem;
+    color: rgba(255,255,255,0.85);
+    margin: 0;
+    max-width: 260px;
+    line-height: 1.5;
+}
+
+.wave-btn-counter {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+    padding: 0.85rem 1.75rem;
+    background: white;
+    color: #0a7bbf;
+    border: none;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.18s, color 0.18s;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.wave-btn-counter:hover { background: #e8f8ff; }
+
+/* Order info bar — white background below blue */
 .wave-order-info {
-    background: #f8faff;
-    border-top: 1px solid #e8f0fe;
-    border-bottom: 1px solid #e8f0fe;
+    background: white;
     padding: 0.9rem 1.5rem;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.4rem;
 }
 
 .wave-amount-row,
@@ -6009,14 +6150,17 @@ button.btn-retry{
 
 .wave-amount-value {
     font-size: 1.1rem;
-    color: #1B6FE4;
+    color: #0a7bbf;
     font-weight: 700;
 }
 
+/* Status bar */
 .wave-status-bar {
-    padding: 0.75rem 1.5rem;
+    background: white;
+    padding: 0.6rem 1.5rem;
     display: flex;
     justify-content: center;
+    border-top: 1px solid #e5e7eb;
 }
 
 .wave-status-waiting {
@@ -6051,8 +6195,10 @@ button.btn-retry{
 
 .wave-status-confirmed i { font-size: 1.2rem; }
 
+/* Footer */
 .wave-modal-footer {
-    padding: 1rem 1.5rem 1.5rem;
+    background: white;
+    padding: 0.75rem 1.5rem 1.25rem;
     display: flex;
     gap: 0.75rem;
     justify-content: center;
@@ -6072,16 +6218,13 @@ button.btn-retry{
     transition: border-color 0.2s, color 0.2s;
 }
 
-.wave-btn-skip:hover {
-    border-color: #1B6FE4;
-    color: #1B6FE4;
-}
+.wave-btn-skip:hover { border-color: #55ccf2; color: #0a7bbf; }
 
 .wave-btn-mobile {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    background: #1B6FE4;
+    background: #55ccf2;
     color: white;
     border-radius: 10px;
     padding: 0.6rem 1.1rem;
@@ -6091,10 +6234,13 @@ button.btn-retry{
     transition: background 0.2s;
 }
 
-.wave-btn-mobile:hover { background: #1558c0; color: white; }
+.wave-btn-mobile:hover { background: #2db8e8; color: white; }
 
 @media (max-width: 480px) {
-    .wave-modal-content { width: 96%; border-radius: 16px; }
-    .wave-modal-footer { flex-direction: column; }
-    .wave-btn-skip, .wave-btn-mobile { justify-content: center; }
+    .wave-modal-content { width: 96%; border-radius: 20px; }
+    .wave-header-logo { width: 60px; height: 60px; }
+    .wave-brand-name { font-size: 2rem; }
+    .wave-modal-footer { flex-direction: column; padding: 0.75rem 1rem 1rem; }
+    .wave-btn-skip, .wave-btn-mobile { width: 100%; justify-content: center; }
+    .wave-btn-counter { width: 100%; }
 }

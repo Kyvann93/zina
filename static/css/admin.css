@@ -741,71 +741,77 @@ body {
 }
 
 /* ========================================
-   Login Overlay
+   Auth Overlay — base layout
    ======================================== */
 .login-overlay {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(135deg, rgba(88, 27, 31, 0.95) 0%, rgba(160, 101, 107, 0.9) 100%),
-                url('https://images.unsplash.com/photo-1556910103-1c02745a30bf?w=1920&h=1080&fit=crop') center/cover;
+    inset: 0;
     display: flex;
-    align-items: center;
+    align-items: flex-start; /* allow natural scroll; JS centres on tall viewports */
     justify-content: center;
+    overflow-x: hidden;
+    overflow-y: auto;
     z-index: 9999;
-    opacity: 1;
-    visibility: visible;
     transition: opacity 0.5s ease, visibility 0.5s ease;
 }
 
-.login-modal {
-    background: var(--white);
-    border-radius: 20px;
-    box-shadow: var(--shadow-lg);
-    width: 90%;
-    max-width: 450px;
-    overflow: hidden;
-    animation: slideUp 0.5s ease;
-}
-
-.login-header {
-    background: var(--primary-gradient);
-    color: var(--white);
-    padding: 2rem;
-    text-align: center;
-}
-
-.login-logo {
-    width: 80px;
-    height: 80px;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 50%;
+/* Scroll wrapper fills the overlay and centres vertically when content is shorter than viewport */
+.auth-scroll-wrap {
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 0 auto 1rem;
-    font-size: 2.5rem;
+    min-height: 100%;
+    width: 100%;
 }
 
-.login-header h1 {
-    font-size: 1.75rem;
-    margin-bottom: 0.5rem;
+/* ── Slide stage ── */
+.auth-stage {
+    position: relative;
+    overflow: hidden; /* clips the sliding card horizontally */
+    animation: slideUp 0.4s ease;
 }
 
-.login-header p {
-    opacity: 0.9;
-    font-size: 0.95rem;
+.auth-card {
+    width: 100%;
+    transition: transform 0.42s cubic-bezier(.4,0,.2,1), opacity 0.28s ease;
+    will-change: transform, opacity;
 }
 
-#adminLogin {
-    padding: 2rem;
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
+/* Login: in-flow by default */
+#authCardLogin {
+    position: relative;
+    transform: translateX(0);
+    opacity: 1;
 }
 
+/* Register: off to the right */
+#authCardRegister {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    transform: translateX(110%);
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Slide to register */
+.auth-stage.show-register #authCardLogin {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    transform: translateX(-110%);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.auth-stage.show-register #authCardRegister {
+    position: relative;
+    transform: translateX(0);
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* ── Dashboard form fields (admin panel — not auth overlay) ── */
 .form-group {
     display: flex;
     flex-direction: column;
@@ -836,44 +842,6 @@ body {
 .form-group textarea:focus {
     outline: none;
     border-color: var(--primary);
-}
-
-.login-submit-btn {
-    background: var(--primary-gradient);
-    color: var(--white);
-    border: none;
-    padding: 1rem;
-    border-radius: 50px;
-    font-family: inherit;
-    font-weight: 600;
-    font-size: 1rem;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    transition: var(--transition-fast);
-}
-
-.login-submit-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-lg);
-}
-
-.login-footer {
-    background: var(--off-white);
-    padding: 1rem 2rem;
-    text-align: center;
-    border-top: 1px solid var(--light-gray);
-}
-
-.login-footer p {
-    font-size: 0.875rem;
-    color: var(--medium-gray);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
 }
 
 /* ========================================
@@ -1882,6 +1850,27 @@ img.sidebar-logo { height: 32px; border-radius: 6px; }
     color: var(--white);
 }
 
+.btn-secondary {
+    background: var(--success);
+    color: var(--white);
+    border: none;
+    padding: 0.875rem 1.5rem;
+    border-radius: 50px;
+    font-family: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: var(--transition-fast);
+}
+
+.btn-secondary:hover {
+    background: #059669;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
 .btn-danger {
     background: var(--danger);
     color: var(--white);
@@ -2001,10 +1990,11 @@ img.sidebar-logo { height: 32px; border-radius: 6px; }
     position: fixed;
     bottom: 2rem;
     right: 2rem;
-    z-index: 3000;
+    z-index: 99999;
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    pointer-events: none;
 }
 
 .toast {
@@ -2018,6 +2008,7 @@ img.sidebar-logo { height: 32px; border-radius: 6px; }
     box-shadow: var(--shadow-lg);
     animation: slideIn 0.3s ease;
     min-width: 300px;
+    pointer-events: auto;
 }
 
 .toast.success {
@@ -2177,4 +2168,199 @@ input[type="file"]:focus {
     border-color: var(--primary);
     outline: none;
     box-shadow: 0 0 0 3px rgba(88, 27, 31, 0.1);
+}
+
+
+
+/* ========================================
+   Permissions Grid (Role Modal)
+   ======================================== */
+
+.permissions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+}
+
+.perm-group-block {
+    background: var(--off-white);
+    border: 1px solid var(--light-gray);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+}
+
+.perm-group-title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--medium-gray);
+    margin-bottom: 10px;
+}
+
+.perm-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--dark-gray);
+    border-bottom: 1px solid var(--light-gray);
+    -webkit-user-select: none;
+    user-select: none;
+}
+.perm-checkbox-label:last-child { border-bottom: none; }
+
+.perm-checkbox-label input[type="checkbox"] {
+    display: none;
+}
+
+.perm-checkmark {
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--light-gray);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: transparent;
+    flex-shrink: 0;
+    transition: all var(--transition-fast);
+    background: white;
+}
+
+.perm-checkbox-label input[type="checkbox"]:checked + .perm-checkmark {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
+}
+
+/* ========================================
+   Role Card Permission Summary
+   ======================================== */
+
+.perm-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+}
+
+.perm-group-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.perm-group-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--medium-gray);
+    margin-bottom: 2px;
+}
+
+.perm-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    padding: 3px 8px;
+    border-radius: 20px;
+    width: fit-content;
+}
+.perm-chip--on  { background: rgba(16, 185, 129, .12); color: #047857; }
+.perm-chip--off { background: rgba(148, 163, 184, .12); color: var(--medium-gray); }
+
+/* Role Card - Collapsible */
+.role-card {
+    transition: all 0.3s ease;
+}
+.role-card--collapsed {
+    background: var(--light-gray);
+}
+.role-card--collapsed .role-content {
+    display: none;
+}
+.role-collapse-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border-radius: 8px;
+    background: var(--white);
+    border: 1px solid var(--light-gray);
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+.role-collapse-btn:hover {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--white);
+}
+.role-collapse-btn i {
+    font-size: 12px;
+    transition: transform 0.3s;
+}
+.role-content {
+    transition: opacity 0.3s ease;
+}
+
+/* Roles Section - Collapsible (legacy) */
+#toggleRolesBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: 8px;
+    background: var(--white);
+    border: 1px solid var(--light-gray);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+#toggleRolesBtn:hover {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--white);
+}
+#toggleRolesBtn i {
+    transition: transform 0.3s;
+}
+#toggleRolesBtn.collapsed i {
+    transform: rotate(-180deg);
+}
+
+/* Collapsed roles grid - compact view */
+#rolesGrid.collapsed {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+}
+#rolesGrid.collapsed .settings-card {
+    padding: 1.25rem;
+}
+#rolesGrid.collapsed .perm-summary-grid {
+    display: none;
+}
+#rolesGrid.collapsed h3 {
+    margin-bottom: 8px;
+    font-size: 1rem;
+}
+#rolesGrid.collapsed p {
+    margin-bottom: 12px;
+    font-size: 11px;
+}
+#rolesGrid.collapsed [style*="display:flex;gap:8px;margin-top:16px"] {
+    padding-top: 12px;
+    margin-top: 12px !important;
+}
+#rolesGrid.collapsed .btn-action {
+    padding: 4px 10px;
+    font-size: 11px;
 }

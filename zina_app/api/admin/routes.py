@@ -3,11 +3,13 @@ ZINA Cantine BAD - Admin API Routes
 Handles admin endpoints for menus, categories, orders, and settings
 """
 
+import json as _json
 import os
 from pathlib import Path
 
 from flask import jsonify, request, current_app, session
 from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash, check_password_hash
 
 from supabase import create_client
 
@@ -17,7 +19,12 @@ from zina_app.services import DatabaseService
 
 # ── Auth guard ───────────────────────────────────────────────────────────────
 # Routes that are accessible without a session
-_PUBLIC_ENDPOINTS = {'admin.admin_login', 'admin.admin_logout', 'admin.admin_session'}
+_PUBLIC_ENDPOINTS = {
+    'admin.admin_login',
+    'admin.admin_logout',
+    'admin.admin_session',
+    'admin.admin_register',
+}
 
 @admin_bp.before_request
 def require_admin_session():
@@ -27,33 +34,140 @@ def require_admin_session():
         return jsonify({'status': 'error', 'message': 'Non autorisé'}), 401
 
 
+# ── Permission helpers ────────────────────────────────────────────────────────
+_ALL_PERMISSIONS = [
+    'dashboard', 'orders', 'orders_manage',
+    'menu', 'menu_manage',
+    'categories', 'categories_manage',
+    'users',
+    'admins', 'admins_manage',
+    'roles', 'roles_manage',
+    'settings', 'settings_manage',
+]
+
+def get_admin_permissions():
+    """Return the permissions dict for the current session admin."""
+    if session.get('admin_is_super'):
+        return {p: True for p in _ALL_PERMISSIONS}
+    perms = session.get('admin_permissions', {})
+    return perms if isinstance(perms, dict) else {}
+
+def has_permission(perm):
+    if session.get('admin_is_super'):
+        return True
+    return bool(get_admin_permissions().get(perm, False))
+
+def require_permission(perm):
+    """Returns a 403 response if the current admin lacks the given permission."""
+    if not has_permission(perm):
+        return jsonify({'status': 'error', 'message': 'Permission refusée'}), 403
+    return None
+
+
+# ── Authentication ────────────────────────────────────────────────────────────
 @admin_bp.route('/login', methods=['POST'])
 def admin_login():
-    """Authenticate admin and create a server-side session"""
+    """Authenticate admin and create a server-side session."""
     data = request.json or {}
     username = data.get('username', '').strip()
     password = data.get('password', '').strip()
 
-    expected_user = current_app.config.get('ADMIN_USERNAME', 'admin')
-    expected_pass = current_app.config.get('ADMIN_PASSWORD', 'admin123')
+    # Check if Supabase is configured
+    supabase_url = current_app.config.get('SUPABASE_URL')
+    supabase_key = current_app.config.get('SUPABASE_KEY')
 
-    if not expected_pass:
-        # Development fallback to avoid locking yourself out locally.
-        # In production, ADMIN_PASSWORD must be set.
-        if current_app.config.get('DEBUG') and username == expected_user and password == 'admin123':
-            session['zina_admin'] = True
-            session.permanent = False
-            return jsonify({'status': 'success', 'message': 'Connexion réussie'})
-
+    if not supabase_url or not supabase_key:
         return jsonify({
             'status': 'error',
-            'message': "Admin non configuré. Définissez la variable d'environnement ADMIN_PASSWORD.",
+            'message': "Base de données non configurée. Veuillez contacter l'administrateur."
         }), 503
-    if username == expected_user and password == expected_pass:
+
+    try:
+        supabase = get_supabase()
+        res = supabase.table('admin') \
+            .select('id,username,email,password,is_approved,role_id,admin_roles(id,role_name,permissions,is_super_admin)') \
+            .eq('username', username) \
+            .limit(1).execute()
+
+        if not res.data:
+            return jsonify({'status': 'error', 'message': 'Identifiant ou mot de passe incorrect'}), 401
+
+        admin = res.data[0]
+
+        if not check_password_hash(admin['password'], password):
+            return jsonify({'status': 'error', 'message': 'Identifiant ou mot de passe incorrect'}), 401
+
+        if not admin.get('is_approved'):
+            return jsonify({'status': 'error', 'message': "Votre compte est en attente d'approbation par un Super Admin"}), 403
+
+        role = admin.get('admin_roles') or {}
+        if isinstance(role, list):
+            role = role[0] if role else {}
+
+        perms = role.get('permissions', {})
+        if isinstance(perms, str):
+            import json as _json
+            try:
+                perms = _json.loads(perms) if perms.strip() else {}
+            except (ValueError, KeyError):
+                perms = {}
+        is_super = bool(role.get('is_super_admin', False))
+
         session['zina_admin'] = True
+        session['admin_id'] = admin['id']
+        session['admin_username'] = admin['username']
+        session['admin_role_id'] = role.get('id')
+        session['admin_role_name'] = role.get('role_name', 'Admin')
+        session['admin_permissions'] = perms
+        session['admin_is_super'] = is_super
         session.permanent = False
-        return jsonify({'status': 'success', 'message': 'Connexion réussie'})
-    return jsonify({'status': 'error', 'message': 'Identifiant ou mot de passe incorrect'}), 401
+        return jsonify({
+            'status': 'success',
+            'message': 'Connexion réussie',
+            'username': admin['username'],
+            'role': role.get('role_name', 'Admin'),
+            'is_super_admin': is_super,
+        })
+
+    except Exception as e:
+        current_app.logger.error('admin login error: %s', e)
+        return jsonify({
+            'status': 'error',
+            'message': 'Erreur de connexion à la base de données'
+        }), 500
+
+
+@admin_bp.route('/register', methods=['POST'])
+def admin_register():
+    """Register a new admin account — pending approval by a Super Admin."""
+    data = request.json or {}
+    username = data.get('username', '').strip()
+    email = data.get('email', '').strip()
+    password = data.get('password', '').strip()
+
+    if not username or not email or not password:
+        return jsonify({'status': 'error', 'message': 'Tous les champs sont requis'}), 400
+    if len(password) < 8:
+        return jsonify({'status': 'error', 'message': 'Le mot de passe doit contenir au moins 8 caractères'}), 400
+
+    try:
+        supabase = get_supabase()
+        existing = supabase.table('admin').select('id') \
+            .or_(f'username.eq.{username},email.eq.{email}').execute()
+        if existing.data:
+            return jsonify({'status': 'error', 'message': 'Identifiant ou email déjà utilisé'}), 409
+
+        supabase.table('admin').insert({
+            'username': username,
+            'email': email,
+            'password': generate_password_hash(password),
+            'is_approved': False,
+            'role_id': None,
+        }).execute()
+        return jsonify({'status': 'success', 'message': "Demande envoyée. Un Super Admin doit approuver votre compte."})
+    except Exception as e:
+        current_app.logger.error('admin_register error: %s', e)
+        return jsonify({'status': 'error', 'message': 'Une erreur est survenue'}), 500
 
 
 @admin_bp.route('/logout', methods=['POST'])
@@ -65,16 +179,206 @@ def admin_logout():
 
 @admin_bp.route('/session', methods=['GET'])
 def admin_session():
-    """Return whether the current browser has an authenticated admin session"""
-    return jsonify({'authenticated': bool(session.get('zina_admin'))})
+    """Return authentication status and role info for the current session."""
+    if not session.get('zina_admin'):
+        return jsonify({'authenticated': False})
+    return jsonify({
+        'authenticated': True,
+        'username': session.get('admin_username', 'Admin'),
+        'role': session.get('admin_role_name', ''),
+        'is_super_admin': bool(session.get('admin_is_super', False)),
+        'permissions': get_admin_permissions(),
+    })
+
+
+# ── Admin User Management ─────────────────────────────────────────────────────
+@admin_bp.route('/admin-users', methods=['GET'])
+def list_admin():
+    """List all admin users (requires admins permission)."""
+    err = require_permission('admins')
+    if err:
+        return err
+    try:
+        supabase = get_supabase()
+        res = supabase.table('admin') \
+            .select('id,username,email,is_approved,created_at,role_id,admin_roles(role_name)') \
+            .order('created_at', desc=True).execute()
+        users = []
+        for u in (res.data or []):
+            role_info = u.get('admin_roles') or {}
+            if isinstance(role_info, list):
+                role_info = role_info[0] if role_info else {}
+            users.append({
+                'id': u['id'],
+                'username': u['username'],
+                'email': u['email'],
+                'is_approved': u.get('is_approved', False),
+                'role_name': role_info.get('role_name') if role_info else None,
+                'role_id': u.get('role_id'),
+                'created_at': u.get('created_at'),
+            })
+        return jsonify(users)
+    except Exception as e:
+        current_app.logger.error('list_admin error: %s', e)
+        return jsonify([]), 500
+
+
+@admin_bp.route('/admin-users/<int:user_id>/approve', methods=['PUT'])
+def approve_admin_user(user_id):
+    """Approve a pending admin and optionally assign a role."""
+    err = require_permission('admins_manage')
+    if err:
+        return err
+    data = request.json or {}
+    role_id = data.get('role_id')
+    try:
+        supabase = get_supabase()
+        update = {'is_approved': True}
+        if role_id:
+            update['role_id'] = int(role_id)
+        if session.get('admin_id'):
+            update['approved_by'] = session['admin_id']
+        supabase.table('admin').update(update).eq('id', user_id).execute()
+        return jsonify({'status': 'success', 'message': 'Administrateur approuvé'})
+    except Exception as e:
+        current_app.logger.error('approve_admin_user error: %s', e)
+        return jsonify({'status': 'error', 'message': 'Une erreur est survenue'}), 500
+
+
+@admin_bp.route('/admin-users/<int:user_id>/role', methods=['PUT'])
+def update_admin_user_role(user_id):
+    """Update the role of an existing admin user."""
+    err = require_permission('admins_manage')
+    if err:
+        return err
+    data = request.json or {}
+    role_id = data.get('role_id')
+    if not role_id:
+        return jsonify({'status': 'error', 'message': 'role_id requis'}), 400
+    try:
+        supabase = get_supabase()
+        supabase.table('admin').update({'role_id': int(role_id)}).eq('id', user_id).execute()
+        return jsonify({'status': 'success', 'message': 'Rôle mis à jour'})
+    except Exception as e:
+        current_app.logger.error('update_admin_user_role error: %s', e)
+        return jsonify({'status': 'error', 'message': 'Une erreur est survenue'}), 500
+
+
+@admin_bp.route('/admin-users/<int:user_id>', methods=['DELETE'])
+def delete_admin_user(user_id):
+    """Delete an admin user."""
+    err = require_permission('admins_manage')
+    if err:
+        return err
+    if session.get('admin_id') == user_id:
+        return jsonify({'status': 'error', 'message': 'Vous ne pouvez pas supprimer votre propre compte'}), 400
+    try:
+        supabase = get_supabase()
+        supabase.table('admin').delete().eq('id', user_id).execute()
+        return jsonify({'status': 'success', 'message': 'Administrateur supprimé'})
+    except Exception as e:
+        current_app.logger.error('delete_admin_user error: %s', e)
+        return jsonify({'status': 'error', 'message': 'Une erreur est survenue'}), 500
+
+
+# ── Roles Management ──────────────────────────────────────────────────────────
+@admin_bp.route('/roles', methods=['GET'])
+def list_roles():
+    """List all roles (requires roles permission)."""
+    err = require_permission('roles')
+    if err:
+        return err
+    try:
+        supabase = get_supabase()
+        res = supabase.table('admin_roles').select('*').order('id').execute()
+        return jsonify(res.data or [])
+    except Exception as e:
+        current_app.logger.error('list_roles error: %s', e)
+        return jsonify([]), 500
+
+
+@admin_bp.route('/roles', methods=['POST'])
+def create_role():
+    """Create a new role."""
+    err = require_permission('roles_manage')
+    if err:
+        return err
+    data = request.json or {}
+    role_name = data.get('role_name', '').strip()
+    permissions = data.get('permissions', {})
+    if not role_name:
+        return jsonify({'status': 'error', 'message': 'role_name requis'}), 400
+    if not isinstance(permissions, dict):
+        permissions = {}
+    try:
+        supabase = get_supabase()
+        res = supabase.table('admin_roles').insert({
+            'role_name': role_name,
+            'permissions': permissions,
+            'is_super_admin': False,
+        }).execute()
+        new_id = res.data[0]['id'] if res.data else None
+        return jsonify({'status': 'success', 'message': 'Rôle créé', 'id': new_id})
+    except Exception as e:
+        current_app.logger.error('create_role error: %s', e)
+        return jsonify({'status': 'error', 'message': 'Une erreur est survenue'}), 500
+
+
+@admin_bp.route('/roles/<int:role_id>', methods=['PUT'])
+def update_role(role_id):
+    """Update a role's name and permissions."""
+    err = require_permission('roles_manage')
+    if err:
+        return err
+    data = request.json or {}
+    update = {}
+    if 'role_name' in data:
+        update['role_name'] = data['role_name']
+    if 'permissions' in data and isinstance(data['permissions'], dict):
+        update['permissions'] = data['permissions']
+    if not update:
+        return jsonify({'status': 'error', 'message': 'Aucune donnée à mettre à jour'}), 400
+    try:
+        supabase = get_supabase()
+        role_res = supabase.table('admin_roles').select('is_super_admin').eq('id', role_id).limit(1).execute()
+        if role_res.data and role_res.data[0].get('is_super_admin'):
+            return jsonify({'status': 'error', 'message': 'Impossible de modifier le rôle Super Admin'}), 403
+        supabase.table('admin_roles').update(update).eq('id', role_id).execute()
+        return jsonify({'status': 'success', 'message': 'Rôle mis à jour'})
+    except Exception as e:
+        current_app.logger.error('update_role error: %s', e)
+        return jsonify({'status': 'error', 'message': 'Une erreur est survenue'}), 500
+
+
+@admin_bp.route('/roles/<int:role_id>', methods=['DELETE'])
+def delete_role(role_id):
+    """Delete a role (cannot delete Super Admin role)."""
+    err = require_permission('roles_manage')
+    if err:
+        return err
+    try:
+        supabase = get_supabase()
+        role_res = supabase.table('admin_roles').select('is_super_admin').eq('id', role_id).limit(1).execute()
+        if role_res.data and role_res.data[0].get('is_super_admin'):
+            return jsonify({'status': 'error', 'message': 'Impossible de supprimer le rôle Super Admin'}), 403
+        supabase.table('admin_roles').delete().eq('id', role_id).execute()
+        return jsonify({'status': 'success', 'message': 'Rôle supprimé'})
+    except Exception as e:
+        current_app.logger.error('delete_role error: %s', e)
+        return jsonify({'status': 'error', 'message': 'Une erreur est survenue'}), 500
 
 
 def get_supabase():
-    """Get Supabase client from Flask app config"""
-    return create_client(
-        current_app.config['SUPABASE_URL'],
-        current_app.config['SUPABASE_KEY']
-    )
+    """Get Supabase client from Flask app config.
+    Raises RuntimeError if SUPABASE_URL or SUPABASE_KEY are not set.
+    """
+    url = current_app.config.get('SUPABASE_URL')
+    key = current_app.config.get('SUPABASE_KEY')
+    if not url or not key:
+        raise RuntimeError(
+            'Supabase non configuré — définissez SUPABASE_URL et SUPABASE_KEY dans votre fichier .env'
+        )
+    return create_client(url, key)
 
 
 def get_db_service():
@@ -330,7 +634,7 @@ def get_admin_orders():
 
 
 @admin_bp.route('/users', methods=['GET'])
-def get_admin_users():
+def get_admin():
     """Get all users for admin with their order counts"""
     try:
         supabase = get_supabase()
@@ -362,7 +666,7 @@ def get_admin_users():
             })
         return jsonify(users)
     except Exception as e:
-        current_app.logger.error('get_admin_users error: %s', e)
+        current_app.logger.error('get_admin error: %s', e)
         return jsonify([]), 500
 
 
@@ -425,6 +729,49 @@ def update_order_status(order_id):
         return jsonify({'status': 'success', 'message': f'Commande #{order_id} mise à jour : {new_status}'})
     except Exception as e:
         current_app.logger.error('update_order_status error: %s', e)
+        return jsonify({'status': 'error', 'message': 'Une erreur est survenue'}), 500
+
+
+@admin_bp.route('/orders/<int:order_id>/payment', methods=['PUT'])
+def update_order_payment(order_id):
+    """Update payment method for an order (e.g., mark as paid at counter)"""
+    try:
+        data = request.json or {}
+        payment_method = data.get('payment_method')
+        payment_status = data.get('payment_status', 'completed')
+        
+        if not payment_method:
+            return jsonify({'status': 'error', 'message': 'Méthode de paiement manquante'}), 400
+        
+        valid_methods = ['cash', 'counter', 'wave', 'card']
+        if payment_method not in valid_methods:
+            return jsonify({'status': 'error', 'message': 'Méthode de paiement invalide'}), 400
+        
+        supabase = get_supabase()
+        update_data = {
+            'payment_method': payment_method,
+            'payment_status': payment_status
+        }
+        
+        # If payment is completed at counter, also update order status to confirmed
+        if payment_status == 'completed' and payment_method in ['cash', 'counter']:
+            update_data['order_status'] = 'confirmed'
+        
+        supabase.table('orders').update(update_data).eq('order_id', order_id).execute()
+        
+        method_display = {
+            'cash': 'Espèces',
+            'counter': 'Paiement au comptoir',
+            'wave': 'Wave',
+            'card': 'Carte bancaire'
+        }.get(payment_method, payment_method)
+        
+        return jsonify({
+            'status': 'success', 
+            'message': f'Paiement mis à jour : {method_display}'
+        })
+    except Exception as e:
+        current_app.logger.error('update_order_payment error: %s', e)
         return jsonify({'status': 'error', 'message': 'Une erreur est survenue'}), 500
 
 

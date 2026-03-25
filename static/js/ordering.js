@@ -737,6 +737,71 @@ function changeLanguage(lang) {
 }
 
 function updateTranslations() {
+    // Category name translations (French → English)
+    const categoryTranslations = {
+        'petit déjeuner': 'Breakfast',
+        'petit-déjeuner': 'Breakfast',
+        'déjeuner': 'Lunch',
+        'dejeuner': 'Lunch',
+        'plats complets': 'Full Meals',
+        'snacks': 'Snacks',
+        'salades': 'Salads',
+        'boissons': 'Drinks',
+        'desserts': 'Desserts',
+        'spécialités': 'Specialties',
+        'specialites': 'Specialties',
+        'formules': 'Formulas',
+        'entrées': 'Starters',
+        'entrees': 'Starters',
+        'plats': 'Main Courses',
+        'soupes': 'Soups',
+        'pizzas': 'Pizzas',
+        'burgers': 'Burgers',
+        'pâtes': 'Pasta',
+        'pates': 'Pasta',
+        'riz': 'Rice Dishes',
+        'poulet': 'Chicken',
+        'poisson': 'Fish',
+        'viande': 'Meat',
+        'volaille': 'Poultry',
+        'fruits de mer': 'Seafood',
+        'legumes': 'Vegetables',
+        'légumes': 'Vegetables',
+        'accompagnements': 'Sides',
+        'sauces': 'Sauces',
+        'condiments': 'Condiments',
+        'cafés': 'Coffees',
+        'cafes': 'Coffees',
+        'thés': 'Teas',
+        'thes': 'Teas',
+        'jus': 'Juices',
+        'eaux': 'Waters',
+        'sodas': 'Sodas',
+        'bières': 'Beers',
+        'bieres': 'Beers',
+        'vins': 'Wines',
+        'cocktails': 'Cocktails',
+        'glaces': 'Ice Cream',
+        'gâteaux': 'Cakes',
+        'gateaux': 'Cakes',
+        'pâtisseries': 'Pastries',
+        'patisseries': 'Pastries',
+        'tartes': 'Tarts',
+        'crêpes': 'Crepes',
+        'crepes': 'Crepes',
+        'yaourts': 'Yogurts',
+        'yaourts': 'Yogurts',
+        'fruits': 'Fruits',
+        'sandwichs': 'Sandwiches',
+        'sandwiches': 'Sandwiches',
+        'paninis': 'Paninis',
+        'quiches': 'Quiches',
+        'croque-monsieur': 'Croque Monsieur',
+        'croque madame': 'Croque Madame',
+        'salades composées': 'Composite Salads',
+        'salades composes': 'Composite Salads'
+    };
+
     const translations = {
         fr: {
             // Header & Navigation
@@ -807,6 +872,10 @@ function updateTranslations() {
             in45min: 'Dans 45 minutes',
             in60min: 'Dans 1 heure',
             cancel: 'Annuler',
+            choosePayment: 'Mode de paiement',
+            choosePaymentHint: 'Choisissez comment vous souhaitez payer',
+            cashCounter: 'Payer à la cantine',
+            confirmPayment: 'Confirmer',
 
             // Order History
             orderHistoryTitle: 'Mes Commandes',
@@ -924,6 +993,10 @@ function updateTranslations() {
             in45min: 'In 45 minutes',
             in60min: 'In 1 hour',
             cancel: 'Cancel',
+            choosePayment: 'Payment method',
+            choosePaymentHint: 'Choose how you would like to pay',
+            cashCounter: 'Pay at the counter',
+            confirmPayment: 'Confirm',
 
             // Order History
             orderHistoryTitle: 'My Orders',
@@ -1008,8 +1081,21 @@ function updateTranslations() {
     document.querySelectorAll('.cat-btn').forEach(btn => {
         const category = btn.getAttribute('data-category');
         const catNameEl = btn.querySelector('.cat-name');
-        if (catNameEl && currentTranslations[category]) {
-            catNameEl.textContent = currentTranslations[category];
+        if (catNameEl) {
+            // Get the French category name from the element's data or text content
+            const frenchName = btn.getAttribute('data-category-fr') || catNameEl.textContent.trim().toLowerCase();
+
+            // Translate based on current language
+            if (currentLanguage === 'en' && categoryTranslations[frenchName]) {
+                catNameEl.textContent = categoryTranslations[frenchName];
+            } else if (currentLanguage === 'fr') {
+                // Restore French name from data attribute if available
+                const originalFrName = btn.getAttribute('data-category-fr');
+                if (originalFrName) {
+                    catNameEl.textContent = originalFrName;
+                }
+                // Otherwise, keep current text (already in French)
+            }
         }
     });
 
@@ -1195,6 +1281,7 @@ function loadCategoriesFromAPI() {
                 const btn = document.createElement('button');
                 btn.className = 'cat-btn cat-btn-dynamic';
                 btn.setAttribute('data-category', String(cat.id));
+                btn.setAttribute('data-category-fr', cat.name); // Store original French name for translation
                 btn.style.animationDelay = (idx * 40) + 'ms';
                 btn.onclick = function() { filterCategory(String(cat.id)); };
                 var iconHTML = getCategoryIconHTML(cat.name);
@@ -1788,7 +1875,6 @@ function updateCartUI() {
                     '<div class="cart-item-details">' +
                         '<div class="cart-item-title">' + item.formulaName + '</div>' +
                         '<ul class="formula-cart-subitems">' + subList + '</ul>' +
-                        '<div class="cart-item-price">' + formatPrice(item.price) + '</div>' +
                     '</div>' +
                     '<button class="remove-item" onclick="removeFromCart(\'' + item.id + '\')" title="Retirer">' +
                         '<i class="fas fa-trash-alt"></i>' +
@@ -1802,7 +1888,6 @@ function updateCartUI() {
                 '</div>' +
                 '<div class="cart-item-details">' +
                     '<div class="cart-item-title">' + item.name + '</div>' +
-                    '<div class="cart-item-price">' + formatPrice(item.price) + '</div>' +
                     '<div class="cart-qty-controls">' +
                         '<button class="cart-qty-btn" onclick="updateQuantity(' + item.id + ', -1)" title="Réduire">' +
                             '<i class="fas fa-minus"></i>' +
@@ -2269,13 +2354,46 @@ function closeOrderModal() {
 }
 
 function confirmOrder() {
-        // Hide orderModal if visible
-        const orderModal = document.getElementById('orderModal');
-        if (orderModal) {
-            orderModal.style.display = 'none';
-            orderModal.classList.remove('active');
-        }
-    console.log('confirmOrder called');
+    // Hide orderModal, show payment method selection
+    const orderModal = document.getElementById('orderModal');
+    if (orderModal) {
+        orderModal.style.display = 'none';
+        orderModal.classList.remove('active');
+    }
+    const pmModal = document.getElementById('paymentMethodModal');
+    if (pmModal) {
+        pmModal.style.display = 'flex';
+        pmModal.offsetHeight;
+        pmModal.classList.add('active');
+    }
+}
+
+function closePaymentMethodModal() {
+    const pmModal = document.getElementById('paymentMethodModal');
+    if (pmModal) {
+        pmModal.classList.remove('active');
+        pmModal.style.display = 'none';
+    }
+}
+
+function proceedWithPayment() {
+    const selected = document.querySelector('input[name="paymentMethod"]:checked');
+    const paymentMethod = selected ? selected.value : 'cash';
+
+    // Mobile money not yet available — show toast and stay on modal
+    if (paymentMethod === 'orange_money' || paymentMethod === 'mtn_momo' || paymentMethod === 'moov_money') {
+        showToast(
+            currentLanguage === 'fr'
+                ? 'Ce mode de paiement n\'est pas disponible pour le moment'
+                : 'This payment method is not available at the moment',
+            'warning'
+        );
+        return;
+    }
+
+    closePaymentMethodModal();
+
+    console.log('proceedWithPayment called, method:', paymentMethod);
 
     // Show the success modal with loader immediately
     const successModal = document.getElementById('successModal');
@@ -2324,7 +2442,7 @@ function confirmOrder() {
             // Only include user_id if it exists (guest users have null ID)
             ...(currentUser.id && { user_id: currentUser.id }),
             items: orderItems,
-            payment_method: null,  // Handled at counter
+            payment_method: paymentMethod,
             pickup_time: pickupTime.toISOString(),
             prep_time_minutes: totalPrepTime
         };
@@ -2360,8 +2478,13 @@ function confirmOrder() {
                 saveCart();
                 updateCartUI();
 
-                // Show Wave payment modal, then show receipt after payment
-                showWavePaymentModal(data.order_id, totalAmount, pickupTime, totalPrepTime, data.items || []);
+                if (paymentMethod === 'wave') {
+                    // Show Wave modal in "unavailable" mode — user pays at counter
+                    showWaveUnavailableModal(data.order_id, totalAmount, pickupTime, totalPrepTime, data.items || []);
+                } else {
+                    // Show receipt directly for cash
+                    showSuccess(data.order_id, pickupTime, totalPrepTime, data.items || [], totalAmount);
+                }
 
             } else {
                 const successModal = document.getElementById('successModal');
@@ -2383,6 +2506,27 @@ function confirmOrder() {
 let _wavePollingInterval = null;
 let _wavePendingReceipt = null; // { orderId, pickupTime, prepTime, items, total }
 
+function showWaveUnavailableModal(orderId, totalAmount, pickupTime, prepTimeMinutes, orderItems) {
+    _wavePendingReceipt = { orderId, pickupTime, prepTimeMinutes, orderItems, totalAmount };
+
+    // Update amount / order id displays
+    document.getElementById('waveAmountDisplay').textContent = formatPrice(totalAmount);
+    document.getElementById('waveOrderIdDisplay').textContent = orderId;
+
+    // Show unavailable section, hide everything else
+    document.getElementById('waveQrLoading').style.display = 'none';
+    document.getElementById('waveQrWrapper').style.display = 'none';
+    document.getElementById('waveQrError').style.display = 'none';
+    document.getElementById('waveUnavailable').style.display = 'flex';
+    document.getElementById('waveStatusBar').style.display = 'none';
+    document.getElementById('waveModalFooter').style.display = 'none';
+
+    const modal = document.getElementById('wavePaymentModal');
+    modal.style.display = 'flex';
+    modal.offsetHeight;
+    modal.classList.add('active');
+}
+
 function showWavePaymentModal(orderId, totalAmount, pickupTime, prepTimeMinutes, orderItems) {
     _wavePendingReceipt = { orderId, pickupTime, prepTimeMinutes, orderItems, totalAmount };
 
@@ -2394,6 +2538,10 @@ function showWavePaymentModal(orderId, totalAmount, pickupTime, prepTimeMinutes,
     document.getElementById('waveQrLoading').style.display = 'flex';
     document.getElementById('waveQrWrapper').style.display = 'none';
     document.getElementById('waveQrError').style.display = 'none';
+    document.getElementById('waveUnavailable').style.display = 'none';
+    document.getElementById('waveScanHint').style.display = 'none';
+    document.getElementById('waveStatusBar').style.display = '';
+    document.getElementById('waveModalFooter').style.display = '';
     document.getElementById('waveStatusWaiting').style.display = 'flex';
     document.getElementById('waveStatusConfirmed').style.display = 'none';
     document.getElementById('waveBtnSkip').style.display = 'flex';
@@ -2418,12 +2566,13 @@ function showWavePaymentModal(orderId, totalAmount, pickupTime, prepTimeMinutes,
             document.getElementById('waveQrWrapper').style.display = 'flex';
             new QRCode(document.getElementById('waveQrCode'), {
                 text: res.wave_launch_url,
-                width: 200,
-                height: 200,
-                colorDark: '#1B6FE4',
+                width: 210,
+                height: 210,
+                colorDark: '#000000',
                 colorLight: '#ffffff',
                 correctLevel: QRCode.CorrectLevel.M
             });
+            document.getElementById('waveScanHint').style.display = 'flex';
 
             // Show "Open Wave" link for mobile users
             const mobileLink = document.getElementById('waveMobileLink');
@@ -2492,6 +2641,15 @@ function closeWavePaymentModal() {
         modal.classList.remove('active');
         modal.style.display = 'none';
     }
+    // Reset states for next use
+    const unavail = document.getElementById('waveUnavailable');
+    if (unavail) unavail.style.display = 'none';
+    const hint = document.getElementById('waveScanHint');
+    if (hint) hint.style.display = 'none';
+    const footer = document.getElementById('waveModalFooter');
+    if (footer) footer.style.display = '';
+    const statusBar = document.getElementById('waveStatusBar');
+    if (statusBar) statusBar.style.display = '';
 }
 
 function skipWavePayment() {
@@ -2504,6 +2662,17 @@ function skipWavePayment() {
 
 function showSuccess(orderId, pickupTime, prepTimeMinutes, orderItems, totalAmount) {
     console.log('showSuccess called with orderId:', orderId);
+
+    // Ensure the success modal is visible
+    const successModal = document.getElementById('successModal');
+    if (successModal) {
+        successModal.style.transition = 'none';
+        successModal.style.display = 'flex';
+        successModal.offsetHeight;
+        successModal.style.opacity = '1';
+        successModal.style.visibility = 'visible';
+        successModal.classList.add('active');
+    }
 
     // Hide loading, show receipt
     const orderLoading = document.getElementById('orderLoading');
@@ -2920,7 +3089,6 @@ function addFormulaToCart() {
     cart.push(formulaCartItem);
     saveCart();
     updateCartUI();
-    updateCartCount();
 
     showToast('Formule "' + currentFormula.name + '" ajoutée au panier !', 'success');
     closeFormulaBuilderModal();
@@ -2963,6 +3131,7 @@ window.addFormulaToCart          = addFormulaToCart;
 
 // Export functions
 window.addToCart = addToCart;
+window.showWaveUnavailableModal = showWaveUnavailableModal;
 // ========================================
 // Bottom Navigation Functions
 // ========================================
@@ -3118,6 +3287,8 @@ window.filterItems = filterItems;
 window.searchMenu = searchMenu;
 window.proceedToCheckout = proceedToCheckout;
 window.confirmOrder = confirmOrder;
+window.closePaymentMethodModal = closePaymentMethodModal;
+window.proceedWithPayment = proceedWithPayment;
 window.closeOrderModal = closeOrderModal;
 window.closeSuccessModal = closeSuccessModal;
 window.showSuccess = showSuccess;

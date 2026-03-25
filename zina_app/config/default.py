@@ -33,7 +33,7 @@ class DefaultConfig:
 
     # Admin credentials — must be set via environment variables
     ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
-    ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', '')
+    ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'admin123')
     
     # App Info
     APP_NAME = 'ZINA - Cantine BAD'
@@ -46,7 +46,7 @@ class DefaultConfig:
     # Business Hours
     BUSINESS_HOURS = {
         'weekdays': '7h00 - 17h00',
-        'saturday': '8h00 - 14h00',
+        'saturday': 'Fermé',
         'sunday': 'Fermé'
     }
 

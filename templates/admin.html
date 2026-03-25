@@ -36,6 +36,95 @@
     <!-- Shared + Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/shared.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+
+    <!-- Auth overlay styles (matches user login page) -->
+    <style>
+      .auth-bg-overlay {
+        background:
+          linear-gradient(135deg, rgba(61,18,21,0.96) 0%, rgba(88,27,31,0.92) 50%, rgba(160,101,107,0.88) 100%),
+          url('https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1920&h=1080&fit=crop') center/cover no-repeat fixed;
+      }
+      .glass-card {
+        background: rgba(255,255,255,0.07);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255,255,255,0.15);
+      }
+      .auth-input {
+        width: 100%;
+        background: rgba(255,255,255,0.1);
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 12px;
+        padding: 0.75rem 1rem 0.75rem 2.75rem;
+        color: #fff;
+        font-size: 0.9rem;
+        font-family: 'Poppins', sans-serif;
+        transition: border-color 0.2s, background 0.2s;
+        outline: none;
+      }
+      .auth-input::placeholder { color: rgba(255,255,255,0.4); }
+      .auth-input:focus {
+        border-color: rgba(255,255,255,0.5);
+        background: rgba(255,255,255,0.15);
+      }
+      .auth-label {
+        display: block;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: rgba(255,255,255,0.65);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-bottom: 0.4rem;
+      }
+      .auth-btn-primary {
+        width: 100%;
+        background: #fff;
+        color: #581b1f;
+        font-weight: 700;
+        font-size: 0.95rem;
+        font-family: 'Poppins', sans-serif;
+        padding: 0.85rem;
+        border-radius: 12px;
+        border: none;
+        cursor: pointer;
+        transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+      }
+      .auth-btn-primary:hover {
+        background: rgba(255,255,255,0.92);
+        transform: translateY(-1px);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+      }
+      .auth-btn-primary:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+        transform: none;
+      }
+      .auth-btn-secondary {
+        width: 100%;
+        background: rgba(255,255,255,0.1);
+        color: #fff;
+        font-weight: 600;
+        font-size: 0.88rem;
+        font-family: 'Poppins', sans-serif;
+        padding: 0.75rem;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.2);
+        cursor: pointer;
+        transition: background 0.2s, border-color 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+      }
+      .auth-btn-secondary:hover {
+        background: rgba(255,255,255,0.18);
+        border-color: rgba(255,255,255,0.4);
+      }
+    </style>
 </head>
 <body>
     <!-- Page Loader -->
@@ -50,40 +139,134 @@
         </div>
     </div>
 
-    <!-- Login Modal -->
-    <div class="login-overlay" id="loginOverlay">
-        <div class="login-modal">
-            <div class="login-header">
-                <div class="login-logo">
-                    <i class="fas fa-shield-alt"></i>
-                </div>
-                <h1>Administration ZINA</h1>
-                <p>Accès réservé au personnel autorisé</p>
-            </div>
-            
-            <form id="adminLogin" onsubmit="handleAdminLogin(event)">
-                <div class="form-group">
-                    <label for="adminUsername">
-                        <i class="fas fa-user"></i>
-                        Identifiant
-                    </label>
-                    <input type="text" id="adminUsername" placeholder="admin" required>
-                </div>
-                <div class="form-group">
-                    <label for="adminPassword">
-                        <i class="fas fa-lock"></i>
-                        Mot de passe
-                    </label>
-                    <input type="password" id="adminPassword" placeholder="••••••••" required>
-                </div>
-                <button type="submit" class="login-submit-btn">
-                    <i class="fas fa-sign-in-alt"></i>
-                    <span>Se Connecter</span>
-                </button>
-            </form>
-            
-            <div class="login-footer">
-                <p><i class="fas fa-info-circle"></i> Interface d'administration sécurisée</p>
+    <!-- Auth Overlay -->
+    <div class="login-overlay auth-bg-overlay" id="loginOverlay">
+        <!-- Outer scroll wrapper: centres on large screens, scrolls on small ones -->
+        <div class="auth-scroll-wrap">
+            <div class="w-full max-w-md mx-auto px-3 sm:px-4 py-4 sm:py-8">
+
+                <!-- Slide stage -->
+                <div class="auth-stage" id="authStage">
+
+                    <!-- ── LOGIN CARD ─────────────────────────── -->
+                    <div class="auth-card glass-card rounded-2xl shadow-2xl" id="authCardLogin">
+
+                        <!-- Header -->
+                        <div class="flex flex-col items-center pt-6 sm:pt-8 pb-4 sm:pb-5 px-5 sm:px-8">
+                            <div class="w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-white/15 flex items-center justify-center mb-3 sm:mb-4 shadow-lg flex-shrink-0">
+                                <img src="{{ url_for('static', filename='images/logo.PNG') }}" alt="ZINA" class="w-8 h-8 sm:w-10 sm:h-10 object-contain rounded-lg">
+                            </div>
+                            <h1 class="text-white text-xl sm:text-2xl font-bold tracking-tight text-center" style="font-family:'Poppins',sans-serif">Administration ZINA</h1>
+                            <p class="text-white/60 text-xs sm:text-sm mt-1 text-center">Accès réservé au personnel autorisé</p>
+                        </div>
+
+                        <!-- Form -->
+                        <form id="adminLogin" onsubmit="handleAdminLogin(event)" class="px-5 sm:px-8 pb-4 sm:pb-6 space-y-3 sm:space-y-4">
+                            <div>
+                                <label class="auth-label" for="adminUsername">Identifiant</label>
+                                <div class="relative">
+                                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-white/40 pointer-events-none">
+                                        <i class="fas fa-user text-sm"></i>
+                                    </span>
+                                    <input class="auth-input" type="text" id="adminUsername" placeholder="admin" required autocomplete="username">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="auth-label" for="adminPassword">Mot de passe</label>
+                                <div class="relative">
+                                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-white/40 pointer-events-none">
+                                        <i class="fas fa-lock text-sm"></i>
+                                    </span>
+                                    <input class="auth-input" type="password" id="adminPassword" placeholder="••••••••" required autocomplete="current-password">
+                                </div>
+                            </div>
+                            <button type="submit" class="auth-btn-primary !mt-2">
+                                <i class="fas fa-sign-in-alt"></i>
+                                Se Connecter
+                            </button>
+                        </form>
+
+                        <!-- Footer -->
+                        <div class="border-t border-white/10 px-5 sm:px-8 py-4 sm:py-5 space-y-2 sm:space-y-3">
+                            <button type="button" class="auth-btn-secondary" onclick="showRegisterForm()">
+                                <i class="fas fa-user-plus"></i>
+                                Demander un accès administrateur
+                            </button>
+                            <p class="text-center text-white/35 text-xs">
+                                <i class="fas fa-shield-alt mr-1"></i> Interface d'administration sécurisée
+                            </p>
+                        </div>
+                    </div><!-- /authCardLogin -->
+
+                    <!-- ── REGISTER CARD ──────────────────────── -->
+                    <div class="auth-card glass-card rounded-2xl shadow-2xl" id="authCardRegister">
+
+                        <!-- Header -->
+                        <div class="flex flex-col items-center pt-6 sm:pt-8 pb-4 sm:pb-5 px-5 sm:px-8">
+                            <div class="w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-white/15 flex items-center justify-center mb-3 sm:mb-4 shadow-lg flex-shrink-0">
+                                <i class="fas fa-user-shield text-white text-xl sm:text-2xl"></i>
+                            </div>
+                            <h1 class="text-white text-xl sm:text-2xl font-bold tracking-tight text-center" style="font-family:'Poppins',sans-serif">Demande d'accès</h1>
+                            <p class="text-white/60 text-xs sm:text-sm mt-1 text-center">Un Super Admin approuvera votre compte</p>
+                        </div>
+
+                        <!-- Form -->
+                        <form id="adminRegisterForm" onsubmit="handleAdminRegister(event)" class="px-5 sm:px-8 pb-4 sm:pb-6 space-y-3 sm:space-y-4">
+                            <div>
+                                <label class="auth-label" for="regUsername">Identifiant</label>
+                                <div class="relative">
+                                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-white/40 pointer-events-none">
+                                        <i class="fas fa-user text-sm"></i>
+                                    </span>
+                                    <input class="auth-input" type="text" id="regUsername" placeholder="Votre identifiant" required autocomplete="username">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="auth-label" for="regEmail">Email</label>
+                                <div class="relative">
+                                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-white/40 pointer-events-none">
+                                        <i class="fas fa-envelope text-sm"></i>
+                                    </span>
+                                    <input class="auth-input" type="email" id="regEmail" placeholder="votre@email.com" required autocomplete="email">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="auth-label" for="regPassword">Mot de passe</label>
+                                <div class="relative">
+                                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-white/40 pointer-events-none">
+                                        <i class="fas fa-lock text-sm"></i>
+                                    </span>
+                                    <input class="auth-input" type="password" id="regPassword" placeholder="8 caractères minimum" required minlength="8" autocomplete="new-password">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="auth-label" for="regPasswordConfirm">Confirmer le mot de passe</label>
+                                <div class="relative">
+                                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-white/40 pointer-events-none">
+                                        <i class="fas fa-lock text-sm"></i>
+                                    </span>
+                                    <input class="auth-input" type="password" id="regPasswordConfirm" placeholder="••••••••" required autocomplete="new-password">
+                                </div>
+                            </div>
+                            <button type="submit" class="auth-btn-primary !mt-2">
+                                <i class="fas fa-paper-plane"></i>
+                                Envoyer la demande
+                            </button>
+                        </form>
+
+                        <!-- Footer -->
+                        <div class="border-t border-white/10 px-5 sm:px-8 py-4 sm:py-5 space-y-2 sm:space-y-3">
+                            <button type="button" class="auth-btn-secondary" onclick="showLoginForm()">
+                                <i class="fas fa-arrow-left"></i>
+                                Retour à la connexion
+                            </button>
+                            <p class="text-center text-white/35 text-xs">
+                                <i class="fas fa-info-circle mr-1"></i> Votre demande sera examinée par un administrateur
+                            </p>
+                        </div>
+                    </div><!-- /authCardRegister -->
+
+                </div><!-- /auth-stage -->
             </div>
         </div>
     </div>
@@ -132,6 +315,15 @@
                     <i class="fas fa-id-card"></i>
                     <span>Employés</span>
                 </a>
+                <a href="#admins" class="nav-item perm-nav-admins" onclick="showSection('admins')" style="display:none">
+                    <i class="fas fa-user-shield"></i>
+                    <span>Administrateurs</span>
+                    <span class="nav-badge-count" id="navPendingAdmins" style="display:none"></span>
+                </a>
+                <a href="#roles" class="nav-item perm-nav-roles" onclick="showSection('roles')" style="display:none">
+                    <i class="fas fa-key"></i>
+                    <span>Rôles & Permissions</span>
+                </a>
                 <a href="#settings" class="nav-item" onclick="showSection('settings')">
                     <i class="fas fa-sliders-h"></i>
                     <span>Paramètres</span>
@@ -170,10 +362,10 @@
                         <i class="fas fa-sync-alt" id="refreshIcon"></i>
                     </button>
                     <div class="admin-user">
-                        <div class="user-avatar-circle">A</div>
+                        <div class="user-avatar-circle" id="adminAvatar">A</div>
                         <div class="user-info">
                             <span class="user-name" id="adminName">Administrateur</span>
-                            <span class="user-role">Super Admin</span>
+                            <span class="user-role" id="adminRoleLabel">Super Admin</span>
                         </div>
                     </div>
                 </div>
@@ -644,7 +836,131 @@
                     </div>
                 </div>
             </section>
+            <!-- Admins Section -->
+            <section class="admin-section" id="adminsSection">
+                <div class="section-header">
+                    <h2>Gestion des Administrateurs</h2>
+                </div>
+
+                <!-- Pending approvals -->
+                <div class="settings-card" id="pendingAdminsCard" style="display:none">
+                    <h3 style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+                        <i class="fas fa-hourglass-half" style="color:var(--warning)"></i>
+                        En attente d'approbation
+                        <span class="nav-badge-count" id="pendingAdminsBadge" style="display:inline-flex">0</span>
+                    </h3>
+                    <div class="users-table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Identifiant</th>
+                                    <th>Email</th>
+                                    <th>Date de demande</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pendingAdminsBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Active admins -->
+                <div class="settings-card">
+                    <h3 style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+                        <i class="fas fa-users" style="color:var(--success)"></i>
+                        Administrateurs actifs
+                    </h3>
+                    <div class="users-table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Identifiant</th>
+                                    <th>Email</th>
+                                    <th>Rôle</th>
+                                    <th>Depuis</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="activeAdminsBody">
+                                <tr><td colspan="5" style="text-align:center;padding:24px;color:var(--medium-gray)">Chargement...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Roles Section -->
+            <section class="admin-section" id="rolesSection">
+                <div class="section-header">
+                    <h2>Rôles &amp; Permissions</h2>
+                    <button class="btn-primary perm-roles-manage" onclick="openRoleModal()" style="display:none">
+                        <i class="fas fa-plus"></i>
+                        <span>Nouveau Rôle</span>
+                    </button>
+                </div>
+                <div id="rolesGrid" class="settings-grid">
+                    <p style="color:var(--medium-gray);padding:24px">Chargement...</p>
+                </div>
+            </section>
+
         </main>
+    </div>
+
+    <!-- Approve Admin Modal -->
+    <div class="modal" id="approveAdminModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-user-check"></i> Approuver l'administrateur</h2>
+                <button class="modal-close" onclick="closeApproveAdminModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <form id="approveAdminForm" onsubmit="confirmApproveAdmin(event)">
+                <input type="hidden" id="approveAdminId">
+                <div class="modal-body">
+                    <p style="margin-bottom:16px">Assigner un rôle à <strong id="approveAdminUsername"></strong> :</p>
+                    <div class="form-group">
+                        <label>Rôle <span style="color:red">*</span></label>
+                        <select id="approveAdminRole" required>
+                            <option value="">Sélectionner un rôle...</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" onclick="closeApproveAdminModal()">Annuler</button>
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-check"></i> Approuver
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Role Modal -->
+    <div class="modal" id="roleModal">
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h2 id="roleModalTitle"><i class="fas fa-key"></i> Nouveau Rôle</h2>
+                <button class="modal-close" onclick="closeRoleModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <form id="roleForm" onsubmit="saveRole(event)">
+                <input type="hidden" id="roleId">
+                <div class="modal-body">
+                    <div class="form-group" style="margin-bottom:20px">
+                        <label>Nom du rôle <span style="color:red">*</span></label>
+                        <input type="text" id="roleName" required placeholder="Ex: Gestionnaire de caisse">
+                    </div>
+                    <h4 style="margin-bottom:12px;font-size:14px;color:var(--dark-gray)">Permissions</h4>
+                    <div class="permissions-grid" id="permissionsGrid">
+                        <!-- Rendered by JS -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" onclick="closeRoleModal()">Annuler</button>
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-save"></i> Enregistrer
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <!-- Menu Modal -->
@@ -778,6 +1094,10 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn-cancel" onclick="closeOrderDetails()">Fermer</button>
+                <button type="button" class="btn-secondary" id="updatePaymentBtn" onclick="updatePaymentMethod()">
+                    <i class="fas fa-cash-register"></i>
+                    <span>Paiement au Comptoir</span>
+                </button>
                 <button type="button" class="btn-primary" id="updateStatusBtn" onclick="updateOrderStatus()">
                     <i class="fas fa-check"></i>
                     <span>Mettre à Jour le Statut</span>

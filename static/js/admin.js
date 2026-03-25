@@ -19,9 +19,42 @@ let menus = [];
 let categories = [];
 let orders = [];
 let users = [];
+let adminUsers = [];
+let adminRoles = [];
 let currentSection = 'dashboard';
 let editingCategoryId = null;
 let selectedMenuIds = new Set();
+
+// Role / permission state (populated after session check)
+let adminPermissions = {};
+let isSuperAdmin = false;
+let adminRole = '';
+let currentAdminUsername = 'Admin';
+
+function hasPermission(perm) {
+    if (isSuperAdmin) return true;
+    return !!adminPermissions[perm];
+}
+
+function applyPermissions() {
+    // Show/hide nav items based on permissions
+    document.querySelectorAll('.perm-nav-admins').forEach(el => {
+        el.style.display = hasPermission('admins') ? '' : 'none';
+    });
+    document.querySelectorAll('.perm-nav-roles').forEach(el => {
+        el.style.display = hasPermission('roles') ? '' : 'none';
+    });
+    document.querySelectorAll('.perm-roles-manage').forEach(el => {
+        el.style.display = hasPermission('roles_manage') ? '' : 'none';
+    });
+    // Update header info
+    const nameEl = document.getElementById('adminName');
+    const roleEl = document.getElementById('adminRoleLabel');
+    const avatarEl = document.getElementById('adminAvatar');
+    if (nameEl) nameEl.textContent = currentAdminUsername;
+    if (roleEl) roleEl.textContent = adminRole || 'Admin';
+    if (avatarEl) avatarEl.textContent = (currentAdminUsername[0] || 'A').toUpperCase();
+}
 
 function showAdminLoginOverlay() {
     const loginOverlay = document.getElementById('loginOverlay');
@@ -51,6 +84,55 @@ async function adminFetch(url, options = {}) {
         throw new Error('Unauthorized');
     }
     return response;
+}
+
+// ========================================
+// Helper Functions
+// ========================================
+function formatPaymentMethod(method, status) {
+    if (!method) {
+        return '<span style="color: #6c757d;"><i class="fas fa-question-circle"></i> Non spécifié</span>';
+    }
+    
+    const methodConfig = {
+        'counter': {
+            label: 'Paiement au comptoir',
+            icon: 'fa-cash-register',
+            color: '#28a745'
+        },
+        'cash': {
+            label: 'Espèces',
+            icon: 'fa-money-bill-wave',
+            color: '#28a745'
+        },
+        'wave': {
+            label: 'Wave',
+            icon: 'fa-mobile-alt',
+            color: '#007bff'
+        },
+        'card': {
+            label: 'Carte bancaire',
+            icon: 'fa-credit-card',
+            color: '#6f42c1'
+        }
+    };
+    
+    const config = methodConfig[method] || {
+        label: method,
+        icon: 'fa-question-circle',
+        color: '#6c757d'
+    };
+    
+    const statusIcon = status === 'completed' ? 
+        '<i class="fas fa-check-circle" style="color: #28a745;"></i>' : 
+        '<i class="fas fa-clock" style="color: #ffc107;"></i>';
+    
+    return `
+        <span style="color: ${config.color};">
+            <i class="fas ${config.icon}"></i> ${config.label}
+            ${statusIcon}
+        </span>
+    `;
 }
 
 // ========================================
@@ -152,12 +234,19 @@ window.addEventListener('load', function() {
                 const adminWrapper = document.getElementById('adminWrapper');
 
                 if (authenticated) {
+                    // Capture role & permissions
+                    adminPermissions = data.permissions || {};
+                    isSuperAdmin = !!data.is_super_admin;
+                    adminRole = data.role || '';
+                    currentAdminUsername = data.username || 'Admin';
+
                     if (loginOverlay) {
                         loginOverlay.style.display = 'none';
                     }
                     if (adminWrapper) {
                         adminWrapper.style.display = 'flex';
                     }
+                    applyPermissions();
                     loadDashboardData();
                     const section = getSectionFromHash() || localStorage.getItem('adminCurrentSection') || 'menu';
                     showSection(section);
@@ -229,9 +318,16 @@ function handleAdminLogin(event) {
                 loginOverlay.style.pointerEvents = 'none';
             }
 
+            // Capture role/permissions from login response
+            adminPermissions = data.permissions || {};
+            isSuperAdmin = !!data.is_super_admin;
+            adminRole = data.role || '';
+            currentAdminUsername = data.username || 'Admin';
+
             setTimeout(() => {
                 if (loginOverlay) loginOverlay.style.display = 'none';
                 if (adminWrapper) adminWrapper.style.display = 'flex';
+                applyPermissions();
                 loadDashboardData();
                 const section = getSectionFromHash() || localStorage.getItem('adminCurrentSection') || 'menu';
                 showSection(section);
@@ -328,6 +424,8 @@ function showSection(section) {
         categories: 'Catégories',
         orders:     'Commandes',
         users:      'Employés',
+        admins:     'Administrateurs',
+        roles:      'Rôles & Permissions',
         settings:   'Paramètres'
     };
     const pageTitleEl = document.getElementById('pageTitle');
@@ -376,6 +474,12 @@ function showSection(section) {
             case 'users':
                 showSectionDataLoader('users');
                 loadUsers();
+                break;
+            case 'admins':
+                loadAdmins();
+                break;
+            case 'roles':
+                loadRoles();
                 break;
         }
     }, 100);
@@ -610,11 +714,12 @@ function loadOrders() {
             // Convert API orders to our format
             orders = apiOrders.map(order => ({
                 id: order.order_id,
-                client: order.user_id || 'Client',
-                items: order.items || [],
-                itemsCount: (order.items || []).length,
+                client: order.full_name || 'Client',
+                items: order.articles || [],
+                itemsCount: (order.articles || []).length,
                 total: order.total_amount,
                 payment: order.payment?.payment_method || 'Non spécifié',
+                payment_status: order.payment?.payment_status || 'N/A',
                 status: order.order_status,
                 time: order.created_at ? new Date(order.created_at).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'}) : 'N/A',
                 pickup_time: order.pickup_time,
@@ -636,7 +741,7 @@ function loadOrders() {
                         <td>${order.client}</td>
                         <td>${order.itemsCount} articles</td>
                         <td><strong>${order.total.toLocaleString('fr-FR')} FCFA</strong></td>
-                        <td>${order.payment}</td>
+                        <td>${formatPaymentMethod(order.payment?.payment_method, order.payment?.payment_status)}</td>
                         <td>
                             <span class="status-badge ${getStatusClass(order.status)}">
                                 ${getStatusText(order.status)}
@@ -731,7 +836,9 @@ function viewOrderDetails(id) {
                     </div>
                     <div class="detail-row">
                         <strong>Paiement:</strong>
-                        <span>${order.payment?.payment_method || 'Non spécifié'} (${order.payment?.payment_status || 'N/A'})</span>
+                        <span id="paymentDisplay">
+                            ${formatPaymentMethod(order.payment?.payment_method, order.payment?.payment_status)}
+                        </span>
                     </div>
                     <div class="detail-row">
                         <strong>Statut actuel:</strong>
@@ -802,6 +909,57 @@ function updateOrderStatus() {
     .finally(() => {
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-check"></i> <span>Mettre à Jour le Statut</span>'; }
     });
+}
+
+function updatePaymentMethod() {
+    const orderId = document.getElementById('currentOrderId').value;
+
+    if (!orderId) {
+        showToast('Impossible de mettre à jour : commande non identifiée', 'error');
+        return;
+    }
+
+    // Show confirmation dialog for counter payment
+    showConfirmModal(
+        'Paiement au Comptoir',
+        'Confirmer que le client a payé au comptoir ?\n\nLe statut de la commande sera mis à jour automatiquement.',
+        function() {
+            const btn = document.getElementById('updatePaymentBtn');
+            if (btn) { 
+                btn.disabled = true; 
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Traitement...'; 
+            }
+
+            adminFetch(`/api/admin/orders/${orderId}/payment`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    payment_method: 'counter',
+                    payment_status: 'completed'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showToast(data.message || 'Paiement au comptoir enregistré', 'success');
+                    closeOrderDetails();
+                    loadOrders();
+                } else {
+                    showToast('Erreur: ' + (data.message || 'Échec'), 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error updating payment method:', error);
+                showToast('Erreur lors de la mise à jour du paiement', 'error');
+            })
+            .finally(() => {
+                if (btn) { 
+                    btn.disabled = false; 
+                    btn.innerHTML = '<i class="fas fa-cash-register"></i> <span>Paiement au Comptoir</span>'; 
+                }
+            });
+        }
+    );
 }
 
 // ========================================
@@ -1570,6 +1728,376 @@ function previewCategoryImage(input) {
     }
 }
 
+// ========================================
+// Auth — Slide between Login and Register
+// ========================================
+function showRegisterForm() {
+    document.getElementById('authStage').classList.add('show-register');
+    // Clear register form when opening it
+    const form = document.getElementById('adminRegisterForm');
+    if (form) form.reset();
+}
+
+function showLoginForm() {
+    document.getElementById('authStage').classList.remove('show-register');
+}
+
+function handleAdminRegister(event) {
+    event.preventDefault();
+    const username = document.getElementById('regUsername').value.trim();
+    const email = document.getElementById('regEmail').value.trim();
+    const password = document.getElementById('regPassword').value;
+    const confirm = document.getElementById('regPasswordConfirm').value;
+
+    if (password !== confirm) {
+        showToast('Les mots de passe ne correspondent pas', 'error');
+        return;
+    }
+
+    const btn = event.target.querySelector('button[type="submit"]');
+    setButtonLoading(btn, 'Envoi...');
+
+    fetch('/api/admin/register', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, email, password }),
+    })
+        .then(r => r.json().then(d => ({ ok: r.ok, d })))
+        .then(({ ok, d }) => {
+            if (ok) {
+                showToast(d.message || 'Demande envoyée avec succès', 'success');
+                event.target.reset();
+                showLoginForm();
+            } else {
+                showToast(d.message || 'Erreur lors de l\'envoi', 'error');
+            }
+        })
+        .catch(() => showToast('Erreur réseau', 'error'))
+        .finally(() => resetButton(btn));
+}
+
+
+// ========================================
+// Admin Users Management
+// ========================================
+function loadAdmins() {
+    adminFetch('/api/admin/admin-users')
+        .then(r => r.ok ? r.json() : [])
+        .then(data => {
+            adminUsers = data || [];
+            // Load roles for the approve modal dropdown
+            adminFetch('/api/admin/roles')
+                .then(r => r.ok ? r.json() : [])
+                .then(roles => { adminRoles = roles || []; renderAdmins(); })
+                .catch(() => { adminRoles = []; renderAdmins(); });
+        })
+        .catch(() => {
+            adminUsers = [];
+            renderAdmins();
+        });
+}
+
+function renderAdmins() {
+    const pending = adminUsers.filter(u => !u.is_approved);
+    const active  = adminUsers.filter(u => u.is_approved);
+
+    // Pending card
+    const pendingCard = document.getElementById('pendingAdminsCard');
+    const pendingBadge = document.getElementById('pendingAdminsBadge');
+    const navBadge = document.getElementById('navPendingAdmins');
+    if (pendingCard) pendingCard.style.display = pending.length ? '' : 'none';
+    if (pendingBadge) pendingBadge.textContent = pending.length;
+    if (navBadge) {
+        navBadge.textContent = pending.length;
+        navBadge.style.display = pending.length ? 'inline-flex' : 'none';
+    }
+
+    const pendingBody = document.getElementById('pendingAdminsBody');
+    if (pendingBody) {
+        if (!pending.length) {
+            pendingBody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:16px;color:var(--medium-gray)">Aucune demande en attente</td></tr>';
+        } else {
+            pendingBody.innerHTML = pending.map(u => `
+                <tr>
+                    <td><strong>${escHtml(u.username)}</strong></td>
+                    <td>${escHtml(u.email)}</td>
+                    <td>${u.created_at ? formatDate(u.created_at) : '-'}</td>
+                    <td>
+                        <div style="display:flex;gap:6px">
+                            <button class="btn-action btn-edit" onclick="openApproveAdminModal(${u.id}, '${escHtml(u.username)}')" title="Approuver">
+                                <i class="fas fa-check"></i> Approuver
+                            </button>
+                            <button class="btn-action btn-delete" onclick="deleteAdminUserConfirm(${u.id}, '${escHtml(u.username)}')" title="Rejeter">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>`).join('');
+        }
+    }
+
+    const activeBody = document.getElementById('activeAdminsBody');
+    if (activeBody) {
+        if (!active.length) {
+            activeBody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--medium-gray)">Aucun administrateur actif</td></tr>';
+        } else {
+            activeBody.innerHTML = active.map(u => `
+                <tr>
+                    <td><strong>${escHtml(u.username)}</strong></td>
+                    <td>${escHtml(u.email)}</td>
+                    <td>
+                        ${hasPermission('admins_manage')
+                            ? `<select onchange="changeAdminRole(${u.id}, this.value)" style="padding:4px 8px;border-radius:6px;border:1px solid var(--light-gray);font-size:13px">
+                                <option value="">-- Aucun --</option>
+                                ${adminRoles.map(r => `<option value="${r.id}" ${u.role_id == r.id ? 'selected' : ''}>${escHtml(r.role_name)}</option>`).join('')}
+                               </select>`
+                            : `<span class="status-badge" style="background:rgba(88,27,31,0.1);color:var(--primary)">${escHtml(u.role_name || '—')}</span>`
+                        }
+                    </td>
+                    <td>${u.created_at ? formatDate(u.created_at) : '-'}</td>
+                    <td>
+                        ${hasPermission('admins_manage')
+                            ? `<button class="btn-action btn-delete" onclick="deleteAdminUserConfirm(${u.id}, '${escHtml(u.username)}')" title="Supprimer">
+                                   <i class="fas fa-trash"></i>
+                               </button>`
+                            : '—'
+                        }
+                    </td>
+                </tr>`).join('');
+        }
+    }
+}
+
+function openApproveAdminModal(userId, username) {
+    document.getElementById('approveAdminId').value = userId;
+    document.getElementById('approveAdminUsername').textContent = username;
+    const select = document.getElementById('approveAdminRole');
+    select.innerHTML = '<option value="">Sélectionner un rôle...</option>' +
+        adminRoles.map(r => `<option value="${r.id}">${escHtml(r.role_name)}</option>`).join('');
+    document.getElementById('approveAdminModal').classList.add('active');
+}
+
+function closeApproveAdminModal() {
+    document.getElementById('approveAdminModal').classList.remove('active');
+}
+
+function confirmApproveAdmin(event) {
+    event.preventDefault();
+    const userId = document.getElementById('approveAdminId').value;
+    const roleId = document.getElementById('approveAdminRole').value;
+    const btn = event.target.querySelector('button[type="submit"]');
+    setButtonLoading(btn, 'Approbation...');
+
+    adminFetch(`/api/admin/admin-users/${userId}/approve`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role_id: roleId || null }),
+    })
+        .then(r => r.json())
+        .then(d => {
+            if (d.status === 'success') {
+                showToast(d.message, 'success');
+                closeApproveAdminModal();
+                loadAdmins();
+            } else {
+                showToast(d.message || 'Erreur', 'error');
+            }
+        })
+        .catch(() => showToast('Erreur réseau', 'error'))
+        .finally(() => resetButton(btn));
+}
+
+function changeAdminRole(userId, roleId) {
+    adminFetch(`/api/admin/admin-users/${userId}/role`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role_id: roleId || null }),
+    })
+        .then(r => r.json())
+        .then(d => showToast(d.message || 'Rôle mis à jour', d.status === 'success' ? 'success' : 'error'))
+        .catch(() => showToast('Erreur réseau', 'error'));
+}
+
+function deleteAdminUserConfirm(userId, username) {
+    if (!confirm(`Supprimer l'administrateur "${username}" ? Cette action est irréversible.`)) return;
+    adminFetch(`/api/admin/admin-users/${userId}`, { method: 'DELETE' })
+        .then(r => r.json())
+        .then(d => {
+            showToast(d.message || 'Supprimé', d.status === 'success' ? 'success' : 'error');
+            if (d.status === 'success') loadAdmins();
+        })
+        .catch(() => showToast('Erreur réseau', 'error'));
+}
+
+
+// ========================================
+// Roles & Permissions Management
+// ========================================
+const PERMISSION_GROUPS = [
+    { label: 'Tableau de bord', perms: [{ key: 'dashboard', label: 'Voir le tableau de bord' }] },
+    { label: 'Commandes',       perms: [{ key: 'orders', label: 'Voir les commandes' }, { key: 'orders_manage', label: 'Gérer les commandes' }] },
+    { label: 'Plats & Menus',   perms: [{ key: 'menu', label: 'Voir les plats' }, { key: 'menu_manage', label: 'Gérer les plats' }] },
+    { label: 'Catégories',      perms: [{ key: 'categories', label: 'Voir les catégories' }, { key: 'categories_manage', label: 'Gérer les catégories' }] },
+    { label: 'Employés',        perms: [{ key: 'users', label: 'Voir les employés' }] },
+    { label: 'Administrateurs', perms: [{ key: 'admins', label: 'Voir les administrateurs' }, { key: 'admins_manage', label: 'Approuver / supprimer des admins' }] },
+    { label: 'Rôles',           perms: [{ key: 'roles', label: 'Voir les rôles' }, { key: 'roles_manage', label: 'Créer / modifier / supprimer des rôles' }] },
+    { label: 'Paramètres',      perms: [{ key: 'settings', label: 'Voir les paramètres' }, { key: 'settings_manage', label: 'Modifier les paramètres' }] },
+];
+
+function loadRoles() {
+    adminFetch('/api/admin/roles')
+        .then(r => r.ok ? r.json() : [])
+        .then(data => {
+            adminRoles = data || [];
+            renderRoles();
+        })
+        .catch(() => {
+            adminRoles = [];
+            renderRoles();
+        });
+}
+
+function renderRoles() {
+    const grid = document.getElementById('rolesGrid');
+    if (!grid) return;
+    if (!adminRoles.length) {
+        grid.innerHTML = '<p style="color:var(--medium-gray);padding:24px">Aucun rôle trouvé.</p>';
+        return;
+    }
+
+    // Get saved collapsed states from localStorage
+    const collapsedStates = JSON.parse(localStorage.getItem('rolesCollapsedStates') || '{}');
+
+    grid.innerHTML = adminRoles.map(role => {
+        const perms = role.permissions || {};
+        const isSuper = role.is_super_admin;
+        const totalPerms = Object.values(perms).filter(Boolean).length;
+        const totalKeys = PERMISSION_GROUPS.reduce((n, g) => n + g.perms.length, 0);
+        const isCollapsed = collapsedStates[role.id] === true;
+
+        return `
+        <div class="settings-card role-card ${isCollapsed ? 'role-card--collapsed' : ''}" data-role-id="${role.id}" style="position:relative">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+                <div style="flex:1">
+                    <h3 style="margin-bottom:4px;display:flex;align-items:center;gap:8px">
+                        ${escHtml(role.role_name)}
+                        ${isSuper ? '<span class="status-badge status-confirmed" style="font-size:10px;padding:2px 8px">Super Admin</span>' : ''}
+                    </h3>
+                    <p style="font-size:12px;color:var(--medium-gray)">${totalPerms} / ${totalKeys} permissions actives</p>
+                </div>
+                <button class="role-collapse-btn" onclick="toggleRoleCard(${role.id}, '${escHtml(role.role_name)}')" title="${isCollapsed ? 'Développer' : 'Réduire'}">
+                    <i class="fas fa-chevron-${isCollapsed ? 'down' : 'up'}"></i>
+                </button>
+            </div>
+            <div class="role-content" style="${isCollapsed ? 'display:none' : ''}">
+                <div class="perm-summary-grid">
+                    ${PERMISSION_GROUPS.map(g => `
+                        <div class="perm-group-summary">
+                            <span class="perm-group-label">${g.label}</span>
+                            ${g.perms.map(p => `
+                                <span class="perm-chip ${isSuper || perms[p.key] ? 'perm-chip--on' : 'perm-chip--off'}">
+                                    <i class="fas fa-${isSuper || perms[p.key] ? 'check' : 'times'}"></i>
+                                    ${p.label}
+                                </span>`).join('')}
+                        </div>`).join('')}
+                </div>
+                ${hasPermission('roles_manage') && !isSuper ? `
+                <div style="display:flex;gap:8px;margin-top:16px;border-top:1px solid var(--light-gray);padding-top:16px">
+                    <button class="btn-action btn-edit" onclick="editRole(${role.id})">
+                        <i class="fas fa-edit"></i> Modifier
+                    </button>
+                    <button class="btn-action btn-delete" onclick="deleteRoleConfirm(${role.id}, '${escHtml(role.role_name)}')">
+                        <i class="fas fa-trash"></i> Supprimer
+                    </button>
+                </div>` : ''}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function openRoleModal(existingRole) {
+    document.getElementById('roleModalTitle').innerHTML = existingRole
+        ? '<i class="fas fa-edit"></i> Modifier le rôle'
+        : '<i class="fas fa-key"></i> Nouveau Rôle';
+    document.getElementById('roleId').value = existingRole ? existingRole.id : '';
+    document.getElementById('roleName').value = existingRole ? existingRole.role_name : '';
+
+    const perms = existingRole ? (existingRole.permissions || {}) : {};
+    const grid = document.getElementById('permissionsGrid');
+    grid.innerHTML = PERMISSION_GROUPS.map(g => `
+        <div class="perm-group-block">
+            <div class="perm-group-title">${g.label}</div>
+            ${g.perms.map(p => `
+                <label class="perm-checkbox-label">
+                    <input type="checkbox" name="perm_${p.key}" value="${p.key}" ${perms[p.key] ? 'checked' : ''}>
+                    <span class="perm-checkmark"><i class="fas fa-check"></i></span>
+                    <span>${p.label}</span>
+                </label>`).join('')}
+        </div>`).join('');
+
+    document.getElementById('roleModal').classList.add('active');
+}
+
+function closeRoleModal() {
+    document.getElementById('roleModal').classList.remove('active');
+}
+
+function editRole(roleId) {
+    const role = adminRoles.find(r => r.id === roleId);
+    if (role) openRoleModal(role);
+}
+
+function saveRole(event) {
+    event.preventDefault();
+    const roleId = document.getElementById('roleId').value;
+    const roleName = document.getElementById('roleName').value.trim();
+    const checkboxes = document.querySelectorAll('#permissionsGrid input[type="checkbox"]');
+    const permissions = {};
+    checkboxes.forEach(cb => { permissions[cb.value] = cb.checked; });
+
+    const isEdit = !!roleId;
+    const url = isEdit ? `/api/admin/roles/${roleId}` : '/api/admin/roles';
+    const method = isEdit ? 'PUT' : 'POST';
+    const btn = event.target.querySelector('button[type="submit"]');
+    setButtonLoading(btn, 'Enregistrement...');
+
+    adminFetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role_name: roleName, permissions }),
+    })
+        .then(r => r.json())
+        .then(d => {
+            if (d.status === 'success') {
+                showToast(d.message, 'success');
+                closeRoleModal();
+                loadRoles();
+            } else {
+                showToast(d.message || 'Erreur', 'error');
+            }
+        })
+        .catch(() => showToast('Erreur réseau', 'error'))
+        .finally(() => resetButton(btn));
+}
+
+function deleteRoleConfirm(roleId, roleName) {
+    if (!confirm(`Supprimer le rôle "${roleName}" ? Les admins avec ce rôle n'auront plus de rôle assigné.`)) return;
+    adminFetch(`/api/admin/roles/${roleId}`, { method: 'DELETE' })
+        .then(r => r.json())
+        .then(d => {
+            showToast(d.message || 'Supprimé', d.status === 'success' ? 'success' : 'error');
+            if (d.status === 'success') loadRoles();
+        })
+        .catch(() => showToast('Erreur réseau', 'error'));
+}
+
+// Simple HTML escape helper
+function escHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 // Export functions
 window.showSection = showSection;
 window.showSectionLoader = showSectionLoader;
@@ -1611,3 +2139,55 @@ window.updateBulkBar = updateBulkBar;
 window.quickToggleAvailability = quickToggleAvailability;
 window.bulkSetAvailable = bulkSetAvailable;
 window.bulkDeleteMenus = bulkDeleteMenus;
+window.showRegisterForm = showRegisterForm;
+window.showLoginForm = showLoginForm;
+window.handleAdminRegister = handleAdminRegister;
+window.loadAdmins = loadAdmins;
+window.openApproveAdminModal = openApproveAdminModal;
+window.closeApproveAdminModal = closeApproveAdminModal;
+window.confirmApproveAdmin = confirmApproveAdmin;
+window.changeAdminRole = changeAdminRole;
+window.deleteAdminUserConfirm = deleteAdminUserConfirm;
+window.loadRoles = loadRoles;
+window.openRoleModal = openRoleModal;
+window.closeRoleModal = closeRoleModal;
+window.editRole = editRole;
+window.saveRole = saveRole;
+window.deleteRoleConfirm = deleteRoleConfirm;
+window.toggleRolesExpand = toggleRolesExpand;
+window.toggleRoleCard = toggleRoleCard;
+
+// Toggle individual role card collapse/expand
+function toggleRoleCard(roleId, roleName) {
+    // Get current states
+    const collapsedStates = JSON.parse(localStorage.getItem('rolesCollapsedStates') || '{}');
+
+    // Toggle this role's state
+    collapsedStates[roleId] = !collapsedStates[roleId];
+
+    // Save to localStorage
+    localStorage.setItem('rolesCollapsedStates', JSON.stringify(collapsedStates));
+
+    // Re-render roles to reflect the change
+    renderRoles();
+}
+
+// Roles section collapse/expand (legacy - kept for compatibility)
+function toggleRolesExpand() {
+    const grid = document.getElementById('rolesGrid');
+    const btn = document.getElementById('toggleRolesBtn');
+    if (!grid || !btn) return;
+
+    grid.classList.toggle('collapsed');
+    btn.classList.toggle('collapsed');
+
+    // Save state to localStorage
+    const isCollapsed = grid.classList.contains('collapsed');
+    localStorage.setItem('rolesGridCollapsed', isCollapsed);
+
+    // Update icon
+    const icon = btn.querySelector('i');
+    if (icon) {
+        icon.className = isCollapsed ? 'fas fa-chevron-down' : 'fas fa-chevron-up';
+    }
+}

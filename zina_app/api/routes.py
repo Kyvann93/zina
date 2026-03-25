@@ -16,13 +16,21 @@ from zina_app.services import DatabaseService
 from zina_app.models import CreateOrderRequest, OrderItemRequest
 
 
+def get_supabase():
+    """Get Supabase client if configured, None otherwise"""
+    supabase_url = current_app.config.get('SUPABASE_URL')
+    supabase_key = current_app.config.get('SUPABASE_KEY')
+    if not supabase_url or not supabase_key:
+        return None
+    from supabase import create_client
+    return create_client(supabase_url, supabase_key)
+
+
 def get_db_service():
     """Get database service from Flask app config"""
-    from supabase import create_client
-    supabase = create_client(
-        current_app.config['SUPABASE_URL'],
-        current_app.config['SUPABASE_KEY']
-    )
+    supabase = get_supabase()
+    if not supabase:
+        return None
     return DatabaseService(supabase)
 
 # DEFAULT_IMAGES imported from constants.py
@@ -33,8 +41,12 @@ async def get_menu():
     """Get full menu organized by category"""
     try:
         db = get_db_service()
+        if not db:
+            # Supabase not configured - return empty menu
+            return jsonify({})
+
         categories = await db.get_categories()
-        
+
         menu_data = {}
         for category in categories:
             category_key = category.category_name.lower().replace(' ', '_').replace('-', '_')
@@ -62,10 +74,10 @@ async def get_menu():
                     }
                     for product in (category.products or [])
                 ]
-            except Exception as cat_error:
+            except Exception as e:
                 current_app.logger.error('request error: %s', e)
                 continue
-        
+
         return jsonify(menu_data)
     except Exception as e:
         current_app.logger.error('get_menu error: %s', e)
@@ -78,12 +90,12 @@ async def get_menu():
 def get_categories():
     """Get all categories — 2 queries total, no product loading"""
     try:
-        from supabase import create_client
         from collections import Counter
-        supabase = create_client(
-            current_app.config['SUPABASE_URL'],
-            current_app.config['SUPABASE_KEY']
-        )
+        supabase = get_supabase()
+        if not supabase:
+            # Supabase not configured - return empty categories
+            return jsonify([])
+
         # Query 1: all category rows (lightweight)
         cats_resp = supabase.table('categories').select('*').execute()
         categories = cats_resp.data or []
@@ -115,11 +127,10 @@ def get_categories():
 def get_sous_categories():
     """Get sous-categories, optionally filtered by category_id"""
     try:
-        from supabase import create_client
-        supabase = create_client(
-            current_app.config['SUPABASE_URL'],
-            current_app.config['SUPABASE_KEY']
-        )
+        supabase = get_supabase()
+        if not supabase:
+            return jsonify([])
+
         category_id = request.args.get('category_id')
         q = supabase.table('sous_categories').select('*').order('sous_category_id')
         if category_id:
@@ -143,11 +154,10 @@ def get_sous_categories():
 def get_menu_feed():
     """Paginated flat product list — exactly 3 DB queries regardless of catalogue size"""
     try:
-        from supabase import create_client
-        supabase = create_client(
-            current_app.config['SUPABASE_URL'],
-            current_app.config['SUPABASE_KEY']
-        )
+        supabase = get_supabase()
+        if not supabase:
+            return jsonify({'items': [], 'total': 0, 'offset': 0, 'limit': 0})
+
         limit       = min(int(request.args.get('limit', 100)), 200)
         offset      = max(int(request.args.get('offset', 0)), 0)
         category_id = request.args.get('category_id')
@@ -245,12 +255,21 @@ def register_user():
         import re
         email_pattern = r'^[\w\.-]+@[\w\.-]+\.\w+$'
         if not re.match(email_pattern, data['email']):
-            
+
             flash("Format d'email invalide", 'error')
+            return redirect(url_for('main.register'))
+
+        # Check if Supabase is configured
+        supabase_url = current_app.config.get('SUPABASE_URL')
+        supabase_key = current_app.config.get('SUPABASE_KEY')
+        if not supabase_url or not supabase_key:
+            flash("Base de données non configurée. Veuillez configurer Supabase.", 'error')
             return redirect(url_for('main.register'))
 
         # Generate UUID from employee ID
         import hashlib
+        import random
+        import uuid
         random_integer = str(random.randint(9, int(1e6)))
         hash_bytes = hashlib.md5(random_integer.encode()).digest()
         user_id = str(uuid.UUID(bytes=hash_bytes))
@@ -272,10 +291,7 @@ def register_user():
 
         # Insert user into database
         from supabase import create_client
-        supabase = create_client(
-            current_app.config['SUPABASE_URL'],
-            current_app.config['SUPABASE_KEY']
-        )
+        supabase = create_client(supabase_url, supabase_key)
         try:
             response = supabase.table('users').insert(user_data).execute()
         except Exception as db_error:
@@ -284,7 +300,7 @@ def register_user():
             return redirect(url_for('main.register'))
         if response.data:
             # Redirect to login page with success message
-            
+
             flash('Inscription réussie ! Vous pouvez maintenant vous connecter.', 'success')
             return redirect(url_for('main.login'))
         else:
@@ -309,10 +325,15 @@ def login_user():
             return redirect(url_for('main.login'))
 
         from supabase import create_client
-        supabase = create_client(
-            current_app.config['SUPABASE_URL'],
-            current_app.config['SUPABASE_KEY']
-        )
+        supabase_url = current_app.config.get('SUPABASE_URL')
+        supabase_key = current_app.config.get('SUPABASE_KEY')
+
+        # Check if Supabase is configured
+        if not supabase_url or not supabase_key:
+            flash("Base de données non configurée. Veuillez configurer Supabase.", 'error')
+            return redirect(url_for('main.login'))
+
+        supabase = create_client(supabase_url, supabase_key)
         response = supabase.table('users').select('*').eq('full_name', full_name).eq('phone', phone).execute()
         if response.data:
             user = response.data[0]
@@ -328,6 +349,7 @@ def login_user():
         current_app.logger.error('login_user error: %s', e)
         flash("Une erreur est survenue lors de la connexion. Veuillez réessayer.", 'error')
         return redirect(url_for('main.login'))
+
 @api_bp.route('/order', methods=['POST'])
 async def place_order():
     """Place a new order"""
@@ -353,6 +375,21 @@ async def place_order():
             )
             order_items.append(order_item)
 
+        db = get_db_service()
+
+        requested_product_ids = [item_request.product_id for item_request in order_items]
+        import asyncio
+        products = await asyncio.gather(*[db.get_product_by_id(pid) for pid in requested_product_ids])
+        products = [p for p in products if p is not None]
+        existing_ids = {p.product_id for p in products}
+        invalid_product_ids = [pid for pid in requested_product_ids if pid not in existing_ids]
+
+        if invalid_product_ids:
+            return jsonify({
+                "error": "Invalid product_id(s) in order items",
+                "invalid_product_ids": invalid_product_ids,
+            }), 400
+
         # Parse user_id safely if provided
         if user_id:
             try:
@@ -374,6 +411,9 @@ async def place_order():
         # Get prep_time from order data or use default
         prep_time_minutes = order_data.get('prep_time_minutes', 15)
 
+        # Optional discount amount (FCFA)
+        discount_amount = order_data.get('discount_amount', 0)
+
         # Create order request - use inspect to check if fields exist
         import inspect
         sig = inspect.signature(CreateOrderRequest.__init__)
@@ -391,13 +431,15 @@ async def place_order():
         if 'prep_time_minutes' in params:
             init_kwargs['prep_time_minutes'] = prep_time_minutes
 
+        if 'discount_amount' in params:
+            init_kwargs['discount_amount'] = discount_amount
+
         create_order_request = CreateOrderRequest(**init_kwargs)
 
         # Store extra data on the object for the database service to use
         create_order_request.pickup_time = pickup_time  # type: ignore
         create_order_request.prep_time_minutes = prep_time_minutes  # type: ignore
 
-        db = get_db_service()
         order_response = await db.create_order(create_order_request)
 
         if order_response:
@@ -576,16 +618,34 @@ async def get_order(order_id):
         db = get_db_service()
         order = await db.get_order_by_id(order_id)
         if order:
-            return jsonify({
-                "order_id": order.order_id,
-                "user_id": str(order.user_id),
-                "total_amount": float(order.total_amount),
-                "order_status": order.order_status,
-                "created_at": order.created_at.isoformat() if order.created_at else None,
-                "pickup_time": order.pickup_time.isoformat() if order.pickup_time else None,
-                "prep_time_minutes": order.prep_time_minutes,
-                "items": [
-                    {
+            items_list = []
+            for item in (order.items or []):
+                if isinstance(item, dict):
+                    options_list = []
+                    if item.get('options'):
+                        for opt in item['options']:
+                            if isinstance(opt, dict):
+                                options_list.append({
+                                    "option_id": opt.get("option_id"),
+                                    "option_name": opt.get("option_name"),
+                                    "additional_price": float(opt.get("additional_price", 0)),
+                                })
+                            else:
+                                options_list.append({
+                                    "option_id": opt.option_id,
+                                    "option_name": opt.option_name,
+                                    "additional_price": float(opt.additional_price),
+                                })
+
+                    items_list.append({
+                        "product_id": item.get("product_id"),
+                        "product_name": item.get("product_name"),
+                        "quantity": item.get("quantity"),
+                        "unit_price": float(item.get("unit_price", 0)),
+                        "options": options_list,
+                    })
+                else:
+                    items_list.append({
                         "product_id": item.product_id,
                         "product_name": item.product_name,
                         "quantity": item.quantity,
@@ -594,11 +654,38 @@ async def get_order(order_id):
                             {
                                 "option_id": opt.option_id,
                                 "option_name": opt.option_name,
-                                "additional_price": float(opt.additional_price)
-                            } for opt in (item.options or [])
-                        ] if item.options else []
-                    } for item in (order.items or [])
-                ]
+                                "additional_price": float(opt.additional_price),
+                            }
+                            for opt in (item.options or [])
+                        ] if item.options else [],
+                    })
+
+            # Get payment info
+            payment_info = {"payment_method": "Non spécifié", "payment_status": "N/A"}
+            try:
+                db = get_db_service()
+                payment_response = db.supabase.table('payments')\
+                    .select('payment_method, payment_status')\
+                    .eq('order_id', order.order_id)\
+                    .execute()
+                if payment_response.data and len(payment_response.data) > 0:
+                    payment_info = {
+                        "payment_method": payment_response.data[0].get('payment_method', 'Non spécifié'),
+                        "payment_status": payment_response.data[0].get('payment_status', 'N/A')
+                    }
+            except Exception:
+                pass  # payments table might not exist or no payment yet
+
+            return jsonify({
+                "order_id": order.order_id,
+                "user_id": str(order.user_id),
+                "total_amount": float(order.total_amount),
+                "order_status": order.order_status,
+                "created_at": order.created_at.isoformat() if order.created_at else None,
+                "pickup_time": order.pickup_time.isoformat() if order.pickup_time else None,
+                "prep_time_minutes": order.prep_time_minutes,
+                "items": items_list,
+                "payment": payment_info
             })
         else:
             return jsonify({"error": "Order not found"}), 404
