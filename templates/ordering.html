@@ -18,15 +18,17 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <!-- Iconify — icon-park-twotone illustrated icons -->
     <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
-    <!-- Tailwind + Flowbite CDN -->
+    <!-- Tailwind CSS
+         Production : npm run build:css  →  static/css/tailwind.output.css
+         Dev        : CDN (auto-purge disabled, full ~300 KB) -->
+    {% if config.DEBUG %}
+    <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
         corePlugins: { preflight: false },
         theme: {
           extend: {
-            colors: {
-              primary: { DEFAULT: '#581b1f', light: '#a0656b', dark: '#3d1215' }
-            },
+            colors: { primary: { DEFAULT: '#581b1f', light: '#a0656b', dark: '#3d1215' } },
             fontFamily: {
               sans: ['Poppins', 'ui-sans-serif', 'system-ui'],
               display: ['"Playfair Display"', 'Georgia', 'serif']
@@ -35,7 +37,9 @@
         }
       }
     </script>
-    <script src="https://cdn.tailwindcss.com"></script>
+    {% else %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.output.css') }}">
+    {% endif %}
     <link href="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.3.0/flowbite.min.css" rel="stylesheet"/>
     <!-- Shared + Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/shared.css') }}">
@@ -62,17 +66,17 @@
                         </p>
                         <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
                             <button onclick="window.location.href='/login'" class="login-submit-btn">
-                                <i class="fas fa-right-to-bracket"></i>
+                                <i class="fas fa-right-to-bracket" aria-hidden="true"></i>
                                 <span data-translate="signIn">Se Connecter</span>
                             </button>
                             <button onclick="window.location.href='/register'" style="width:50%;" class="register-btn" >
-                                <i class="fas fa-user-pen"></i>
+                                <i class="fas fa-user-pen" aria-hidden="true"></i>
                                 <span data-translate="signUp">S'inscrire</span>
                             </button>
                         </div>
                         <div style="margin-top: 2rem;">
                             <button onclick="handleGuestAccess()" class="guest-btn" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); padding: 8px 16px; font-size: 14px;">
-                                <i class="fas fa-user-slash"></i>
+                                <i class="fas fa-user-slash" aria-hidden="true"></i>
                                 <span data-translate="guestAccess">Continuer en tant qu'Invité</span>
                             </button>
                         </div>
@@ -148,7 +152,7 @@
                            placeholder="Rechercher un plat, un snack..." onkeyup="searchMenu()">
                 </div>
                 <!-- Category Pills — directly under search bar on all screens -->
-                <div class="category-strip">
+                <div class="category-strip" style="margin:auto;">
                     <nav class="category-nav" id="categoryNav">
                         <!-- Dynamic categories inserted by loadCategoriesFromAPI() -->
                     </nav>
@@ -190,7 +194,7 @@
                     </div>
                     <button class="formulas-flyer-cta">
                         <span data-translate="formulasCta">Voir les formules</span>
-                        <i class="fas fa-chevron-right"></i>
+                        <i class="fas fa-chevron-right" aria-hidden="true"></i>
                     </button>
                 </div>
             </div>
@@ -200,10 +204,10 @@
                 <!-- View toggle (phones only) -->
                 <div class="menu-view-toggle" id="menuViewToggle">
                     <button class="view-toggle-btn active" id="viewBtnGrid" onclick="setMenuView('grid')" title="Vue grille">
-                        <i class="fas fa-grid-2"></i>
+                        <i class="fas fa-grid-2" aria-hidden="true"></i>
                     </button>
                     <button class="view-toggle-btn" id="viewBtnList" onclick="setMenuView('list')" title="Vue liste">
-                        <i class="fas fa-list"></i>
+                        <i class="fas fa-list" aria-hidden="true"></i>
                     </button>
                 </div>
                 <h2 id="menuTitle" class="sr-only" data-translate="orderTitle">Commander</h2>
@@ -272,12 +276,12 @@
         <div class="cart-overlay" id="cartOverlay" onclick="toggleCart()"></div>
 
         <!-- Meal Selection Modal (Siders Modal) -->
-        <div class="modal meal-selection-modal" id="mealSelectionModal">
+        <div class="modal meal-selection-modal" id="mealSelectionModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="mealSelectionTitle">
             <div class="modal-content meal-selection-content">
                 <div class="modal-header">
                     <div class="modal-header-icon"><iconify-icon icon="icon-park-twotone:shopping-bag" width="18" height="18"></iconify-icon></div>
-                    <h2 data-translate="customizeOrder">Personnaliser votre commande</h2>
-                    <button class="modal-close-btn" onclick="closeMealSelectionModal()">
+                    <h2 id="mealSelectionTitle" data-translate="customizeOrder">Personnaliser votre commande</h2>
+                    <button class="modal-close-btn" onclick="closeMealSelectionModal()" aria-label="Fermer">
                         <iconify-icon icon="icon-park-twotone:close-one" width="14" height="14"></iconify-icon>
                     </button>
                 </div>
@@ -336,7 +340,7 @@
                                 </div>
                             </div>
                         </div>
-                        <p class="sider-note"><i class="fas fa-circle-info"></i> <span data-translate="siderNote">Sélectionnez le nombre de portions pour chaque accompagnement</span></p>
+                        <p class="sider-note"><i class="fas fa-circle-info" aria-hidden="true"></i> <span data-translate="siderNote">Sélectionnez le nombre de portions pour chaque accompagnement</span></p>
                     </div>
 
                     <!-- Step 2: Verification -->
@@ -372,14 +376,14 @@
                         </div>
                         <div class="pickup-time-selection">
                             <div class="prep-time-info">
-                                <i class="fas fa-hourglass-half"></i>
+                                <i class="fas fa-hourglass-half" aria-hidden="true"></i>
                                 <span><span data-translate="prepTime">Temps de préparation estimé</span>: <strong id="prepTimeDisplay">15</strong> <span data-translate="minutes">minutes</span></span>
                             </div>
                             <div class="time-options">
                                 <label class="time-option">
                                     <input type="radio" name="pickupTime" value="asap" checked onchange="updateCustomTime()">
                                     <div class="time-option-card">
-                                        <i class="fas fa-bolt-lightning"></i>
+                                        <i class="fas fa-bolt-lightning" aria-hidden="true"></i>
                                         <span data-translate="asap">Dès que possible</span>
                                         <small id="earliestTime"></small>
                                     </div>
@@ -387,7 +391,7 @@
                                 <label class="time-option">
                                     <input type="radio" name="pickupTime" value="custom" onchange="enableCustomTime()">
                                     <div class="time-option-card">
-                                        <i class="fas fa-calendar-days"></i>
+                                        <i class="fas fa-calendar-days" aria-hidden="true"></i>
                                         <span data-translate="chooseTime">Choisir l'heure</span>
                                         <small data-translate="selectTime">Sélectionnez votre heure</small>
                                     </div>
@@ -404,15 +408,15 @@
                 </div>
                 <div class="modal-footer">
                     <button class="btn-cancel" id="backBtn" onclick="previousStep()" style="display: none;">
-                        <i class="fas fa-chevron-left"></i>
+                        <i class="fas fa-chevron-left" aria-hidden="true"></i>
                         <span data-translate="back">Retour</span>
                     </button>
                     <button class="btn-confirm" id="nextBtn" onclick="nextStep()">
                         <span data-translate="next">Suivant</span>
-                        <i class="fas fa-chevron-right"></i>
+                        <i class="fas fa-chevron-right" aria-hidden="true"></i>
                     </button>
                     <button class="btn-confirm" id="confirmBtn" onclick="confirmMealOrder()" style="display: none;">
-                        <i class="fas fa-circle-check"></i>
+                        <i class="fas fa-circle-check" aria-hidden="true"></i>
                         <span data-translate="confirmOrder">Confirmer la Commande</span>
                     </button>
                 </div>
@@ -421,26 +425,26 @@
     </div>
 
     <!-- Order History Modal - Outside app container -->
-    <div class="modal order-history-modal" id="orderHistoryModal" style="display: none; position: fixed !important; z-index: 9999 !important;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <div class="modal-header-icon"><iconify-icon icon="icon-park-twotone:alarm-clock" width="18" height="18"></iconify-icon></div>
-                <h2 data-translate="orderHistoryTitle">Mes Commandes</h2>
-                <button class="modal-close-btn" onclick="closeOrderHistoryModal()">
+    <div class="modal order-history-modal fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] items-center justify-center p-4" id="orderHistoryModal" style="display:none" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="orderHistoryTitle">
+        <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[85vh] overflow-hidden flex flex-col shadow-2xl">
+            <div class="flex items-center gap-3 p-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+                <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                    <iconify-icon icon="icon-park-twotone:alarm-clock" width="18" height="18"></iconify-icon>
+                </div>
+                <h2 id="orderHistoryTitle" class="text-sm font-semibold text-gray-800" data-translate="orderHistoryTitle">Mes Commandes</h2>
+                <button class="ml-auto w-7 h-7 rounded-full hover:bg-gray-100 flex items-center justify-center transition" onclick="closeOrderHistoryModal()">
                     <iconify-icon icon="icon-park-twotone:close-one" width="14" height="14"></iconify-icon>
                 </button>
             </div>
-            <div class="modal-body">
-                <div id="orderHistoryContent">
-                    <div class="zina-loader zina-loader--inline">
-                        <div class="zl-inner">
-                            <div class="zl-logo-wrap">
-                                <div class="zl-ring"></div>
-                                <img src="{{ url_for('static', filename='images/logo.PNG') }}" alt="ZINA" class="zl-logo">
-                            </div>
-                            <p class="zl-text" data-translate="loadingOrders">Chargement de vos commandes...</p>
-                            <div class="zl-dots"><span></span><span></span><span></span></div>
+            <div class="p-4 overflow-y-auto max-h-[calc(85vh-80px)]" id="orderHistoryContent">
+                <div class="zina-loader zina-loader--inline">
+                    <div class="zl-inner">
+                        <div class="zl-logo-wrap">
+                            <div class="zl-ring"></div>
+                            <img src="{{ url_for('static', filename='images/logo.PNG') }}" alt="ZINA" class="zl-logo">
                         </div>
+                        <p class="zl-text" data-translate="loadingOrders">Chargement de vos commandes...</p>
+                        <div class="zl-dots"><span></span><span></span><span></span></div>
                     </div>
                 </div>
             </div>
@@ -448,7 +452,7 @@
     </div>
 
     <!-- Order Success Modal - Outside app container -->
-    <div class="modal success-modal" id="successModal" style="display: none; position: fixed !important; z-index: 9999 !important;">
+    <div class="modal success-modal" id="successModal" style="display: none; position: fixed !important; z-index: 9999 !important;" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="successModalTitle">
         <div class="modal-content">
             <!-- Loading Spinner -->
             <div class="order-loading" id="orderLoading">
@@ -469,9 +473,17 @@
                 <div class="receipt-header">
                     <div class="success-icon">
                         <iconify-icon icon="icon-park-twotone:add-one" width="48" height="48" style="display:none"></iconify-icon>
-                        <i class="fas fa-circle-check"></i>
+                        <i class="fas fa-circle-check" aria-hidden="true"></i>
                     </div>
+<<<<<<< Updated upstream
                     <h2 data-translate="orderConfirmed">Commande Confirmée !</h2>
+=======
+                    <h2 id="successModalTitle" data-translate="orderConfirmed">Commande Confirmée !</h2>
+                    
+                </div>
+
+                <div class="receipt-body">
+>>>>>>> Stashed changes
                     <p class="order-number-text">
                         <span data-translate="orderNumberLabel" style="color:white;">#</span>
                         <strong id="orderNumber">---</strong>
@@ -502,7 +514,7 @@
 
                     <div class="receipt-section receipt-info">
                         <div class="info-row">
-                            <i class="fas fa-hourglass-end"></i>
+                            <i class="fas fa-hourglass-end" aria-hidden="true"></i>
                             <div class="info-details">
                                 <span class="info-label" data-translate="pickupTime">Heure de récupération</span>
                                 <span class="info-value" id="receiptPickupTime">--:--</span>
@@ -519,8 +531,81 @@
         </div>
     </div>
 
+<<<<<<< Updated upstream
+=======
+    <!-- Payment Method Modal -->
+    <div class="modal payment-method-modal" id="paymentMethodModal" style="display: none; position: fixed !important; z-index: 9999 !important;" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="paymentMethodTitle">
+        <div class="modal-content payment-method-content">
+            <div class="modal-header">
+                <div class="modal-header-icon"><iconify-icon icon="icon-park-twotone:wallet" width="18" height="18"></iconify-icon></div>
+                <h2 data-translate="choosePayment">Mode de paiement</h2>
+            </div>
+            <div class="modal-body">
+                <p class="payment-method-hint" data-translate="choosePaymentHint">Choisissez comment vous souhaitez payer</p>
+                <div class="payment-method-grid">
+                    <!-- Wave -->
+                    <label class="pm-option">
+                        <input type="radio" name="paymentMethod" value="wave" checked>
+                        <div class="pm-card pm-wave">
+                            <img src="/static/images/logo/logo wave.png" alt="Wave" class="pm-logo-img">
+                            <span>Wave</span>
+                        </div>
+                    </label>
+                    <!-- Orange Money -->
+                    <label class="pm-option">
+                        <input type="radio" name="paymentMethod" value="orange_money">
+                        <div class="pm-card pm-orange">
+                            <div class="pm-icon-circle" style="background:#FF6600;">
+                                <i class="fas fa-mobile-alt" aria-hidden="true"></i>
+                            </div>
+                            <span>Orange Money</span>
+                        </div>
+                    </label>
+                    <!-- MTN MoMo -->
+                    <label class="pm-option">
+                        <input type="radio" name="paymentMethod" value="mtn_momo">
+                        <div class="pm-card pm-mtn">
+                            <div class="pm-icon-circle" style="background:#FFC200;">
+                                <i class="fas fa-mobile-alt" aria-hidden="true"></i>
+                            </div>
+                            <span>MTN MoMo</span>
+                        </div>
+                    </label>
+                    <!-- Moov Money -->
+                    <label class="pm-option">
+                        <input type="radio" name="paymentMethod" value="moov_money">
+                        <div class="pm-card pm-moov">
+                            <div class="pm-icon-circle" style="background:#00AEEF;">
+                                <i class="fas fa-mobile-alt" aria-hidden="true"></i>
+                            </div>
+                            <span>Moov Money</span>
+                        </div>
+                    </label>
+                    <!-- Cash -->
+                    <label class="pm-option pm-option-full">
+                        <input type="radio" name="paymentMethod" value="cash">
+                        <div class="pm-card pm-cash">
+                            <div class="pm-icon-circle" style="background:#22c55e;">
+                                <i class="fas fa-money-bill-wave" aria-hidden="true"></i>
+                            </div>
+                            <span data-translate="cashCounter">Payer à la cantine</span>
+                        </div>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="closePaymentMethodModal()" data-translate="back">Retour</button>
+                <button class="btn-confirm" onclick="proceedWithPayment()">
+                    <i class="fas fa-circle-check" aria-hidden="true"></i>
+                    <span data-translate="confirmPayment">Confirmer</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+>>>>>>> Stashed changes
     <!-- Wave Payment Modal -->
-    <div class="modal wave-payment-modal" id="wavePaymentModal" style="display: none; position: fixed !important; z-index: 9999 !important;">
+    <div class="modal wave-payment-modal" id="wavePaymentModal" style="display: none; position: fixed !important; z-index: 9999 !important;" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="wavePaymentTitle">
         <div class="modal-content wave-modal-content">
             <!-- Wave Header -->
             <div class="wave-modal-header">
@@ -549,9 +634,27 @@
                     </p>
                 </div>
                 <div class="wave-qr-error" id="waveQrError" style="display:none;">
-                    <i class="fas fa-exclamation-circle"></i>
+                    <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
                     <p id="waveQrErrorMsg">Impossible de générer le QR code.</p>
                 </div>
+<<<<<<< Updated upstream
+=======
+                <!-- Unavailable state -->
+                <div class="wave-unavailable" id="waveUnavailable" style="display:none;">
+                    <p class="wave-unavail-title">Wave temporairement indisponible</p>
+                    <p class="wave-unavail-sub">Le paiement Wave n'est pas disponible pour le moment.</p>
+                    <button class="wave-btn-counter" onclick="skipWavePayment()">
+                        <i class="fas fa-cash-register" aria-hidden="true"></i>
+                        Payer à la cantine
+                    </button>
+                </div>
+            </div>
+
+            <!-- Scan hint (shown with QR only) -->
+            <div class="wave-scan-hint" id="waveScanHint" style="display:none;">
+                <i class="fas fa-camera" aria-hidden="true"></i>
+                <p>Scannez le code QR avec l'application Wave de votre téléphone pour effectuer le paiement</p>
+>>>>>>> Stashed changes
             </div>
 
             <!-- Order Info -->
@@ -573,7 +676,7 @@
                     <span data-translate="waveWaiting">En attente du paiement...</span>
                 </div>
                 <div class="wave-status-confirmed" id="waveStatusConfirmed" style="display:none;">
-                    <i class="fas fa-check-circle"></i>
+                    <i class="fas fa-check-circle" aria-hidden="true"></i>
                     <span data-translate="wavePaid">Paiement confirmé !</span>
                 </div>
             </div>
@@ -581,7 +684,7 @@
             <!-- Footer buttons -->
             <div class="wave-modal-footer">
                 <button class="wave-btn-skip" onclick="skipWavePayment()" id="waveBtnSkip">
-                    <i class="fas fa-arrow-right"></i>
+                    <i class="fas fa-arrow-right" aria-hidden="true"></i>
                     <span data-translate="wavePayLater">Payer à la cantine</span>
                 </button>
                 <a id="waveMobileLink" href="#" class="wave-btn-mobile" style="display:none;" target="_blank">
@@ -593,7 +696,7 @@
     </div>
 
     <!-- Order Confirmation Modal (for cart checkout) - Outside app container -->
-    <div class="modal" id="orderModal" style="display: none; position: fixed !important; z-index: 9999 !important;">
+    <div class="modal" id="orderModal" style="display: none; position: fixed !important; z-index: 9999 !important;" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="orderModalTitle">
         <div class="modal-content">
             <div class="modal-header">
                 <div class="modal-header-icon"><iconify-icon icon="icon-park-twotone:shopping-bag" width="18" height="18"></iconify-icon></div>
@@ -617,7 +720,7 @@
             <div class="modal-footer">
                 <button class="btn-cancel" onclick="closeOrderModal()" data-translate="cancel">Annuler</button>
                 <button class="btn-confirm" onclick="confirmOrder()">
-                    <i class="fas fa-circle-check"></i>
+                    <i class="fas fa-circle-check" aria-hidden="true"></i>
                     <span data-translate="confirmOrder">Confirmer la Commande</span>
                 </button>
             </div>
@@ -625,12 +728,12 @@
     </div>
 
     <!-- Formula Builder Modal -->
-    <div class="modal formula-builder-modal" id="formulaBuilderModal">
+    <div class="modal formula-builder-modal" id="formulaBuilderModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="formulaBuilderTitle">
         <div class="modal-content formula-builder-content">
             <div class="modal-header">
                 <div class="modal-header-icon"><iconify-icon icon="icon-park-twotone:star" width="18" height="18"></iconify-icon></div>
                 <h2 id="formulaBuilderTitle">Composer votre Formule</h2>
-                <button class="modal-close-btn" onclick="closeFormulaBuilderModal()">
+                <button class="modal-close-btn" onclick="closeFormulaBuilderModal()" aria-label="Fermer">
                     <iconify-icon icon="icon-park-twotone:close-one" width="14" height="14"></iconify-icon>
                 </button>
             </div>
@@ -649,70 +752,74 @@
             </div>
             <div class="modal-footer formula-builder-footer">
                 <button class="btn-cancel" id="formulaBackBtn" onclick="formulaPreviousStep()" style="display:none">
-                    <i class="fas fa-chevron-left"></i> Retour
+                    <i class="fas fa-chevron-left" aria-hidden="true"></i> Retour
                 </button>
                 <span class="formula-total-preview" id="formulaTotalPreview">Total : 0 FCFA</span>
                 <button class="btn-primary" id="formulaNextBtn" onclick="formulaNextStep()">
-                    Suivant <i class="fas fa-chevron-right"></i>
+                    Suivant <i class="fas fa-chevron-right" aria-hidden="true"></i>
                 </button>
                 <button class="btn-primary" id="formulaAddToCartBtn" onclick="addFormulaToCart()" style="display:none">
-                    <i class="fas fa-basket-shopping"></i> Ajouter au Panier
+                    <i class="fas fa-basket-shopping" aria-hidden="true"></i> Ajouter au Panier
                 </button>
             </div>
         </div>
     </div>
 
     <!-- User Profile Modal -->
-    <div class="modal profile-modal" id="profileModal" style="display: none; position: fixed !important; z-index: 9999 !important;">
-        <div class="modal-content profile-content">
-            <div class="modal-header">
-                <div class="modal-header-icon"><iconify-icon icon="icon-park-twotone:user" width="18" height="18"></iconify-icon></div>
-                <h2 data-translate="userProfile">Mon Profil</h2>
-                <button class="modal-close-btn" onclick="closeProfileModal()">
+    <div class="modal profile-modal fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] items-center justify-center p-4" id="profileModal" style="display:none" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="profileModalTitle">
+        <div class="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+            <div class="flex items-center gap-3 p-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+                <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                    <iconify-icon icon="icon-park-twotone:user" width="18" height="18"></iconify-icon>
+                </div>
+                <h2 id="profileModalTitle" class="text-sm font-semibold text-gray-800" data-translate="userProfile">Mon Profil</h2>
+                <button class="ml-auto w-7 h-7 rounded-full hover:bg-gray-100 flex items-center justify-center transition" onclick="closeProfileModal()">
                     <iconify-icon icon="icon-park-twotone:close-one" width="14" height="14"></iconify-icon>
                 </button>
             </div>
-            <div class="modal-body">
+            <div class="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
                 <div id="profileContent">
                     <div class="profile-view">
-                        <div class="profile-info-item">
-                            <label data-translate="fullName">Nom Complet</label>
-                            <p id="profileName">-</p>
+                        <div class="space-y-4">
+                            <div class="profile-info-item">
+                                <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1" data-translate="fullName">Nom Complet</label>
+                                <p id="profileName" class="text-base font-medium text-gray-900">-</p>
+                            </div>
+                            <div class="profile-info-item">
+                                <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1" data-translate="email">Email</label>
+                                <p id="profileEmail" class="text-base font-medium text-gray-900">-</p>
+                            </div>
+                            <div class="profile-info-item">
+                                <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1" data-translate="phone">Téléphone</label>
+                                <p id="profilePhone" class="text-base font-medium text-gray-900">-</p>
+                            </div>
                         </div>
-                        <div class="profile-info-item">
-                            <label data-translate="email">Email</label>
-                            <p id="profileEmail">-</p>
-                        </div>
-                        <div class="profile-info-item">
-                            <label data-translate="phone">Téléphone</label>
-                            <p id="profilePhone">-</p>
-                        </div>
-                        <div class="profile-actions">
-                            <button class="btn-edit" onclick="editProfile()">
+                        <div class="profile-actions mt-6">
+                            <button class="btn-edit w-full py-2.5 px-4 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition font-medium flex items-center justify-center gap-2" onclick="editProfile()">
                                 <iconify-icon icon="icon-park-twotone:user" width="16" height="16"></iconify-icon>
                                 <span data-translate="edit">Modifier</span>
                             </button>
                         </div>
                     </div>
-                    <div class="profile-edit" id="profileEditForm" style="display: none;">
-                        <form onsubmit="saveProfile(event)">
+                    <div class="profile-edit mt-4" id="profileEditForm" style="display: none;">
+                        <form onsubmit="saveProfile(event)" class="space-y-4">
                             <div class="form-group">
-                                <label for="editName" data-translate="fullName">Nom Complet</label>
-                                <input type="text" id="editName" name="name" required>
+                                <label for="editName" class="block text-sm font-medium text-gray-700 mb-1" data-translate="fullName">Nom Complet</label>
+                                <input type="text" id="editName" name="name" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
                             </div>
                             <div class="form-group">
-                                <label for="editEmail" data-translate="email">Email</label>
-                                <input type="email" id="editEmail" name="email" required>
+                                <label for="editEmail" class="block text-sm font-medium text-gray-700 mb-1" data-translate="email">Email</label>
+                                <input type="email" id="editEmail" name="email" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
                             </div>
                             <div class="form-group">
-                                <label for="editPhone" data-translate="phone">Téléphone</label>
-                                <input type="tel" id="editPhone" name="phone" required>
+                                <label for="editPhone" class="block text-sm font-medium text-gray-700 mb-1" data-translate="phone">Téléphone</label>
+                                <input type="tel" id="editPhone" name="phone" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
                             </div>
-                            <div class="form-actions">
-                                <button type="button" class="btn-cancel" onclick="cancelEdit()">
+                            <div class="form-actions flex gap-3 pt-4">
+                                <button type="button" class="btn-cancel flex-1 py-2.5 px-4 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition font-medium" onclick="cancelEdit()">
                                     <span data-translate="cancel">Annuler</span>
                                 </button>
-                                <button type="submit" class="btn-confirm">
+                                <button type="submit" class="btn-confirm flex-1 py-2.5 px-4 bg-primary text-white rounded-lg hover:bg-primary-dark transition font-medium">
                                     <span data-translate="save">Enregistrer</span>
                                 </button>
                             </div>
@@ -774,5 +881,10 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.3.0/flowbite.min.js"></script>
     <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
     <script src="{{ url_for('static', filename='js/ordering.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ordering-api.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ordering-auth.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ordering-menu.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ordering-cart.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ordering-formulas.js') }}"></script>
 </body>
 </html>

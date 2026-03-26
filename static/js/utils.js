@@ -131,31 +131,125 @@ function showToast(message, type) {
 }
 
 // ========================================
+// Focus Trap
+// ========================================
+
+var _FOCUSABLE_SEL = [
+    'a[href]:not([disabled])',
+    'button:not([disabled])',
+    'input:not([disabled])',
+    'select:not([disabled])',
+    'textarea:not([disabled])',
+    '[tabindex]:not([tabindex="-1"])'
+].join(', ');
+
+function _focusableEls(container) {
+    return Array.from(container.querySelectorAll(_FOCUSABLE_SEL)).filter(function(el) {
+        return el.offsetParent !== null && !el.closest('[hidden]');
+    });
+}
+
+/**
+ * Trap keyboard focus inside a modal element.
+ * Tab cycles forward; Shift+Tab cycles backward.
+ * Stores the handler on the element so releaseFocus can remove it.
+ * @param {HTMLElement} modal
+ */
+function trapFocus(modal) {
+    if (modal._trapHandler) return;
+    function handler(e) {
+        if (e.key !== 'Tab') return;
+        var focusable = _focusableEls(modal);
+        if (!focusable.length) return;
+        var first = focusable[0];
+        var last  = focusable[focusable.length - 1];
+        if (e.shiftKey) {
+            if (document.activeElement === first || !modal.contains(document.activeElement)) {
+                e.preventDefault(); last.focus();
+            }
+        } else {
+            if (document.activeElement === last || !modal.contains(document.activeElement)) {
+                e.preventDefault(); first.focus();
+            }
+        }
+    }
+    modal._trapHandler = handler;
+    modal.addEventListener('keydown', handler);
+}
+
+/**
+ * Release a focus trap previously set by trapFocus().
+ * @param {HTMLElement} modal
+ */
+function releaseFocus(modal) {
+    if (modal._trapHandler) {
+        modal.removeEventListener('keydown', modal._trapHandler);
+        delete modal._trapHandler;
+    }
+}
+
+// ========================================
 // Generic Modal Helpers
 // ========================================
 
 /**
  * Open a modal by its element ID.
+ * Saves current focus, activates focus trap, moves focus inside.
  * @param {string} id
  */
 function openModal(id) {
-    const el = document.getElementById(id);
-    if (el) {
-        el.classList.add('active');
-        el.style.display = '';  // clear any inline display:none
-    }
+    var el = document.getElementById(id);
+    if (!el) return;
+    el._returnFocus = document.activeElement;
+    el.classList.add('active');
+    el.style.display = '';
+    el.setAttribute('aria-hidden', 'false');
+    trapFocus(el);
+    setTimeout(function() {
+        var first = _focusableEls(el)[0];
+        if (first) first.focus();
+        else el.focus();
+    }, 50);
 }
 
 /**
  * Close a modal by its element ID.
+ * Releases focus trap and restores focus to the element that opened the modal.
  * @param {string} id
  */
 function closeModal(id) {
-    const el = document.getElementById(id);
-    if (el) {
-        el.classList.remove('active');
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.classList.remove('active');
+    el.setAttribute('aria-hidden', 'true');
+    releaseFocus(el);
+    if (el._returnFocus && typeof el._returnFocus.focus === 'function') {
+        el._returnFocus.focus();
+        delete el._returnFocus;
     }
 }
+
+// ========================================
+// Global Escape key handler
+// ========================================
+
+document.addEventListener('keydown', function(e) {
+    if (e.key !== 'Escape') return;
+    // Find the topmost visible/active modal
+    var active = document.querySelector(
+        '[role="dialog"][aria-hidden="false"], .modal.active'
+    );
+    if (!active) return;
+    // Try a dedicated close button first, then fall back to generic close
+    var closeBtn = active.querySelector(
+        '.modal-close-btn, [data-dismiss="modal"], [onclick*="close"]'
+    );
+    if (closeBtn) {
+        closeBtn.click();
+    } else if (active.id) {
+        closeModal(active.id);
+    }
+});
 
 // ========================================
 // Confirm Dialog
@@ -236,6 +330,40 @@ function resetButton(btn) {
 }
 
 // ========================================
+// Auto-sync aria-hidden for role="dialog" elements
+// Handles modals opened via direct DOM manipulation (classList/style)
+// so every code path keeps aria-hidden correct without being changed.
+// ========================================
+(function () {
+    function syncAriaHidden(el) {
+        if (el.getAttribute('role') !== 'dialog') return;
+        var isOpen = el.classList.contains('active') ||
+                     (el.style.display && el.style.display !== 'none');
+        el.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+    }
+
+    var _dialogObserver = new MutationObserver(function (mutations) {
+        mutations.forEach(function (m) { syncAriaHidden(m.target); });
+    });
+
+    function attachToDialogs() {
+        document.querySelectorAll('[role="dialog"]').forEach(function (el) {
+            syncAriaHidden(el); // initial sync
+            _dialogObserver.observe(el, {
+                attributes: true,
+                attributeFilter: ['class', 'style']
+            });
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', attachToDialogs);
+    } else {
+        attachToDialogs();
+    }
+})();
+
+// ========================================
 // Exports (for pages that load this file)
 // ========================================
 window.setButtonLoading  = setButtonLoading;
@@ -248,6 +376,8 @@ window.getStatusText     = getStatusText;
 window.showToast         = showToast;
 window.openModal         = openModal;
 window.closeModal        = closeModal;
+window.trapFocus         = trapFocus;
+window.releaseFocus      = releaseFocus;
 window.showConfirmModal  = showConfirmModal;
 window.closeConfirmModal = closeConfirmModal;
 window.confirmAction     = confirmAction;

@@ -4,6 +4,7 @@ Handles admin endpoints for menus, categories, orders, and settings
 """
 
 import os
+from datetime import datetime, timezone
 from pathlib import Path
 
 from flask import jsonify, request, current_app, session
@@ -51,9 +52,66 @@ def admin_login():
         }), 503
     if username == expected_user and password == expected_pass:
         session['zina_admin'] = True
+<<<<<<< Updated upstream
         session.permanent = False
         return jsonify({'status': 'success', 'message': 'Connexion réussie'})
     return jsonify({'status': 'error', 'message': 'Identifiant ou mot de passe incorrect'}), 401
+=======
+        session['admin_id'] = admin['id']
+        session['admin_username'] = admin['username']
+        session['admin_role_id'] = role.get('id')
+        session['admin_role_name'] = role.get('role_name', 'Admin')
+        session['admin_permissions'] = perms
+        session['admin_is_super'] = is_super
+        session.permanent = True
+        return jsonify({
+            'status': 'success',
+            'message': 'Connexion réussie',
+            'username': admin['username'],
+            'role': role.get('role_name', 'Admin'),
+            'is_super_admin': is_super,
+        })
+
+    except Exception as e:
+        current_app.logger.error('admin login error: %s', e)
+        return jsonify({
+            'status': 'error',
+            'message': 'Erreur de connexion à la base de données'
+        }), 500
+
+
+@admin_bp.route('/register', methods=['POST'])
+def admin_register():
+    """Register a new admin account — pending approval by a Super Admin."""
+    data = request.json or {}
+    username = data.get('username', '').strip()
+    email = data.get('email', '').strip()
+    password = data.get('password', '').strip()
+
+    if not username or not email or not password:
+        return jsonify({'status': 'error', 'message': 'Tous les champs sont requis'}), 400
+    if len(password) < 8:
+        return jsonify({'status': 'error', 'message': 'Le mot de passe doit contenir au moins 8 caractères'}), 400
+
+    try:
+        supabase = get_supabase()
+        existing = supabase.table('admin').select('id') \
+            .or_(f'username.eq.{username},email.eq.{email}').execute()
+        if existing.data:
+            return jsonify({'status': 'error', 'message': 'Identifiant ou email déjà utilisé'}), 409
+
+        supabase.table('admin').insert({
+            'username': username,
+            'email': email,
+            'password': generate_password_hash(password),
+            'is_approved': False,
+            'role_id': None,
+        }).execute()
+        return jsonify({'status': 'success', 'message': "Demande envoyée. Un Super Admin doit approuver votre compte."})
+    except Exception as e:
+        current_app.logger.error('admin_register error: %s', e)
+        return jsonify({'status': 'error', 'message': 'Une erreur est survenue'}), 500
+>>>>>>> Stashed changes
 
 
 @admin_bp.route('/logout', methods=['POST'])
@@ -87,11 +145,11 @@ def get_db_service():
 
 
 @admin_bp.route('/menus', methods=['GET'])
-async def get_admin_menus():
+def get_admin_menus():
     """Get all menus for admin"""
     try:
         db = get_db_service()
-        categories = await db.get_categories(available_only=False)
+        categories = db.get_categories(available_only=False)
         menus = []
         for cat in categories:
             category_key = cat.category_name.lower().replace(' ', '_').replace('-', '_')
@@ -114,14 +172,16 @@ async def get_admin_menus():
                     'price': float(product.price),
                     'description': product.description,
                     'available': product.is_available is not False,
+                    'popular': product.is_popular is True,
                     'image': image
                 })
         return jsonify(menus)
     except Exception as e:
+        print(f"Une erreur est survenue lors du chargmenet des menus{e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
-_MENU_FIELDS = {'product_name', 'category_id', 'price', 'description', 'is_available', 'image_url'}
+_MENU_FIELDS = {'product_name', 'category_id', 'price', 'description', 'is_available', 'is_popular', 'image_url'}
 _CATEGORY_FIELDS = {'category_name', 'description', 'image_url'}
 _VALID_ORDER_STATUSES = {'pending', 'confirmed', 'preparing', 'ready', 'completed', 'cancelled'}
 
@@ -239,11 +299,11 @@ def delete_menu(menu_id):
 
 
 @admin_bp.route('/categories', methods=['GET'])
-async def get_admin_categories():
+def get_admin_categories():
     """Get all categories for admin"""
     try:
         db = get_db_service()
-        categories = await db.get_categories(available_only=False)
+        categories = db.get_categories(available_only=False)
         result = []
         for cat in categories:
             category_key = cat.category_name.lower().replace(' ', '_').replace('-', '_')
@@ -304,26 +364,63 @@ def delete_categories(category_id):
     
 @admin_bp.route('/orders', methods=['GET'])
 def get_admin_orders():
-    """Get all orders for admin"""
+    """Get all orders for admin with full details"""
     try:
         supabase = get_supabase()
+
+        # Get all orders
         response = supabase.table('orders').select('*').order('created_at', desc=True).execute()
-        
-        if response.data:
-            orders = []
-            for order in response.data:
-                orders.append({
-                    'order_id': order.get('order_id'),
-                    'user_id': order.get('user_id'),
-                    'total_amount': order.get('total_amount'),
-                    'order_status': order.get('order_status'),
-                    'created_at': order.get('created_at'),
-                    'pickup_time': order.get('pickup_time'),
-                    'prep_time_minutes': order.get('prep_time_minutes')
-                })
-            return jsonify(orders)
-        else:
+
+        if not response.data:
             return jsonify([])
+
+        orders = []
+        for order in response.data:
+            # Get user info for client name
+            full_name = 'Client'
+            if order.get('user_id'):
+                user_res = supabase.table('users').select('full_name').eq('user_id', order.get('user_id')).limit(1).execute()
+                if user_res.data:
+                    full_name = user_res.data[0].get('full_name', 'Client')
+
+            # Get order items
+            items_res = supabase.table('order_items').select('*').eq('order_id', order.get('order_id')).execute()
+            articles = []
+            for item in (items_res.data or []):
+                product_res = supabase.table('products').select('product_name').eq('product_id', item.get('product_id')).limit(1).execute()
+                product_name = 'Produit'
+                if product_res.data:
+                    product_name = product_res.data[0].get('product_name', 'Produit')
+                articles.append({
+                    'product_id': item.get('product_id'),
+                    'product_name': product_name,
+                    'quantity': item.get('quantity'),
+                    'unit_price': item.get('unit_price')
+                })
+
+            # Get payment info
+            payment_info = {'payment_method': None, 'transaction_status': 'N/A'}
+            payment_res = supabase.table('transactions').select('payment_method, transaction_status').eq('order_id', order.get('order_id')).limit(1).execute()
+            if payment_res.data:
+                payment_info = {
+                    'payment_method': payment_res.data[0].get('payment_method'),
+                    'transaction_status': payment_res.data[0].get('transaction_status', 'N/A')
+                }
+
+            orders.append({
+                'order_id': order.get('order_id'),
+                'user_id': order.get('user_id'),
+                'full_name': full_name,
+                'total_amount': order.get('total_amount', 0),
+                'order_status': order.get('order_status', 'pending'),
+                'created_at': order.get('created_at'),
+                'pickup_time': order.get('pickup_time'),
+                'prep_time_minutes': order.get('prep_time_minutes', 15),
+                'articles': articles,
+                'payment': payment_info
+            })
+
+        return jsonify(orders)
     except Exception as e:
         current_app.logger.error('get_admin_orders error: %s', e)
         return jsonify([]), 500
@@ -400,7 +497,7 @@ def get_admin_order(order_id):
             'prep_time_minutes': order.get('prep_time_minutes'),
             'payment': {
                 'payment_method': order.get('payment_method'),
-                'payment_status': order.get('payment_status')
+                'transaction_status': order.get('transaction_status')
             },
             'items': mapped_items
         }
@@ -428,6 +525,71 @@ def update_order_status(order_id):
         return jsonify({'status': 'error', 'message': 'Une erreur est survenue'}), 500
 
 
+<<<<<<< Updated upstream
+=======
+@admin_bp.route('/orders/<int:order_id>/payment', methods=['PUT'])
+def update_order_payment(order_id):
+    """Update payment method for an order (e.g., mark as paid at counter)"""
+    try:
+        data = request.json or {}
+        payment_method = data.get('payment_method')
+        transaction_status = data.get('transaction_status', 'completed')
+        
+        if not payment_method:
+            return jsonify({'status': 'error', 'message': 'Méthode de paiement manquante'}), 400
+        
+        valid_methods = ['cash', 'counter', 'wave', 'card']
+        if payment_method not in valid_methods:
+            return jsonify({'status': 'error', 'message': 'Méthode de paiement invalide'}), 400
+        
+        supabase = get_supabase()
+
+        # Upsert transaction record (do not touch the orders table for payment fields)
+        existing = supabase.table('transactions').select('transaction_id').eq('order_id', order_id).limit(1).execute()
+        now_iso = datetime.now(timezone.utc).isoformat()
+        tx_data = {
+            'payment_method': payment_method,
+            'transaction_status': transaction_status,
+            'transaction_type': 'payment',
+            'updated_at': now_iso,
+        }
+        if transaction_status == 'completed':
+            tx_data['processed_at'] = now_iso
+
+        if existing.data:
+            supabase.table('transactions').update(tx_data).eq('order_id', order_id).execute()
+        else:
+            # Look up user_id and amount from the order
+            order_row = supabase.table('orders').select('user_id, total_amount').eq('order_id', order_id).limit(1).execute()
+            if order_row.data:
+                tx_data['order_id'] = order_id
+                tx_data['user_id'] = order_row.data[0]['user_id']
+                tx_data['amount'] = order_row.data[0]['total_amount']
+                tx_data['currency'] = 'XOF'
+                tx_data['created_at'] = now_iso
+                supabase.table('transactions').insert(tx_data).execute()
+
+        # If payment is completed, advance the order status to confirmed
+        if transaction_status == 'completed' and payment_method in ['cash', 'counter', 'wave', 'card']:
+            supabase.table('orders').update({'order_status': 'confirmed'}).eq('order_id', order_id).execute()
+        
+        method_display = {
+            'cash': 'Espèces',
+            'counter': 'Paiement au comptoir',
+            'wave': 'Wave',
+            'card': 'Carte bancaire'
+        }.get(payment_method, payment_method)
+        
+        return jsonify({
+            'status': 'success', 
+            'message': f'Paiement mis à jour : {method_display}'
+        })
+    except Exception as e:
+        current_app.logger.error('update_order_payment error: %s', e)
+        return jsonify({'status': 'error', 'message': 'Une erreur est survenue'}), 500
+
+
+>>>>>>> Stashed changes
 @admin_bp.route('/settings', methods=['GET'])
 def get_settings():
     """Get site settings"""

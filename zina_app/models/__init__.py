@@ -36,6 +36,7 @@ class Product:
     description: Optional[str] = None
     image_url: Optional[str] = None
     is_available: bool = True
+    is_popular: bool = False
     created_at: Optional[datetime] = None
 
     # Optional relationship data
@@ -127,6 +128,7 @@ class ProductResponse:
     description: Optional[str] = None
     image_url: Optional[str] = None
     is_available: bool = True
+    is_popular: bool = False
     category_name: Optional[str] = None
     options: Optional[List[ProductOption]] = None
 
@@ -138,3 +140,62 @@ class CategoryResponse:
     description: Optional[str] = None
     image_url: Optional[str] = None
     products: Optional[List[ProductResponse]] = None
+    
+@dataclass
+class Transaction:
+    transaction_id: int
+    order_id: int
+    user_id: uuid.UUID
+    amount: Decimal
+    transaction_type: str = 'payment'  # 'payment', 'refund', 'partial_refund'
+    currency: str = 'XOF'
+    payment_method: str = 'cash'  # 'cash', 'mobile_money', 'card', 'other'
+    payment_provider: Optional[str] = None
+    transaction_status: str = 'pending'  # 'pending', 'completed', 'failed', 'cancelled'
+    created_at: Optional[datetime] = None
+    processed_at: Optional[datetime] = None
+    transaction_reference: Optional[str] = None
+    internal_reference: Optional[str] = None
+    notes: Optional[str] = None
+    processed_by: Optional[uuid.UUID] = None
+    processing_location: Optional[str] = None
+    created_by: Optional[uuid.UUID] = None
+    updated_at: Optional[datetime] = None
+    
+    # Optional relationship data
+    order: Optional[Order] = None
+    user: Optional[User] = None
+    processor: Optional[User] = None
+
+# Request/Response DTOs for transactions
+@dataclass
+class CreateTransactionRequest:
+    order_id: int
+    user_id: uuid.UUID
+    amount: Decimal
+    transaction_type: str = 'payment'
+    payment_method: str = 'cash'
+    payment_provider: Optional[str] = None
+    transaction_reference: Optional[str] = None
+    notes: Optional[str] = None
+    processing_location: Optional[str] = 'counter'
+
+@dataclass
+class TransactionResponse:
+    transaction_id: int
+    order_id: int
+    user_id: uuid.UUID
+    transaction_type: str
+    amount: Decimal
+    currency: str
+    payment_method: str
+    payment_provider: Optional[str]
+    transaction_status: str
+    created_at: datetime
+    processed_at: Optional[datetime]
+    transaction_reference: Optional[str]
+    internal_reference: Optional[str]
+    notes: Optional[str]
+    processed_by: Optional[uuid.UUID]
+    processing_location: Optional[str]
+    order_details: Optional[OrderResponse] = None

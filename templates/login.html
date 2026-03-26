@@ -38,7 +38,7 @@
       .auth-bg {
         background:
           linear-gradient(135deg, rgba(61,18,21,0.96) 0%, rgba(88,27,31,0.92) 50%, rgba(160,101,107,0.88) 100%),
-          url('https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1920&h=1080&fit=crop') center/cover no-repeat fixed;
+          url('https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1200&h=800&fit=crop&fm=webp&q=75') center/cover no-repeat fixed;
       }
       .glass-card {
         background: rgba(255,255,255,0.07);
@@ -163,20 +163,6 @@
                   onsubmit="localStorage.setItem('login_success_flag', 'true'); showFormLoader();">
                 <div class="space-y-5">
 
-                    <!-- Full name -->
-                    <div>
-                        <label class="auth-label" for="employeeName">
-                            Nom Complet
-                        </label>
-                        <div class="relative">
-                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-white/40 pointer-events-none">
-                                <i class="fas fa-user text-sm"></i>
-                            </span>
-                            <input class="auth-input" type="text" id="employeeName" name="full_name"
-                                   placeholder="Votre nom complet" required autocomplete="name">
-                        </div>
-                    </div>
-
                     <!-- Phone -->
                     <div>
                         <label class="auth-label" for="phone">
@@ -188,6 +174,20 @@
                             </span>
                             <input class="auth-input" type="tel" id="phone" name="phone"
                                    placeholder="+225 XX XX XX XX XX" required autocomplete="tel">
+                        </div>
+                    </div>
+
+                    <!-- Password -->
+                    <div>
+                        <label class="auth-label" for="password">
+                            Mot de passe
+                        </label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-white/40 pointer-events-none">
+                                <i class="fas fa-lock text-sm"></i>
+                            </span>
+                            <input class="auth-input" type="password" id="password" name="password"
+                                   placeholder="Votre mot de passe" required autocomplete="current-password">
                         </div>
                     </div>
 

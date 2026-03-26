@@ -15,6 +15,7 @@ function proxyImg(url) {
 // ========================================
 // Global State
 // ========================================
+<<<<<<< Updated upstream
 let menus = [];
 let categories = [];
 let orders = [];
@@ -23,6 +24,49 @@ let currentSection = 'dashboard';
 let editingCategoryId = null;
 let selectedMenuIds = new Set();
 
+=======
+var menus = [];
+var categories = [];
+var orders = [];
+var users = [];
+var adminUsers = [];
+var adminRoles = [];
+var currentSection = 'dashboard';
+var editingCategoryId = null;
+var selectedMenuIds = new Set();
+
+// Role / permission state (populated after session check)
+var adminPermissions = {};
+var isSuperAdmin = false;
+var adminRole = '';
+var currentAdminUsername = 'Admin';
+
+function hasPermission(perm) {
+    if (isSuperAdmin) return true;
+    return !!adminPermissions[perm];
+}
+
+function applyPermissions() {
+    // Show/hide nav items based on permissions
+    document.querySelectorAll('.perm-nav-admins').forEach(el => {
+        el.style.display = hasPermission('admins') ? '' : 'none';
+    });
+    document.querySelectorAll('.perm-nav-roles').forEach(el => {
+        el.style.display = hasPermission('roles') ? '' : 'none';
+    });
+    document.querySelectorAll('.perm-roles-manage').forEach(el => {
+        el.style.display = hasPermission('roles_manage') ? '' : 'none';
+    });
+    // Update header info
+    const nameEl = document.getElementById('adminName');
+    const roleEl = document.getElementById('adminRoleLabel');
+    const avatarEl = document.getElementById('adminAvatar');
+    if (nameEl) nameEl.textContent = currentAdminUsername;
+    if (roleEl) roleEl.textContent = adminRole || 'Admin';
+    if (avatarEl) avatarEl.textContent = (currentAdminUsername[0] || 'A').toUpperCase();
+}
+
+>>>>>>> Stashed changes
 function showAdminLoginOverlay() {
     const loginOverlay = document.getElementById('loginOverlay');
     const adminWrapper = document.getElementById('adminWrapper');
@@ -202,7 +246,7 @@ function hideSectionDataLoader(sectionName) {
 window.addEventListener('load', function() {
     // Complete the loader and ensure it hides
     completeLoader();
-    
+
     // Wait for loader to fully hide
     setTimeout(() => {
         const isAdmin = sessionStorage.getItem('zina_admin');
@@ -244,8 +288,11 @@ window.addEventListener('load', function() {
                     const section = getSectionFromHash() || localStorage.getItem('adminCurrentSection') || 'menu';
                     showSection(section);
                 } else {
+                    // Show login overlay only if not authenticated
                     if (loginOverlay) {
                         loginOverlay.style.display = 'flex';
+                        loginOverlay.style.opacity = '1';
+                        loginOverlay.style.pointerEvents = 'auto';
                     }
                     if (adminWrapper) {
                         adminWrapper.style.display = 'none';
@@ -253,10 +300,13 @@ window.addEventListener('load', function() {
                 }
             })
             .catch(() => {
+                // Show login overlay on error
                 const loginOverlay = document.getElementById('loginOverlay');
                 const adminWrapper = document.getElementById('adminWrapper');
                 if (loginOverlay) {
                     loginOverlay.style.display = 'flex';
+                    loginOverlay.style.opacity = '1';
+                    loginOverlay.style.pointerEvents = 'auto';
                 }
                 if (adminWrapper) {
                     adminWrapper.style.display = 'none';
@@ -469,7 +519,13 @@ function showSection(section) {
         menu:       'Plats & Menus',
         categories: 'Catégories',
         orders:     'Commandes',
+<<<<<<< Updated upstream
         users:      'Employés',
+=======
+        users:      'Utilisateurs',
+        admins:     'Administrateurs',
+        roles:      'Rôles & Permissions',
+>>>>>>> Stashed changes
         settings:   'Paramètres'
     };
     const pageTitleEl = document.getElementById('pageTitle');
@@ -645,7 +701,7 @@ function loadMenusFromBackend() {
                     category_id: menu.category_id || null,
                     image: menu.image || '🍽️',
                     available: menu.available !== false,
-                    popular: false,
+                    popular: menu.popular === true,
                     prepTime: 15
                 }));
             } else {
@@ -753,7 +809,6 @@ function deleteCategory(id) {
 // ========================================
 async function loadOrders() {
     const tbody = document.getElementById('ordersTableBody');
-    const filter = document.getElementById('ordersFilter').value;
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
@@ -791,20 +846,26 @@ async function loadOrders() {
     adminFetch('/api/admin/orders')
         .then(response => response.json())
         .then(apiOrders => {
-            // Convert API orders to our format
             orders = apiOrders.map(order => ({
                 id: order.order_id,
                 client: order.user_id || 'Client',
                 items: order.items || [],
                 itemsCount: (order.items || []).length,
                 total: order.total_amount,
+<<<<<<< Updated upstream
                 payment: order.payment?.payment_method || 'Non spécifié',
+=======
+                payment: order.payment?.payment_method || '',
+                transaction_status: order.payment?.transaction_status || 'N/A',
+>>>>>>> Stashed changes
                 status: order.order_status,
+                rawDate: order.created_at || null,
                 time: order.created_at ? new Date(order.created_at).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'}) : 'N/A',
                 pickup_time: order.pickup_time,
                 prep_time_minutes: order.prep_time_minutes || 15
             }));
 
+<<<<<<< Updated upstream
         let filteredOrders = orders;
 
         if (filter !== 'all') {
@@ -876,13 +937,89 @@ async function loadOrders() {
                 `).join('');
             }
 
+=======
+>>>>>>> Stashed changes
             hideSectionDataLoader('orders');
+            applyOrderFilters();
         })
         .catch(error => {
             console.error('Error loading orders:', error);
             tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><i class="fas fa-exclamation-triangle"></i><h3>Erreur de chargement</h3><p>Impossible de charger les commandes</p></div></td></tr>';
             hideSectionDataLoader('orders');
         });
+}
+
+function applyOrderFilters() {
+    const tbody = document.getElementById('ordersTableBody');
+    const search  = (document.getElementById('ordersSearch')?.value || '').trim().toLowerCase();
+    const status  = document.getElementById('ordersFilter')?.value || 'all';
+    const payment = document.getElementById('ordersPaymentFilter')?.value || 'all';
+    const dateFrom = document.getElementById('ordersDateFrom')?.value || '';
+    const dateTo   = document.getElementById('ordersDateTo')?.value || '';
+
+    let filtered = orders.filter(o => {
+        if (status !== 'all' && o.status !== status) return false;
+
+        if (payment !== 'all') {
+            const method = (o.payment || '').toLowerCase();
+            if (!method.includes(payment)) return false;
+        }
+
+        if (dateFrom || dateTo) {
+            if (!o.rawDate) return false;
+            const d = new Date(o.rawDate);
+            const dayStr = d.toISOString().slice(0, 10);
+            if (dateFrom && dayStr < dateFrom) return false;
+            if (dateTo   && dayStr > dateTo)   return false;
+        }
+
+        if (search) {
+            const matchId = String(o.id).includes(search);
+            const matchClient = o.client.toLowerCase().includes(search);
+            if (!matchId && !matchClient) return false;
+        }
+
+        return true;
+    });
+
+    const countEl = document.getElementById('ordersResultCount');
+    if (countEl) countEl.textContent = `${filtered.length} commande${filtered.length !== 1 ? 's' : ''}`;
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><i class="fas fa-shopping-cart"></i><h3>Aucune commande</h3><p>Aucun résultat pour ces filtres</p></div></td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(order => `
+        <tr>
+            <td>#${order.id}</td>
+            <td>${order.client}</td>
+            <td>${order.itemsCount} article${order.itemsCount !== 1 ? 's' : ''}</td>
+            <td><strong>${(order.total || 0).toLocaleString('fr-FR')} FCFA</strong></td>
+            <td>${formatPaymentMethod(order.payment, order.transaction_status)}</td>
+            <td>
+                <span class="status-badge ${getStatusClass(order.status)}">
+                    ${getStatusText(order.status)}
+                </span>
+            </td>
+            <td>${order.time}</td>
+            <td>
+                <button class="action-btn edit" onclick="viewOrderDetails(${order.id})">
+                    <i class="fas fa-eye"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function resetOrdersFilters() {
+    const el = id => document.getElementById(id);
+    if (el('ordersSearch'))        el('ordersSearch').value = '';
+    if (el('ordersFilter'))        el('ordersFilter').value = 'all';
+    if (el('ordersPaymentFilter')) el('ordersPaymentFilter').value = 'all';
+    if (el('ordersDateFrom'))      el('ordersDateFrom').value = '';
+    if (el('ordersDateTo'))        el('ordersDateTo').value = '';
+    applyOrderFilters();
 }
 
 function viewOrderDetails(id) {
@@ -955,7 +1092,13 @@ function viewOrderDetails(id) {
                     </div>
                     <div class="detail-row">
                         <strong>Paiement:</strong>
+<<<<<<< Updated upstream
                         <span>${order.payment?.payment_method || 'Non spécifié'} (${order.payment?.payment_status || 'N/A'})</span>
+=======
+                        <span id="paymentDisplay">
+                            ${formatPaymentMethod(order.payment?.payment_method, order.payment?.transaction_status)}
+                        </span>
+>>>>>>> Stashed changes
                     </div>
                     <div class="detail-row">
                         <strong>Statut actuel:</strong>
@@ -1057,488 +1200,60 @@ function updateOrderStatus() {
     });
 }
 
-// ========================================
-// Menu Management
-// ========================================
-function loadMenus() {
-    loadMenusFromBackend();
-}
+<<<<<<< Updated upstream
+=======
+function updatePaymentMethod() {
+    const orderId = document.getElementById('currentOrderId').value;
 
-function renderMenus() {
-    const grid = document.getElementById('menuGrid');
-    if (!grid) return;
-
-    if (menus.length === 0) {
-        grid.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><h3>Aucun plat</h3><p>Commencez par ajouter un plat</p></div>';
-        hideSectionDataLoader('menu');
+    if (!orderId) {
+        showToast('Impossible de mettre à jour : commande non identifiée', 'error');
         return;
     }
 
-    const categoryFilter = document.getElementById('categoryFilter')?.value || '';
-    const availabilityFilter = document.getElementById('availabilityFilter')?.value || '';
-    const searchQuery = (document.getElementById('menuSearch')?.value || '').toLowerCase().trim();
-
-    let filteredMenus = menus;
-
-    if (categoryFilter) {
-        filteredMenus = filteredMenus.filter(m => String(m.category_id) === String(categoryFilter));
-    }
-    if (availabilityFilter === 'available') {
-        filteredMenus = filteredMenus.filter(m => m.available);
-    } else if (availabilityFilter === 'unavailable') {
-        filteredMenus = filteredMenus.filter(m => !m.available);
-    }
-    if (searchQuery) {
-        filteredMenus = filteredMenus.filter(m =>
-            (m.name || '').toLowerCase().includes(searchQuery) ||
-            (m.description || '').toLowerCase().includes(searchQuery) ||
-            (m.category || '').toLowerCase().includes(searchQuery)
-        );
-    }
-
-    if (filteredMenus.length === 0) {
-        grid.innerHTML = '<div class="empty-state"><i class="fas fa-search"></i><h3>Aucun résultat</h3><p>Essayez d\'autres critères</p></div>';
-        hideSectionDataLoader('menu');
-        return;
-    }
-
-    grid.innerHTML = filteredMenus.map(menu => `
-        <div class="menu-card${selectedMenuIds.has(menu.id) ? ' selected' : ''}" data-id="${menu.id}">
-            <label class="mc-select" onclick="event.stopPropagation()">
-                <input type="checkbox" ${selectedMenuIds.has(menu.id) ? 'checked' : ''}
-                       onchange="toggleMenuSelection(${menu.id})">
-                <span class="mc-sel-box">
-                    <svg class="mc-sel-check" viewBox="0 0 12 10" fill="none">
-                        <path d="M1 5L4.5 8.5L11 1" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </span>
-            </label>
-            <div class="menu-card-image">
-                <img src="${proxyImg(menu.image)}" alt="${menu.name}" onerror="this.src='/static/images/food/salade.jpg'">
-                <div class="menu-card-badges">
-                    ${!menu.available ? '<span class="menu-badge" style="background:var(--danger);color:white;">Indisponible</span>' : ''}
-                </div>
-            </div>
-            <div class="menu-card-content">
-                <div class="menu-card-header">
-                    <h4 class="menu-card-title">${menu.name}</h4>
-                    <span class="menu-card-price">${menu.price.toLocaleString('fr-FR')} FCFA</span>
-                </div>
-                <p class="menu-card-description">${menu.description || ''}</p>
-                <div class="menu-card-footer">
-                    <div class="menu-card-meta">
-                        <span><i class="fas fa-tag"></i> ${menu.category}</span>
-                    </div>
-                    <div class="menu-card-actions">
-                        <button class="action-btn toggle-avail ${menu.available ? 'is-available' : 'is-unavailable'}"
-                                onclick="quickToggleAvailability(${menu.id})"
-                                title="${menu.available ? 'Rendre indisponible' : 'Rendre disponible'}">
-                            <i class="fas fa-${menu.available ? 'eye-slash' : 'eye'}"></i>
-                        </button>
-                        <button class="action-btn edit" onclick="editMenu(${menu.id})" title="Modifier">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="action-btn delete" onclick="deleteMenu(${menu.id})" title="Supprimer">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `).join('');
-    hideSectionDataLoader('menu');
-}
-
-function filterMenus() {
-    renderMenus();
-}
-
-// ========================================
-// Menu Selection & Bulk Actions
-// ========================================
-function toggleMenuSelection(id) {
-    if (selectedMenuIds.has(id)) {
-        selectedMenuIds.delete(id);
-    } else {
-        selectedMenuIds.add(id);
-    }
-    const card = document.querySelector(`.menu-card[data-id="${id}"]`);
-    if (card) {
-        card.classList.toggle('selected', selectedMenuIds.has(id));
-        const cb = card.querySelector('.mc-select input');
-        if (cb) cb.checked = selectedMenuIds.has(id);
-    }
-    updateBulkBar();
-}
-
-function selectAllMenus() {
-    document.querySelectorAll('.menu-card[data-id]').forEach(card => {
-        selectedMenuIds.add(parseInt(card.dataset.id));
-        card.classList.add('selected');
-        const cb = card.querySelector('.mc-select input');
-        if (cb) cb.checked = true;
-    });
-    updateBulkBar();
-}
-
-function deselectAllMenus() {
-    selectedMenuIds.clear();
-    document.querySelectorAll('.menu-card[data-id]').forEach(card => {
-        card.classList.remove('selected');
-        const cb = card.querySelector('.mc-select input');
-        if (cb) cb.checked = false;
-    });
-    updateBulkBar();
-}
-
-function toggleSelectAll(checkbox) {
-    if (checkbox.checked) {
-        selectAllMenus();
-    } else {
-        deselectAllMenus();
-    }
-}
-
-function updateBulkBar() {
-    const bar = document.getElementById('bulkActionBar');
-    const count = selectedMenuIds.size;
-    if (bar) {
-        bar.style.display = count > 0 ? 'flex' : 'none';
-        const countEl = document.getElementById('bulkCount');
-        if (countEl) countEl.textContent = count;
-    }
-    const selectAllCb = document.getElementById('selectAllMenus');
-    const checkmark = document.getElementById('selectAllCheckmark');
-    const minus = document.getElementById('selectAllMinus');
-    if (selectAllCb) {
-        const visibleCards = document.querySelectorAll('.menu-card[data-id]');
-        const total = visibleCards.length;
-        const allSelected = total > 0 && Array.from(visibleCards).every(c => selectedMenuIds.has(parseInt(c.dataset.id)));
-        const someSelected = !allSelected && count > 0;
-        selectAllCb.checked = allSelected;
-        selectAllCb.indeterminate = someSelected;
-        if (checkmark) checkmark.style.display = allSelected ? 'block' : 'none';
-        if (minus) minus.style.display = someSelected ? 'block' : 'none';
-    }
-}
-
-function quickToggleAvailability(id) {
-    const menu = menus.find(m => m.id === id);
-    if (!menu) return;
-    const newVal = !menu.available;
-    adminFetch(`/api/admin/menus/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_available: newVal })
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.status === 'success') {
-            menu.available = newVal;
-            showToast(`"${menu.name}" marqué ${newVal ? 'disponible' : 'indisponible'}`, 'success');
-            renderMenus();
-        } else {
-            showToast(data.message || 'Erreur', 'error');
-        }
-    })
-    .catch(() => showToast('Erreur réseau', 'error'));
-}
-
-function bulkSetAvailable(isAvailable) {
-    const ids = Array.from(selectedMenuIds);
-    if (!ids.length) return;
-    adminFetch('/api/admin/menus/bulk', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids, data: { is_available: isAvailable } })
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.status === 'success') {
-            ids.forEach(id => {
-                const m = menus.find(m => m.id === id);
-                if (m) m.available = isAvailable;
-            });
-            showToast(data.message, 'success');
-            deselectAllMenus();
-            renderMenus();
-        } else {
-            showToast(data.message || 'Erreur', 'error');
-        }
-    })
-    .catch(() => showToast('Erreur réseau', 'error'));
-}
-
-function bulkDeleteMenus() {
-    const ids = Array.from(selectedMenuIds);
-    if (!ids.length) return;
+    // Show confirmation dialog for counter payment
     showConfirmModal(
-        'Supprimer les plats sélectionnés',
-        `Voulez-vous vraiment supprimer ${ids.length} plat(s) ? Cette action est irréversible.`,
-        function () {
-            adminFetch('/api/admin/menus/bulk', {
-                method: 'DELETE',
+        'Paiement au Comptoir',
+        'Confirmer que le client a payé au comptoir ?\n\nLe statut de la commande sera mis à jour automatiquement.',
+        function() {
+            const btn = document.getElementById('updatePaymentBtn');
+            if (btn) { 
+                btn.disabled = true; 
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Traitement...'; 
+            }
+
+            adminFetch(`/api/admin/orders/${orderId}/payment`, {
+                method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ids })
+                body: JSON.stringify({ 
+                    payment_method: 'counter',
+                    transaction_status: 'completed'
+                })
             })
-            .then(r => r.json())
+            .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
-                    menus = menus.filter(m => !ids.includes(m.id));
-                    showToast(data.message, 'success');
-                    deselectAllMenus();
-                    renderMenus();
+                    showToast(data.message || 'Paiement au comptoir enregistré', 'success');
+                    closeOrderDetails();
+                    loadOrders();
                 } else {
-                    showToast(data.message || 'Erreur', 'error');
+                    showToast('Erreur: ' + (data.message || 'Échec'), 'error');
                 }
             })
-            .catch(() => showToast('Erreur réseau', 'error'));
+            .catch(error => {
+                console.error('Error updating payment method:', error);
+                showToast('Erreur lors de la mise à jour du paiement', 'error');
+            })
+            .finally(() => {
+                if (btn) { 
+                    btn.disabled = false; 
+                    btn.innerHTML = '<i class="fas fa-cash-register"></i> <span>Paiement au Comptoir</span>'; 
+                }
+            });
         }
     );
 }
 
-function openMenuModal(menuId = null) {
-    const modal = document.getElementById('menuModal');
-    const form = document.getElementById('menuForm');
-    form.reset();
-    const editIdEl = document.getElementById('menuId');
-    if (editIdEl) editIdEl.value = '';
-
-    const preview = document.getElementById('menuImagePreview');
-    if (preview) { preview.src = ''; preview.style.display = 'none'; }
-
-    if (menuId) {
-        const menu = menus.find(m => m.id === Number(menuId));
-        if (menu) {
-            if (editIdEl) editIdEl.value = menu.id;
-            const titleEl = document.getElementById('menuModalTitle');
-            if (titleEl) titleEl.textContent = 'Modifier un Plat';
-            document.getElementById('menuName').value = menu.name;
-            document.getElementById('menuPrice').value = menu.price;
-            const catEl = document.getElementById('menuCategory');
-            if (catEl) catEl.value = menu.category_id || '';
-            const prepEl = document.getElementById('menuPrepTime');
-            if (prepEl) prepEl.value = menu.prepTime || 15;
-            document.getElementById('menuDescription').value = menu.description || '';
-            const availEl = document.getElementById('menuAvailable');
-            if (availEl) availEl.value = String(menu.available !== false);
-            if (preview && menu.image && (menu.image.startsWith('http') || menu.image.startsWith('static'))) {
-                preview.src = menu.image.startsWith('http') ? menu.image : '/' + menu.image;
-                preview.style.display = 'block';
-            }
-        }
-    } else {
-        const titleEl = document.getElementById('menuModalTitle');
-        if (titleEl) titleEl.textContent = 'Ajouter un Plat';
-    }
-    modal.classList.add('active');
-}
-
-function closeMenuModal() {
-    document.getElementById('menuModal').classList.remove('active');
-}
-
-function saveMenu(event) {
-    event.preventDefault();
-    const editIdEl = document.getElementById('menuId');
-    const menuId = editIdEl && editIdEl.value ? parseInt(editIdEl.value) : null;
-
-    const menuData = {
-        product_name: document.getElementById('menuName').value.trim(),
-        price: parseFloat(document.getElementById('menuPrice').value),
-        category_id: parseInt(document.getElementById('menuCategory').value),
-        description: document.getElementById('menuDescription').value.trim(),
-        is_available: document.getElementById('menuAvailable')?.value !== 'false'
-    };
-
-    // Capture the file before closing the modal (form.reset() would clear it)
-    const fileInput = document.getElementById('menuImageFile');
-    const imageFile = fileInput && fileInput.files[0] ? fileInput.files[0] : null;
-
-    closeMenuModal();
-    showSectionDataLoader('menu');
-
-    const url = menuId ? `/api/admin/menus/${menuId}` : '/api/admin/menus';
-    adminFetch(url, {
-        method: menuId ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(menuData)
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.status !== 'success') {
-            showToast('Erreur: ' + (data.message || 'Échec'), 'error');
-            hideSectionDataLoader('menu');
-            return;
-        }
-        const savedId = menuId || data.id;
-        if (imageFile && savedId) {
-            const fd = new FormData();
-            fd.append('image', imageFile);
-            return adminFetch(`/api/admin/menus/${savedId}/image`, { method: 'POST', body: fd })
-                .then(() => showToast(menuId ? 'Plat mis à jour' : 'Plat créé', 'success'))
-                .catch(() => showToast('Plat enregistré (image non uploadée)', 'warning'))
-                .finally(() => loadMenusFromBackend());
-        }
-        showToast(menuId ? 'Plat mis à jour' : 'Plat créé', 'success');
-        loadMenusFromBackend();
-    })
-    .catch(err => {
-        console.error('saveMenu error:', err);
-        showToast('Erreur lors de l\'enregistrement', 'error');
-        hideSectionDataLoader('menu');
-    });
-}
-
-function editMenu(id) {
-    openMenuModal(id);
-}
-
-// ========================================
-// Categories Management
-// ========================================
-function renderCategories() {
-    const grid = document.getElementById('categoriesGrid');
-    if (!grid) return;
-
-    if (categories.length === 0) {
-        grid.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><h3>Aucune catégorie</h3><p>Commencez par ajouter une catégorie</p></div>';
-        return;
-    }
-
-    grid.innerHTML = categories.map(cat => `
-        <div class="category-card" id="cat-${cat.id}">
-            ${cat.image
-                ? `<img src="${proxyImg(cat.image)}" alt="${cat.name}" style="width:100%;height:100px;object-fit:cover;border-radius:8px 8px 0 0;display:block;" onerror="this.style.display='none'">`
-                : `<div style="width:100%;height:80px;display:flex;align-items:center;justify-content:center;font-size:2.5rem;">${cat.emoji}</div>`
-            }
-            <h3 class="category-name">${cat.emoji} ${cat.name}</h3>
-            <p class="category-count">${cat.count} plats</p>
-            <div class="category-actions">
-                <button class="action-btn edit" onclick="editCategory(${cat.id})">
-                    <i class="fas fa-edit"></i>
-                </button>
-                <button class="action-btn delete" onclick="deleteCategory(${cat.id})">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </div>
-        </div>
-    `).join('');
-}
-
-function populateCategoryDropdowns() {
-    const filterSelect = document.getElementById('categoryFilter');
-    const menuSelect = document.getElementById('menuCategory');
-    if (!filterSelect || !menuSelect) return;
-
-    const prevFilter = filterSelect.value;
-    const prevMenu = menuSelect.value;
-
-    filterSelect.innerHTML = '<option value="">📋 Toutes les catégories</option>';
-    menuSelect.innerHTML = '<option value="" disabled selected>🍽️ Sélectionnez une catégorie</option>';
-
-    categories.forEach(cat => {
-        [filterSelect, menuSelect].forEach(sel => {
-            const opt = document.createElement('option');
-            opt.value = cat.id;
-            opt.textContent = `${cat.emoji || '🍽️'} ${cat.name}`;
-            sel.appendChild(opt);
-        });
-    });
-
-    if (prevFilter) filterSelect.value = prevFilter;
-    if (prevMenu) menuSelect.value = prevMenu;
-}
-
-function openCategoryModal(catId = null) {
-    const modal = document.getElementById('categoryModal');
-    const form = document.getElementById('categoryForm');
-    form.reset();
-    editingCategoryId = null;
-
-    const preview = document.getElementById('categoryImagePreview');
-    if (preview) preview.style.display = 'none';
-
-    if (catId) {
-        const cat = categories.find(c => c.id === Number(catId));
-        if (cat) {
-            editingCategoryId = cat.id;
-            document.getElementById('categoryModalTitle').textContent = 'Modifier une Catégorie';
-            document.getElementById('categoryName').value = cat.name;
-            document.getElementById('categoryDescription').value = cat.description || '';
-            if (preview && cat.image) {
-                preview.src = cat.image;
-                preview.style.display = 'block';
-            }
-        } else {
-            document.getElementById('categoryModalTitle').textContent = 'Ajouter une Catégorie';
-        }
-    } else {
-        document.getElementById('categoryModalTitle').textContent = 'Ajouter une Catégorie';
-    }
-    modal.classList.add('active');
-}
-
-function closeCategoryModal() {
-    document.getElementById('categoryModal').classList.remove('active');
-}
-
-function saveCategory(event) {
-    event.preventDefault();
-
-    const name = document.getElementById('categoryName').value.trim();
-    if (!name) { showToast('Le nom est requis', 'error'); return; }
-
-    const categoryData = {
-        category_name: name,
-        description: document.getElementById('categoryDescription').value.trim()
-    };
-
-    const catIdToUpdate = editingCategoryId;
-    // Capture file before modal closes (form reset would clear it)
-    const imageFile = document.getElementById('categoryImage')?.files[0] || null;
-
-    closeCategoryModal();
-    showSectionDataLoader('categories');
-
-    const url = catIdToUpdate ? `/api/admin/categories/${catIdToUpdate}` : '/api/admin/categories';
-    adminFetch(url, {
-        method: catIdToUpdate ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(categoryData)
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.status !== 'success') {
-            showToast('Erreur: ' + (data.message || 'Échec'), 'error');
-            hideSectionDataLoader('categories');
-            return;
-        }
-        const savedId = catIdToUpdate || data.id;
-        if (imageFile && savedId) {
-            const fd = new FormData();
-            fd.append('image', imageFile);
-            return fetch(`/api/categories/${savedId}/image`, {
-                method: 'POST', credentials: 'same-origin', body: fd
-            })
-            .then(() => showToast(catIdToUpdate ? 'Catégorie et image mises à jour' : 'Catégorie créée', 'success'))
-            .catch(() => showToast(catIdToUpdate ? 'Catégorie mise à jour (image non enregistrée)' : 'Catégorie créée (image non enregistrée)', 'warning'))
-            .finally(() => loadCategoriesFromBackend());
-        }
-        showToast(catIdToUpdate ? 'Catégorie mise à jour' : 'Catégorie créée', 'success');
-        loadCategoriesFromBackend();
-    })
-    .catch(err => {
-        console.error('saveCategory error:', err);
-        showToast('Erreur lors de l\'enregistrement', 'error');
-        hideSectionDataLoader('categories');
-    });
-}
-
-function editCategory(id) {
-    openCategoryModal(id);
-}
-
+>>>>>>> Stashed changes
 // ========================================
 // Dashboard helpers
 // ========================================
@@ -1555,7 +1270,7 @@ function convertAPIMenu(data) {
                 category_id: item.category_id,
                 image: item.image || '',
                 available: item.is_available !== false,
-                popular: false,
+                popular: item.is_popular === true,
                 prepTime: 15
             });
         });
@@ -1573,6 +1288,49 @@ function updateDashboardStats() {
     setEl('availableMenus', menus.filter(m => m.available !== false).length);
     setEl('pendingOrders', orders.filter(o => (o.order_status || o.status) === 'pending').length);
     setEl('totalUsers', users.length);
+
+    // Update status breakdown
+    updateStatusBreakdown();
+}
+
+function updateStatusBreakdown() {
+    const container = document.getElementById('statusBreakdown');
+    if (!container) return;
+
+    const statusCounts = {
+        'pending': 0,
+        'confirmed': 0,
+        'preparing': 0,
+        'ready': 0,
+        'completed': 0,
+        'cancelled': 0
+    };
+
+    orders.forEach(o => {
+        const status = (o.order_status || o.status || 'pending').toLowerCase();
+        if (statusCounts.hasOwnProperty(status)) {
+            statusCounts[status]++;
+        }
+    });
+
+    const total = orders.length || 1; // Avoid division by zero
+
+    container.innerHTML = Object.entries(statusCounts).map(([status, count]) => {
+        const percentage = Math.round((count / total) * 100);
+        const statusClass = getStatusClass(status);
+        const statusText = getStatusText(status);
+        return `
+            <div class="status-item">
+                <div class="status-info">
+                    <span class="status-label">${statusText}</span>
+                    <span class="status-count">${count}</span>
+                </div>
+                <div class="status-bar">
+                    <div class="status-progress ${statusClass}" style="width: ${percentage}%"></div>
+                </div>
+            </div>
+        `;
+    }).join('');
 }
 
 function updateRecentOrdersTable() {
@@ -1958,6 +1716,7 @@ function previewCategoryImage(input) {
     }
 }
 
+<<<<<<< Updated upstream
 // Export functions
 window.showSection = showSection;
 window.showSectionLoader = showSectionLoader;
@@ -2001,3 +1760,55 @@ window.updateBulkBar = updateBulkBar;
 window.quickToggleAvailability = quickToggleAvailability;
 window.bulkSetAvailable = bulkSetAvailable;
 window.bulkDeleteMenus = bulkDeleteMenus;
+=======
+// ========================================
+// Auth — Slide between Login and Register
+// ========================================
+function showRegisterForm() {
+    document.getElementById('authStage').classList.add('show-register');
+    // Clear register form when opening it
+    const form = document.getElementById('adminRegisterForm');
+    if (form) form.reset();
+}
+
+function showLoginForm() {
+    document.getElementById('authStage').classList.remove('show-register');
+}
+
+function handleAdminRegister(event) {
+    event.preventDefault();
+    const username = document.getElementById('regUsername').value.trim();
+    const email = document.getElementById('regEmail').value.trim();
+    const password = document.getElementById('regPassword').value;
+    const confirm = document.getElementById('regPasswordConfirm').value;
+
+    if (password !== confirm) {
+        showToast('Les mots de passe ne correspondent pas', 'error');
+        return;
+    }
+
+    const btn = event.target.querySelector('button[type="submit"]');
+    setButtonLoading(btn, 'Envoi...');
+
+    fetch('/api/admin/register', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, email, password }),
+    })
+        .then(r => r.json().then(d => ({ ok: r.ok, d })))
+        .then(({ ok, d }) => {
+            if (ok) {
+                showToast(d.message || 'Demande envoyée avec succès', 'success');
+                event.target.reset();
+                showLoginForm();
+            } else {
+                showToast(d.message || 'Erreur lors de l\'envoi', 'error');
+            }
+        })
+        .catch(() => showToast('Erreur réseau', 'error'))
+        .finally(() => resetButton(btn));
+}
+
+
+>>>>>>> Stashed changes

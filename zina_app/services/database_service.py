@@ -13,7 +13,7 @@ from supabase import Client
 from zina_app.models import (
     ProductOption, User,
     ProductResponse, CategoryResponse, OrderResponse,
-    CreateOrderRequest
+    CreateOrderRequest, Transaction, TransactionResponse, CreateTransactionRequest
 )
 from zina_app.services.category_image_service import CategoryImageService
 
@@ -54,7 +54,7 @@ class DatabaseService:
 
     # ── Public product operations (3 queries max) ─────────────────────────────
 
-    async def get_products(self, category_id: Optional[int] = None, available_only: bool = True) -> List[ProductResponse]:
+    def get_products(self, category_id: Optional[int] = None, available_only: bool = True) -> List[ProductResponse]:
         try:
             rows = self._fetch_all_products_raw(category_id=category_id, available_only=available_only)
             if not rows:
@@ -82,7 +82,7 @@ class DatabaseService:
             print(f"Error fetching products: {e}")
             return []
 
-    async def get_product_by_id(self, product_id: int) -> Optional[ProductResponse]:
+    def get_product_by_id(self, product_id: int) -> Optional[ProductResponse]:
         """Fetch a single product without loading all others."""
         try:
             rows = self.supabase.table('products').select('*').eq('product_id', product_id).limit(1).execute().data or []
@@ -108,7 +108,7 @@ class DatabaseService:
 
     # ── Category operations (3 queries total) ─────────────────────────────────
 
-    async def get_categories(self, available_only: bool = True) -> List[CategoryResponse]:
+    def get_categories(self, available_only: bool = True) -> List[CategoryResponse]:
         try:
             cats_data = self.supabase.table('categories').select('*').execute().data or []
             if not cats_data:
@@ -161,7 +161,7 @@ class DatabaseService:
             return []
 
     # Order operations
-    async def create_order(self, order_request: CreateOrderRequest) -> Optional[OrderResponse]:
+    def create_order(self, order_request: CreateOrderRequest) -> Optional[OrderResponse]:
         try:
             # Calculate total amount and build order items
             total_amount = Decimal('0')
@@ -175,7 +175,11 @@ class DatabaseService:
 
             for item_request in order_request.items:
                 print(f"[DEBUG] Processing item: product_id={item_request.product_id}, quantity={item_request.quantity}")
+<<<<<<< Updated upstream
                 product = product_by_id.get(item_request.product_id)
+=======
+                product = self.get_product_by_id(item_request.product_id)
+>>>>>>> Stashed changes
 
                 if not product:
                     print(f"[WARNING] Product {item_request.product_id} not found in database")
@@ -262,9 +266,6 @@ class DatabaseService:
                 # Default: pickup after prep time
                 pickup_time = now + timedelta(minutes=prep_time_minutes)
 
-            # Generate a unique order ID
-            order_id = int(datetime.now().timestamp())  # Use timestamp as order ID
-
             # Handle user ID - create a guest user if no user_id provided
             user_id_str = None
             if order_request.user_id:
@@ -330,10 +331,9 @@ class DatabaseService:
                     print(f"Error: Could not create guest user: {guest_error}")
                     return None
 
-            # Create order
+            # Create order — let the DB generate the order_id
             order_data = {
-                'order_id': order_id,
-                'user_id': user_id_str,  # Always has a value (real user or guest user)
+                'user_id': user_id_str,
                 'total_amount': int(total_amount),  # Convert to int for BIGINT column
                 'order_status': 'pending',
                 'pickup_time': pickup_time.isoformat(),
@@ -346,6 +346,8 @@ class DatabaseService:
             if not order_response.data:
                 print("[ERROR] Order creation returned no data")
                 return None
+
+            order_id = order_response.data[0]['order_id']
 
             # Create order items if order_items table exists
             print(f"[DEBUG] Inserting {len(order_items_data)} order items")
@@ -382,7 +384,7 @@ class DatabaseService:
             # Build order items response with product details
             items_response = []
             for item_request in order_request.items:
-                product = await self.get_product_by_id(item_request.product_id)
+                product = self.get_product_by_id(item_request.product_id)
 
                 if product:
                     # Calculate final unit_price with options
@@ -451,7 +453,7 @@ class DatabaseService:
             traceback.print_exc()
             return None
 
-    async def get_order_by_id(self, order_id: int) -> Optional[OrderResponse]:
+    def get_order_by_id(self, order_id: int) -> Optional[OrderResponse]:
         try:
             response = self.supabase.table('orders').select('*').eq('order_id', order_id).execute()
             if not response.data:
@@ -479,8 +481,12 @@ class DatabaseService:
                     product_by_id = {p.product_id: p for p in (products or [])}
 
                     for item in items_response.data:
+<<<<<<< Updated upstream
                         pid = item.get('product_id')
                         product = product_by_id.get(pid)
+=======
+                        product = self.get_product_by_id(item['product_id'])
+>>>>>>> Stashed changes
                         if product:
                             items.append({
                                 'product_id': product.product_id,
@@ -515,7 +521,7 @@ class DatabaseService:
             return None
 
     # User operations
-    async def get_user_by_id(self, user_id: uuid.UUID) -> Optional[User]:
+    def get_user_by_id(self, user_id: uuid.UUID) -> Optional[User]:
         try:
             response = self.supabase.table('users').select('*').eq('user_id', str(user_id)).execute()
             if not response.data:
@@ -542,7 +548,7 @@ class DatabaseService:
             print(f"Error fetching user: {e}")
             return None
 
-    async def create_user(self, user: User) -> Optional[User]:
+    def create_user(self, user: User) -> Optional[User]:
         try:
             user_data = {
                 'user_id': str(user.user_id),
@@ -561,7 +567,7 @@ class DatabaseService:
             print(f"Error creating user: {e}")
             return None
 
-    async def get_orders_by_user_id(self, user_id: uuid.UUID) -> List[OrderResponse]:
+    def get_orders_by_user_id(self, user_id: uuid.UUID) -> List[OrderResponse]:
         """Get all orders for a specific user"""
         try:
             user_id_str = str(user_id)
@@ -575,7 +581,7 @@ class DatabaseService:
                     items_response = self.supabase.table('order_items').select('*').eq('order_id', order_data['order_id']).execute()
                     if items_response.data:
                         for item in items_response.data:
-                            product = await self.get_product_by_id(item['product_id'])
+                            product = self.get_product_by_id(item['product_id'])
                             if product:
                                 items.append({
                                     'product_id': product.product_id,
@@ -618,24 +624,198 @@ class DatabaseService:
             print(f"Error getting orders by user ID: {e}")
             return []
 
-    # Payment operations - handled at counter
-    # This function may be used when implementing counter payment processing
-    async def update_payment_status(self, payment_id: int, status: str, transaction_reference: Optional[str] = None) -> bool:
+    # ── Transaction operations ────────────────────────────────────────────────
+    
+    def create_transaction(self, transaction_request: CreateTransactionRequest) -> Optional[TransactionResponse]:
+        """Create a new transaction record"""
+        try:
+            import hashlib
+            import secrets
+            ref_data = f"{transaction_request.order_id}-{transaction_request.user_id}-{secrets.token_hex(4)}"
+            internal_reference = hashlib.md5(ref_data.encode()).hexdigest()[:12].upper()
+
+            transaction_data = {
+                'order_id': transaction_request.order_id,
+                'user_id': str(transaction_request.user_id),
+                'transaction_type': transaction_request.transaction_type,
+                'amount': int(transaction_request.amount),  # Convert to int for BIGINT
+                'currency': 'XOF',
+                'payment_method': transaction_request.payment_method,
+                'payment_provider': transaction_request.payment_provider,
+                'transaction_status': 'pending',
+                'transaction_reference': transaction_request.transaction_reference,
+                'internal_reference': internal_reference,
+                'notes': transaction_request.notes,
+                'processing_location': transaction_request.processing_location,
+                'created_at': datetime.now().isoformat()
+            }
+            
+            response = self.supabase.table('transactions').insert(transaction_data).execute()
+            if not response.data:
+                return None
+                
+            transaction_data = response.data[0]
+            
+            # Get order details for response
+            order_response = self.get_order_by_id(transaction_request.order_id)
+            
+            return TransactionResponse(
+                transaction_id=transaction_data['transaction_id'],
+                order_id=transaction_data['order_id'],
+                user_id=uuid.UUID(transaction_data['user_id']),
+                transaction_type=transaction_data['transaction_type'],
+                amount=Decimal(str(transaction_data['amount'])),
+                currency=transaction_data['currency'],
+                payment_method=transaction_data['payment_method'],
+                payment_provider=transaction_data.get('payment_provider'),
+                transaction_status=transaction_data['transaction_status'],
+                created_at=datetime.fromisoformat(transaction_data['created_at']),
+                processed_at=datetime.fromisoformat(transaction_data['processed_at']) if transaction_data.get('processed_at') else None,
+                transaction_reference=transaction_data.get('transaction_reference'),
+                internal_reference=transaction_data.get('internal_reference'),
+                notes=transaction_data.get('notes'),
+                processed_by=uuid.UUID(transaction_data['processed_by']) if transaction_data.get('processed_by') else None,
+                processing_location=transaction_data.get('processing_location'),
+                order_details=order_response
+            )
+            
+        except Exception as e:
+            print(f"Error creating transaction: {e}")
+            return None
+    
+    def get_transaction_by_id(self, transaction_id: int) -> Optional[TransactionResponse]:
+        """Get a transaction by its ID"""
+        try:
+            response = self.supabase.table('transactions').select('*').eq('transaction_id', transaction_id).execute()
+            if not response.data:
+                return None
+                
+            transaction_data = response.data[0]
+            
+            # Get order details
+            order_response = self.get_order_by_id(transaction_data['order_id'])
+            
+            return TransactionResponse(
+                transaction_id=transaction_data['transaction_id'],
+                order_id=transaction_data['order_id'],
+                user_id=uuid.UUID(transaction_data['user_id']),
+                transaction_type=transaction_data['transaction_type'],
+                amount=Decimal(str(transaction_data['amount'])),
+                currency=transaction_data['currency'],
+                payment_method=transaction_data['payment_method'],
+                payment_provider=transaction_data.get('payment_provider'),
+                transaction_status=transaction_data['transaction_status'],
+                created_at=datetime.fromisoformat(transaction_data['created_at']),
+                processed_at=datetime.fromisoformat(transaction_data['processed_at']) if transaction_data.get('processed_at') else None,
+                transaction_reference=transaction_data.get('transaction_reference'),
+                internal_reference=transaction_data.get('internal_reference'),
+                notes=transaction_data.get('notes'),
+                processed_by=uuid.UUID(transaction_data['processed_by']) if transaction_data.get('processed_by') else None,
+                processing_location=transaction_data.get('processing_location'),
+                order_details=order_response
+            )
+            
+        except Exception as e:
+            print(f"Error fetching transaction {transaction_id}: {e}")
+            return None
+    
+    def get_transactions_by_user_id(self, user_id: uuid.UUID, limit: int = 50) -> List[TransactionResponse]:
+        """Get all transactions for a specific user"""
+        try:
+            user_id_str = str(user_id)
+            response = self.supabase.table('transactions').select('*').eq('user_id', user_id_str).order('created_at', desc=True).limit(limit).execute()
+            
+            transactions = []
+            for transaction_data in response.data:
+                # Get order details
+                order_response = self.get_order_by_id(transaction_data['order_id'])
+                
+                transactions.append(TransactionResponse(
+                    transaction_id=transaction_data['transaction_id'],
+                    order_id=transaction_data['order_id'],
+                    user_id=uuid.UUID(transaction_data['user_id']),
+                    transaction_type=transaction_data['transaction_type'],
+                    amount=Decimal(str(transaction_data['amount'])),
+                    currency=transaction_data['currency'],
+                    payment_method=transaction_data['payment_method'],
+                    payment_provider=transaction_data.get('payment_provider'),
+                    transaction_status=transaction_data['transaction_status'],
+                    created_at=datetime.fromisoformat(transaction_data['created_at']),
+                    processed_at=datetime.fromisoformat(transaction_data['processed_at']) if transaction_data.get('processed_at') else None,
+                    transaction_reference=transaction_data.get('transaction_reference'),
+                    internal_reference=transaction_data.get('internal_reference'),
+                    notes=transaction_data.get('notes'),
+                    processed_by=uuid.UUID(transaction_data['processed_by']) if transaction_data.get('processed_by') else None,
+                    processing_location=transaction_data.get('processing_location'),
+                    order_details=order_response
+                ))
+            
+            return transactions
+            
+        except Exception as e:
+            print(f"Error fetching transactions for user {user_id}: {e}")
+            return []
+    
+    def get_transactions_by_order_id(self, order_id: int) -> List[TransactionResponse]:
+        """Get all transactions for a specific order"""
+        try:
+            response = self.supabase.table('transactions').select('*').eq('order_id', order_id).order('created_at', desc=True).execute()
+            
+            transactions = []
+            for transaction_data in response.data:
+                # Get order details
+                order_response = self.get_order_by_id(transaction_data['order_id'])
+                
+                transactions.append(TransactionResponse(
+                    transaction_id=transaction_data['transaction_id'],
+                    order_id=transaction_data['order_id'],
+                    user_id=uuid.UUID(transaction_data['user_id']),
+                    transaction_type=transaction_data['transaction_type'],
+                    amount=Decimal(str(transaction_data['amount'])),
+                    currency=transaction_data['currency'],
+                    payment_method=transaction_data['payment_method'],
+                    payment_provider=transaction_data.get('payment_provider'),
+                    transaction_status=transaction_data['transaction_status'],
+                    created_at=datetime.fromisoformat(transaction_data['created_at']),
+                    processed_at=datetime.fromisoformat(transaction_data['processed_at']) if transaction_data.get('processed_at') else None,
+                    transaction_reference=transaction_data.get('transaction_reference'),
+                    internal_reference=transaction_data.get('internal_reference'),
+                    notes=transaction_data.get('notes'),
+                    processed_by=uuid.UUID(transaction_data['processed_by']) if transaction_data.get('processed_by') else None,
+                    processing_location=transaction_data.get('processing_location'),
+                    order_details=order_response
+                ))
+            
+            return transactions
+            
+        except Exception as e:
+            print(f"Error fetching transactions for order {order_id}: {e}")
+            return []
+    
+    def update_transaction_status(self, transaction_id: int, status: str, processed_by: Optional[uuid.UUID] = None, transaction_reference: Optional[str] = None) -> bool:
+        """Update transaction status and processing information"""
         try:
             update_data = {
-                'payment_status': status,
-                'paid_at': datetime.now().isoformat() if status == 'completed' else None
+                'transaction_status': status,
+                'updated_at': datetime.now().isoformat()
             }
-
+            
+            if status in ['completed', 'failed']:
+                update_data['processed_at'] = datetime.now().isoformat()
+                
+            if processed_by:
+                update_data['processed_by'] = str(processed_by)
+                
             if transaction_reference:
                 update_data['transaction_reference'] = transaction_reference
-
-            # Note: This will only work when payments table exists and payment records are created
-            response = self.supabase.table('payments').update(update_data).eq('payment_id', payment_id).execute()
+            
+            response = self.supabase.table('transactions').update(update_data).eq('transaction_id', transaction_id).execute()
             return len(response.data) > 0
+            
         except Exception as e:
-            print(f"Error updating payment status: {e}")
+            print(f"Error updating transaction status: {e}")
             return False
+<<<<<<< Updated upstream
 
     async def update_order_status(self, order_id: int, new_status: str) -> bool:
         """Update order status"""
@@ -648,3 +828,42 @@ class DatabaseService:
         except Exception as e:
             print(f"Error updating order status: {e}")
             return False
+=======
+    
+    def get_transaction_summary(self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> dict:
+        """Get transaction summary for reporting"""
+        try:
+            query = self.supabase.table('transactions').select('*')
+            
+            if start_date:
+                query = query.gte('created_at', start_date.isoformat())
+            if end_date:
+                query = query.lte('created_at', end_date.isoformat())
+                
+            response = query.execute()
+            
+            summary = {
+                'total_transactions': len(response.data),
+                'total_amount': sum(t['amount'] for t in response.data if t['transaction_status'] == 'completed'),
+                'completed_transactions': len([t for t in response.data if t['transaction_status'] == 'completed']),
+                'pending_transactions': len([t for t in response.data if t['transaction_status'] == 'pending']),
+                'failed_transactions': len([t for t in response.data if t['transaction_status'] == 'failed']),
+                'payment_methods': {}
+            }
+            
+            # Group by payment method
+            for transaction in response.data:
+                method = transaction['payment_method']
+                if method not in summary['payment_methods']:
+                    summary['payment_methods'][method] = {'count': 0, 'amount': 0}
+                
+                summary['payment_methods'][method]['count'] += 1
+                if transaction['transaction_status'] == 'completed':
+                    summary['payment_methods'][method]['amount'] += transaction['amount']
+            
+            return summary
+            
+        except Exception as e:
+            print(f"Error generating transaction summary: {e}")
+            return {}
+>>>>>>> Stashed changes

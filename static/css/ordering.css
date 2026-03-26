@@ -344,11 +344,14 @@ div.category-sidebar{
     padding: 1rem;
     -webkit-backdrop-filter: blur(4px);
     backdrop-filter: blur(4px);
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 }
 
-.order-history-modal.active {
-    display: flex;
+.order-history-modal.flex {
+    display: flex !important;
 }
 
 .order-history-modal .modal-content {
@@ -438,6 +441,9 @@ div.category-sidebar{
     grid-template-columns: 1fr;
     gap: 0.5rem;
     margin-bottom: 0.75rem;
+    border-radius:10px;
+    padding: 10px;
+    background:#ede8e1;
 }
 
 .order-detail-row {
@@ -1226,6 +1232,7 @@ input:not(:checked) + .slider .slider-text.en {
     scrollbar-width: none;
     width: 100%;
     flex-wrap: nowrap;
+    justify-content:center;
 }
 
 .menu-filters::-webkit-scrollbar { display: none; }
@@ -1292,10 +1299,19 @@ input:not(:checked) + .slider .slider-text.en {
     border-radius: 8px;
     overflow: hidden;
     display: flex;
+<<<<<<< Updated upstream
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
     background: var(--light-gray);
+=======
+    flex-direction: row;
+    gap: 0.4rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+    width: 100%;
+    
+>>>>>>> Stashed changes
 }
 
 .cat-img {
@@ -2424,12 +2440,14 @@ input:not(:checked) + .slider .slider-text.en {
 .order-number-text {
     font-size: 1rem;
     opacity: 0.9;
+    color: var(--white);
 }
 
 .order-number-text strong {
     font-size: 1.4rem;
     display: block;
     margin-top: 0.25rem;
+    color: var(--white);
 }
 
 .receipt-body {
@@ -2480,7 +2498,7 @@ input:not(:checked) + .slider .slider-text.en {
 }
 
 .receipt-item-qty {
-    background: var(--primary);
+    background: #7a4242;
     color: var(--white);
     width: 28px;
     height: 28px;
@@ -3081,7 +3099,7 @@ button.btn-retry{
    User Profile Modal - Mobile Optimized
    ======================================== */
 .profile-modal {
-    display: none !important;
+    display: none;
     position: fixed;
     top: 0;
     left: 0;
@@ -3096,7 +3114,7 @@ button.btn-retry{
     backdrop-filter: blur(4px);
 }
 
-.profile-modal.active {
+.profile-modal.flex {
     display: flex !important;
 }
 
@@ -3463,6 +3481,7 @@ button.btn-retry{
         overflow-y: hidden;
         padding: 0.25rem 0;
         gap: 0.5rem;
+        justify-content:center;
     }
 
     /* Desktop category buttons — compact horizontal pills */
@@ -4771,24 +4790,25 @@ button.btn-retry{
 
 /* Dark Mode Variables */
 [data-theme="dark"] {
-    /* Brand-derived dark palette — very deep maroon / near-black */
-    --white: #130406;           /* card / surface backgrounds */
-    --off-white: #0a0203;       /* page background — deepest */
-    --light-gray: #fdfdfd;      /* borders and subtle dividers */
-    --medium-gray: #a07478;     /* secondary / muted text */
-    --dark-gray: #f2dfe0;       /* primary text — warm cream */
-    --black: #f2dfe0;
-    /* Primary brand stays vivid in dark mode */
-    --primary: #000000;
-    --primary-dark: #581b1f;
-    --primary-light: #e8a0a5;
-    --primary-gradient: linear-gradient(135deg, #7a2328 0%, #c85c64 100%);
-    /* Named tokens used by newer dark-mode overrides */
-    --card-bg: #130406;
-    --bg-secondary: #0a0203;
-    --border-color: #321014;
-    --text-primary: #f2dfe0;
-    --text-secondary: #a07478;
+    /* Deep maroon noir palette */
+    --white: #1c0a0d;           /* card / surface backgrounds */
+    --off-white: #100406;       /* page background — deepest */
+    --light-gray: #3d1519;      /* borders and subtle dividers */
+    --medium-gray: #d4a8ab;     /* secondary text — legible warm pink */
+    --dark-gray: #f0e4e5;       /* primary text — warm cream */
+    --black: #f0e4e5;
+    /* Vivid rose-maroon as primary — replaces invisible #000000 */
+    --primary: #c85c64;
+    --primary-dark: #9e3a40;
+    --primary-light: #eeaeb3;
+    --primary-gradient: linear-gradient(135deg, #9e3a40 0%, #c85c64 100%);
+    /* Named tokens */
+    --card-bg: #1c0a0d;
+    --bg-secondary: #100406;
+    --border-color: #3d1519;
+    --text-primary: #f0e4e5;
+    --text-secondary: #d4a8ab;
+    --dark-input: #250c10;
 }
 
 /* Dark Mode Styles */
@@ -4904,7 +4924,7 @@ button.btn-retry{
 
 [data-theme="dark"] .filter-chip.active {
     background: var(--primary);
-    color: var(--white);
+    color: #ffffff;
 }
 
 /* Legacy stub */
@@ -4918,11 +4938,11 @@ button.btn-retry{
     color: #f2dfe0;
 }
 
-[data-theme="dark"] .menu-item-content { color: #f2dfe0; }
-[data-theme="dark"] .menu-item-title   { color: #f2dfe0; }
-[data-theme="dark"] .menu-item-description { color: #a07478; }
+[data-theme="dark"] .menu-item-content { color: #f0e4e5; }
+[data-theme="dark"] .menu-item-title   { color: #f0e4e5; }
+[data-theme="dark"] .menu-item-description { color: #d4a8ab; }
 [data-theme="dark"] .menu-item-price   { color: #ffffff; }
-[data-theme="dark"] .menu-item-meta    { color: #a07478; }
+[data-theme="dark"] .menu-item-meta    { color: #d4a8ab; }
 
 /* ── Cart dark mode — mirrors modal dark mode ───────────────────────────── */
 
@@ -5020,7 +5040,7 @@ button.btn-retry{
 }
 
 [data-theme="dark"] .search-bar input::placeholder {
-    color: #a07478;
+    color: #d4a8ab;
 }
 
 [data-theme="dark"] .filter-chip {
@@ -5054,7 +5074,7 @@ button.btn-retry{
 
 [data-theme="dark"] .cat-btn:hover .cat-icon i,
 [data-theme="dark"] .cat-btn.active .cat-icon i {
-    color: var(--white);
+    color: #ffffff;
 }
 
 [data-theme="dark"] .theme-btn {
@@ -5073,7 +5093,7 @@ button.btn-retry{
 [data-theme="dark"] h3,
 [data-theme="dark"] h4,
 [data-theme="dark"] h5,
-[data-theme="dark"] h6 { color: #f2dfe0; }
+[data-theme="dark"] h6 { color: #e8e6e7; }
 
 [data-theme="dark"] p,
 [data-theme="dark"] label { color: #fdfdfd; }
@@ -5112,7 +5132,7 @@ button.btn-retry{
 }
 
 [data-theme="dark"] .modal-header p {
-    color: #a07478;
+    color: #d4a8ab;
 }
 
 [data-theme="dark"] .modal-header-icon {
@@ -5152,9 +5172,10 @@ button.btn-retry{
     color: #f2dfe0;
 }
 
-[data-theme="dark"] .order-item-detail {
+[data-theme="dark"] .order-item-details {
     border-bottom-color: #321014 !important;
     color: #f2dfe0;
+    background: black;
 }
 
 [data-theme="dark"] .order-item-detail strong {
@@ -5181,7 +5202,7 @@ button.btn-retry{
 [data-theme="dark"] .btn-cancel {
     background: #200709;
     border-color: #321014;
-    color: #a07478;
+    color: #d4a8ab;
 }
 
 [data-theme="dark"] .btn-cancel:hover {
@@ -5220,6 +5241,12 @@ button.btn-retry{
 [data-theme="dark"] .receipt-footer {
     background: #0a0203;
     border-top: 1px solid #321014;
+}
+
+/* Global iconify-icon color fix — base rule hardcodes a dark maroon that is
+   invisible on dark surfaces; override it for all un-targeted icons */
+[data-theme="dark"] iconify-icon {
+    color: #eeaeb3;
 }
 
 /* ========================================
