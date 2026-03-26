@@ -339,8 +339,6 @@ div.category-sidebar{
     z-index: 1000;
     justify-content: center;
     align-items: center;
-<<<<<<< Updated upstream
-=======
     padding: 1rem;
     -webkit-backdrop-filter: blur(4px);
     backdrop-filter: blur(4px);
@@ -1295,19 +1293,16 @@ input:not(:checked) + .slider .slider-text.en {
     border-radius: 8px;
     overflow: hidden;
     display: flex;
-<<<<<<< Updated upstream
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
     background: var(--light-gray);
-=======
     flex-direction: row;
     gap: 0.4rem;
     overflow-x: auto;
     scrollbar-width: none;
     width: 100%;
     
->>>>>>> Stashed changes
 }
 
 .cat-img {
@@ -3010,8 +3005,7 @@ button.btn-retry{
     color: var(--dark-gray);
 }
 
-<<<<<<< Updated upstream
-=======
+
 /* Dark mode toast styling */
 [data-theme="dark"] .toast {
     background: rgba(255, 255, 255, 0.15);
@@ -3294,10 +3288,7 @@ button.btn-retry{
     background: rgba(255, 255, 255, 0.15);
 }
 
->>>>>>> Stashed changes
-/* ========================================
-   Animations
-   ======================================== */
+
 @keyframes fadeIn {
     from { opacity: 0; }
     to { opacity: 1; }

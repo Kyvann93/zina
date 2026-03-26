@@ -52,11 +52,6 @@ def admin_login():
         }), 503
     if username == expected_user and password == expected_pass:
         session['zina_admin'] = True
-<<<<<<< Updated upstream
-        session.permanent = False
-        return jsonify({'status': 'success', 'message': 'Connexion réussie'})
-    return jsonify({'status': 'error', 'message': 'Identifiant ou mot de passe incorrect'}), 401
-=======
         session['admin_id'] = admin['id']
         session['admin_username'] = admin['username']
         session['admin_role_id'] = role.get('id')
@@ -71,13 +66,6 @@ def admin_login():
             'role': role.get('role_name', 'Admin'),
             'is_super_admin': is_super,
         })
-
-    except Exception as e:
-        current_app.logger.error('admin login error: %s', e)
-        return jsonify({
-            'status': 'error',
-            'message': 'Erreur de connexion à la base de données'
-        }), 500
 
 
 @admin_bp.route('/register', methods=['POST'])
@@ -111,7 +99,6 @@ def admin_register():
     except Exception as e:
         current_app.logger.error('admin_register error: %s', e)
         return jsonify({'status': 'error', 'message': 'Une erreur est survenue'}), 500
->>>>>>> Stashed changes
 
 
 @admin_bp.route('/logout', methods=['POST'])
@@ -525,8 +512,6 @@ def update_order_status(order_id):
         return jsonify({'status': 'error', 'message': 'Une erreur est survenue'}), 500
 
 
-<<<<<<< Updated upstream
-=======
 @admin_bp.route('/orders/<int:order_id>/payment', methods=['PUT'])
 def update_order_payment(order_id):
     """Update payment method for an order (e.g., mark as paid at counter)"""
@@ -589,7 +574,6 @@ def update_order_payment(order_id):
         return jsonify({'status': 'error', 'message': 'Une erreur est survenue'}), 500
 
 
->>>>>>> Stashed changes
 @admin_bp.route('/settings', methods=['GET'])
 def get_settings():
     """Get site settings"""
