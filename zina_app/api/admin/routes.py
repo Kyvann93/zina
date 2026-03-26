@@ -9,6 +9,7 @@ from pathlib import Path
 
 from flask import jsonify, request, current_app, session
 from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash
 
 from supabase import create_client
 
@@ -43,7 +44,7 @@ def admin_login():
         # In production, ADMIN_PASSWORD must be set.
         if current_app.config.get('DEBUG') and username == expected_user and password == 'admin123':
             session['zina_admin'] = True
-            session.permanent = False
+            session.permanent = True
             return jsonify({'status': 'success', 'message': 'Connexion réussie'})
 
         return jsonify({
@@ -52,19 +53,14 @@ def admin_login():
         }), 503
     if username == expected_user and password == expected_pass:
         session['zina_admin'] = True
-        session['admin_id'] = admin['id']
-        session['admin_username'] = admin['username']
-        session['admin_role_id'] = role.get('id')
-        session['admin_role_name'] = role.get('role_name', 'Admin')
-        session['admin_permissions'] = perms
-        session['admin_is_super'] = is_super
+        session['admin_username'] = username
         session.permanent = True
         return jsonify({
             'status': 'success',
             'message': 'Connexion réussie',
-            'username': admin['username'],
-            'role': role.get('role_name', 'Admin'),
-            'is_super_admin': is_super,
+            'username': username,
+            'role': 'Admin',
+            'is_super_admin': True,
         })
 
 

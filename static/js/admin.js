@@ -56,7 +56,6 @@ function applyPermissions() {
     if (avatarEl) avatarEl.textContent = (currentAdminUsername[0] || 'A').toUpperCase();
 }
 
->>>>>>> Stashed changes
 function showAdminLoginOverlay() {
     const loginOverlay = document.getElementById('loginOverlay');
     const adminWrapper = document.getElementById('adminWrapper');
@@ -512,7 +511,6 @@ function showSection(section) {
         users:      'Utilisateurs',
         admins:     'Administrateurs',
         roles:      'Rôles & Permissions',
->>>>>>> Stashed changes
         settings:   'Paramètres'
     };
     const pageTitleEl = document.getElementById('pageTitle');
@@ -606,16 +604,9 @@ function loadDashboardData() {
     // Load categories from API
     loadCategoriesFromBackend();
 
-<<<<<<< Updated upstream
-    // Load orders from API (placeholder - implement when orders API is ready)
-    fetch('/api/admin/orders')
     // Load orders from API
     adminFetch('/api/admin/orders')
         .then(response => response.json())
-=======
-    // Load orders from API
-    fetchAdminOrders()
->>>>>>> Stashed changes
         .then(data => {
             orders = data && data.length > 0 ? data : [];
             updateDashboardStats();
@@ -765,6 +756,7 @@ function deleteMenu(id) {
         }
     );
 }
+
 
 function deleteCategory(id) {
     showConfirmModal(
@@ -969,13 +961,7 @@ function viewOrderDetails(id) {
                     </div>
                     <div class="detail-row">
                         <strong>Paiement:</strong>
-<<<<<<< Updated upstream
-                        <span>${order.payment?.payment_method || 'Non spécifié'} (${order.payment?.payment_status || 'N/A'})</span>
-=======
-                        <span id="paymentDisplay">
-                            ${formatPaymentMethod(order.payment?.payment_method, order.payment?.transaction_status)}
-                        </span>
->>>>>>> Stashed changes
+                        <span>${order.payment?.payment_method || 'Non spécifié'} (${order.payment?.transaction_status || order.payment?.payment_status || 'N/A'})</span>
                     </div>
                     <div class="detail-row">
                         <strong>Statut actuel:</strong>
@@ -1042,43 +1028,8 @@ function updateOrderStatus() {
         console.error('Error updating order status:', error);
         showToast('Erreur lors de la mise à jour', 'error');
     });
-    const orderId = document.getElementById('currentOrderId').value;
-    const newStatus = document.getElementById('orderStatusUpdate') && document.getElementById('orderStatusUpdate').value;
-
-    if (!orderId || !newStatus) {
-        showToast('Impossible de mettre à jour : commande non identifiée', 'error');
-        return;
-    }
-
-    const btn = document.getElementById('updateStatusBtn');
-    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mise à jour...'; }
-
-    adminFetch(`/api/admin/orders/${orderId}/status`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.status === 'success') {
-            showToast('Statut mis à jour avec succès', 'success');
-            closeOrderDetails();
-            loadOrders();
-        } else {
-            showToast('Erreur: ' + (data.message || 'Échec'), 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Error updating order status:', error);
-        showToast('Erreur lors de la mise à jour', 'error');
-    })
-    .finally(() => {
-        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-check"></i> <span>Mettre à Jour le Statut</span>'; }
-    });
 }
 
-<<<<<<< Updated upstream
-=======
 function updatePaymentMethod() {
     const orderId = document.getElementById('currentOrderId').value;
 
@@ -1419,140 +1370,6 @@ function formatPrice(price) {
     return new Intl.NumberFormat('fr-FR').format(price) + ' FCFA';
 }
 
-<<<<<<< Updated upstream
-=======
-function formatDate(dateString) {
-    if (!dateString) return '-';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('fr-FR', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric'
-    });
-}
-
-function loadUserOrderCounts() {
-    // Fetch all orders and count by user_id
-    fetchAdminOrders()
-        .then(orders => {
-            console.log('Loaded orders:', orders);
-            console.log('Current users:', users);
-            
-            if (orders && orders.length > 0) {
-                // Count orders per user - normalize UUIDs by removing hyphens and converting to lowercase
-                const orderCounts = {};
-                orders.forEach(order => {
-                    const userId = order.user_id;
-                    if (userId) {
-                        // Normalize UUID: remove hyphens, convert to lowercase for consistent comparison
-                        const userIdNormalized = String(userId).replace(/-/g, '').toLowerCase();
-                        orderCounts[userIdNormalized] = (orderCounts[userIdNormalized] || 0) + 1;
-                    }
-                });
-
-                console.log('Order counts by user (normalized):', orderCounts);
-
-                // Update users with order counts
-                users.forEach(user => {
-                    if (user.userId) {
-                        // Normalize UUID for comparison
-                        const userIdNormalized = String(user.userId).replace(/-/g, '').toLowerCase();
-                        const count = orderCounts[userIdNormalized] || 0;
-                        user.orders = count;
-                        console.log(`User ${user.name} (${user.userId} -> ${userIdNormalized}): ${count} orders`);
-                    }
-                });
-
-                console.log('Users after order count update:', users);
-
-                // Hide loader and reload users table with updated order counts
-                hideSectionDataLoader('users');
-                loadUsers();
-            } else {
-                // No orders, hide loader and load users
-                hideSectionDataLoader('users');
-                loadUsers();
-            }
-        })
-        .catch(error => {
-            console.error('Error loading order counts:', error);
-            hideSectionDataLoader('users');
-            loadUsers();
-        });
-}
-
->>>>>>> Stashed changes
-function showToast(message, type = 'info') {
-    const container = document.getElementById('toastContainer');
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    toast.innerHTML = `
-        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
-        <span>${message}</span>
-    `;
-    container.appendChild(toast);
-    
-    setTimeout(() => {
-        toast.style.animation = 'slideIn 0.3s ease reverse';
-        setTimeout(() => toast.remove(), 300);
-    }, 3000);
-// formatPrice, formatDate, showToast, showConfirmModal, closeConfirmModal, confirmAction → see utils.js
-
-function loadUserOrderCounts() {
-    // Fetch all orders and count by user_id
-    adminFetch('/api/admin/orders')
-        .then(response => {
-            if (response.ok) {
-                return response.json();
-            }
-            return [];
-        })
-        .then(orders => {
-            console.log('Loaded orders:', orders);
-            console.log('Current users:', users);
-            
-            if (orders && orders.length > 0) {
-                // Count orders per user - normalize UUIDs by removing hyphens and converting to lowercase
-                const orderCounts = {};
-                orders.forEach(order => {
-                    const userId = order.user_id;
-                    if (userId) {
-                        // Normalize UUID: remove hyphens, convert to lowercase for consistent comparison
-                        const userIdNormalized = String(userId).replace(/-/g, '').toLowerCase();
-                        orderCounts[userIdNormalized] = (orderCounts[userIdNormalized] || 0) + 1;
-                    }
-                });
-
-                console.log('Order counts by user (normalized):', orderCounts);
-
-                // Update users with order counts
-                users.forEach(user => {
-                    if (user.userId) {
-                        // Normalize UUID for comparison
-                        const userIdNormalized = String(user.userId).replace(/-/g, '').toLowerCase();
-                        const count = orderCounts[userIdNormalized] || 0;
-                        user.orders = count;
-                        console.log(`User ${user.name} (${user.userId} -> ${userIdNormalized}): ${count} orders`);
-                    }
-                });
-
-                console.log('Users after order count update:', users);
-
-                // Hide loader and reload users table with updated order counts
-                hideSectionDataLoader('users');
-                loadUsers();
-            } else {
-                // No orders, hide loader and load users
-                hideSectionDataLoader('users');
-                loadUsers();
-            }
-        })
-        .catch(error => {
-            console.error('Error loading order counts:', error);
-            hideSectionDataLoader('users');
-            loadUsers();
-        });
-}
 
 // Close modals on escape
 document.addEventListener('keydown', function(e) {
@@ -1592,51 +1409,6 @@ function previewCategoryImage(input) {
     }
 }
 
-<<<<<<< Updated upstream
-// Export functions
-window.showSection = showSection;
-window.showSectionLoader = showSectionLoader;
-window.toggleSidebar = toggleSidebar;
-window.toggleNotifs = toggleNotifs;
-window.handleAdminLogin = handleAdminLogin;
-window.handleLogout = handleLogout;
-window.openMenuModal = openMenuModal;
-window.closeMenuModal = closeMenuModal;
-window.saveMenu = saveMenu;
-window.editMenu = editMenu;
-window.deleteMenu = deleteMenu;
-window.filterMenus = filterMenus;
-window.openCategoryModal = openCategoryModal;
-window.closeCategoryModal = closeCategoryModal;
-window.saveCategory = saveCategory;
-window.editCategory = editCategory;
-window.deleteCategory = deleteCategory;
-window.previewMenuImage = previewMenuImage;
-window.previewCategoryImage = previewCategoryImage;
-window.loadOrders = loadOrders;
-window.viewOrderDetails = viewOrderDetails;
-window.closeOrderDetails = closeOrderDetails;
-window.closeConfirmModal = closeConfirmModal;
-window.updateOrderStatus = updateOrderStatus;
-window.loadUsers = loadUsers;
-window.filterUsers = filterUsers;
-window.viewUser = viewUser;
-window.saveGeneralSettings = saveGeneralSettings;
-window.saveHoursSettings = saveHoursSettings;
-window.saveFeesSettings = saveFeesSettings;
-window.saveFormulasSettings = saveFormulasSettings;
-window.loadFormulasSettings = loadFormulasSettings;
-window.startClock = startClock;
-window.refreshDashboard = refreshDashboard;
-window.toggleMenuSelection = toggleMenuSelection;
-window.selectAllMenus = selectAllMenus;
-window.deselectAllMenus = deselectAllMenus;
-window.toggleSelectAll = toggleSelectAll;
-window.updateBulkBar = updateBulkBar;
-window.quickToggleAvailability = quickToggleAvailability;
-window.bulkSetAvailable = bulkSetAvailable;
-window.bulkDeleteMenus = bulkDeleteMenus;
-=======
 // ========================================
 // Auth — Slide between Login and Register
 // ========================================
@@ -1685,5 +1457,53 @@ function handleAdminRegister(event) {
         .catch(() => showToast('Erreur réseau', 'error'))
         .finally(() => resetButton(btn));
 }
+
+// Export functions
+window.showSection = showSection;
+window.showSectionLoader = showSectionLoader;
+window.toggleSidebar = toggleSidebar;
+window.toggleNotifs = toggleNotifs;
+window.handleAdminLogin = handleAdminLogin;
+window.handleLogout = handleLogout;
+window.openMenuModal = openMenuModal;
+window.closeMenuModal = closeMenuModal;
+window.saveMenu = saveMenu;
+window.editMenu = editMenu;
+window.deleteMenu = deleteMenu;
+window.filterMenus = filterMenus;
+window.openCategoryModal = openCategoryModal;
+window.closeCategoryModal = closeCategoryModal;
+window.saveCategory = saveCategory;
+window.editCategory = editCategory;
+window.deleteCategory = deleteCategory;
+window.previewMenuImage = previewMenuImage;
+window.previewCategoryImage = previewCategoryImage;
+window.loadOrders = loadOrders;
+window.viewOrderDetails = viewOrderDetails;
+window.closeOrderDetails = closeOrderDetails;
+window.closeConfirmModal = closeConfirmModal;
+window.updateOrderStatus = updateOrderStatus;
+window.updatePaymentMethod = updatePaymentMethod;
+window.loadUsers = loadUsers;
+window.filterUsers = filterUsers;
+window.viewUser = viewUser;
+window.saveGeneralSettings = saveGeneralSettings;
+window.saveHoursSettings = saveHoursSettings;
+window.saveFeesSettings = saveFeesSettings;
+window.saveFormulasSettings = saveFormulasSettings;
+window.loadFormulasSettings = loadFormulasSettings;
+window.startClock = startClock;
+window.refreshDashboard = refreshDashboard;
+window.toggleMenuSelection = toggleMenuSelection;
+window.selectAllMenus = selectAllMenus;
+window.deselectAllMenus = deselectAllMenus;
+window.toggleSelectAll = toggleSelectAll;
+window.updateBulkBar = updateBulkBar;
+window.quickToggleAvailability = quickToggleAvailability;
+window.bulkSetAvailable = bulkSetAvailable;
+window.bulkDeleteMenus = bulkDeleteMenus;
+window.showRegisterForm = showRegisterForm;
+window.showLoginForm = showLoginForm;
+window.handleAdminRegister = handleAdminRegister;
 
 

@@ -170,7 +170,9 @@ class DatabaseService:
             print(f"[DEBUG] Creating order with {len(order_request.items)} items")
 
             requested_product_ids = [item.product_id for item in (order_request.items or [])]
-            products = await self.get_products_by_ids(requested_product_ids)
+            products = self.get_products()
+            # Filter by requested IDs
+            products = [p for p in products if p.product_id in requested_product_ids]
             product_by_id = {p.product_id: p for p in products}
 
             for item_request in order_request.items:
@@ -473,7 +475,9 @@ class DatabaseService:
                 items_response = self.supabase.table('order_items').select('*').eq('order_id', order_id).execute()
                 if items_response.data:
                     product_ids = [it.get('product_id') for it in items_response.data if it.get('product_id') is not None]
-                    products = await self.get_products_by_ids([int(pid) for pid in product_ids])
+                    products = self.get_products()
+                    # Filter by requested IDs
+                    products = [p for p in products if p.product_id in product_ids]
                     product_by_id = {p.product_id: p for p in (products or [])}
 
                     for item in items_response.data:

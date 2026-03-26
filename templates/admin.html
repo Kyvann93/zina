@@ -40,8 +40,6 @@
     <!-- Shared + Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/shared.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
-<<<<<<< Updated upstream
-=======
 
     <!-- Auth overlay styles (matches user login page) -->
     <style>
@@ -131,7 +129,6 @@
         border-color: rgba(255,255,255,0.4);
       }
     </style>
->>>>>>> Stashed changes
 </head>
 <body>
     <!-- Page Loader -->
@@ -146,42 +143,6 @@
         </div>
     </div>
 
-<<<<<<< Updated upstream
-    <!-- Login Modal -->
-    <div class="login-overlay" id="loginOverlay">
-        <div class="login-modal">
-            <div class="login-header">
-                <div class="login-logo">
-                    <i class="fas fa-shield-alt"></i>
-                </div>
-                <h1>Administration ZINA</h1>
-                <p>Accès réservé au personnel autorisé</p>
-            </div>
-            
-            <form id="adminLogin" onsubmit="handleAdminLogin(event)">
-                <div class="form-group">
-                    <label for="adminUsername">
-                        <i class="fas fa-user"></i>
-                        Identifiant
-                    </label>
-                    <input type="text" id="adminUsername" placeholder="admin" required>
-                </div>
-                <div class="form-group">
-                    <label for="adminPassword">
-                        <i class="fas fa-lock"></i>
-                        Mot de passe
-                    </label>
-                    <input type="password" id="adminPassword" placeholder="••••••••" required>
-                </div>
-                <button type="submit" class="login-submit-btn">
-                    <i class="fas fa-sign-in-alt"></i>
-                    <span>Se Connecter</span>
-                </button>
-            </form>
-            
-            <div class="login-footer">
-                <p><i class="fas fa-info-circle"></i> Interface d'administration sécurisée</p>
-=======
     <!-- Auth Overlay -->
     <div class="login-overlay auth-bg-overlay" id="loginOverlay" style="display: none;">
         <!-- Outer scroll wrapper: centres on large screens, scrolls on small ones -->
@@ -310,7 +271,6 @@
                     </div><!-- /authCardRegister -->
 
                 </div><!-- /auth-stage -->
->>>>>>> Stashed changes
             </div>
         </div>
     </div>
@@ -359,8 +319,6 @@
                     <i class="fas fa-id-card" aria-hidden="true"></i>
                     <span>Employés</span>
                 </a>
-<<<<<<< Updated upstream
-=======
                 <a href="#admins" class="nav-item perm-nav-admins" onclick="showSection('admins')" style="display:none">
                     <i class="fas fa-user-shield" aria-hidden="true"></i>
                     <span>Administrateurs</span>
@@ -370,7 +328,6 @@
                     <i class="fas fa-key" aria-hidden="true"></i>
                     <span>Rôles & Permissions</span>
                 </a>
->>>>>>> Stashed changes
                 <a href="#settings" class="nav-item" onclick="showSection('settings')">
                     <i class="fas fa-sliders-h" aria-hidden="true"></i>
                     <span>Paramètres</span>
@@ -917,7 +874,6 @@
                         </div>
                     </div>
 
-<<<<<<< Updated upstream
                     <div class="settings-card">
                         <h3>Formules (Remises)</h3>
                         <form id="formulasSettings" onsubmit="saveFormulasSettings(event)">
@@ -943,41 +899,53 @@
                             </button>
                         </form>
                     </div>
-                </div>
-            </section>
-        </main>
-    </div>
 
-=======
-                <!-- Pending approvals -->
-                <div class="settings-card" id="pendingAdminsCard" style="display:none">
-                    <h3 style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
-                        <i class="fas fa-hourglass-half" style="color:var(--warning)" aria-hidden="true"></i>
-                        En attente d'approbation
-                        <span class="nav-badge-count" id="pendingAdminsBadge" style="display:inline-flex">0</span>
-                    </h3>
-                    <div class="users-table-container">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Identifiant</th>
-                                    <th>Email</th>
-                                    <th>Date de demande</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="pendingAdminsBody"></tbody>
-                        </table>
+                    <!-- Pending approvals -->
+                    <div class="settings-card" id="pendingAdminsCard" style="display:none">
+                        <h3 style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+                            <i class="fas fa-hourglass-half" style="color:var(--warning)" aria-hidden="true"></i>
+                            En attente d'approbation
+                            <span class="nav-badge-count" id="pendingAdminsBadge" style="display:inline-flex">0</span>
+                        </h3>
+                        <div class="users-table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Identifiant</th>
+                                        <th>Email</th>
+                                        <th>Date</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pendingAdminsList">
+                                    <!-- Rendered by JS -->
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                </div>
 
-                <!-- Active admins -->
-                <div class="settings-card">
-                    <h3 style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
-                        <i class="fas fa-users" style="color:var(--success)" aria-hidden="true"></i>
-                        Administrateurs actifs
-                    </h3>
-                    <div class="users-table-container">
+                    <!-- Active admins -->
+                    <div class="settings-card">
+                        <h3 style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+                            <i class="fas fa-users" style="color:var(--success)" aria-hidden="true"></i>
+                            Administrateurs actifs
+                        </h3>
+                        <div class="users-table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Identifiant</th>
+                                        <th>Email</th>
+                                        <th>Rôle</th>
+                                        <th>Depuis</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="activeAdminsBody">
+                                    <tr><td colspan="5" style="text-align:center;padding:24px;color:var(--medium-gray)">Chargement...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
                         <table class="data-table">
                             <thead>
                                 <tr>
@@ -1070,7 +1038,6 @@
         </div>
     </div>
 
->>>>>>> Stashed changes
     <!-- Menu Modal -->
     <div class="modal" id="menuModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="menuModalTitle">
         <div class="modal-content large">
@@ -1202,13 +1169,10 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn-cancel" onclick="closeOrderDetails()">Fermer</button>
-<<<<<<< Updated upstream
-=======
                 <button type="button" class="btn-secondary" id="updatePaymentBtn" onclick="updatePaymentMethod()">
                     <i class="fas fa-cash-register" aria-hidden="true"></i>
                     <span>Paiement au Comptoir</span>
                 </button>
->>>>>>> Stashed changes
                 <button type="button" class="btn-primary" id="updateStatusBtn" onclick="updateOrderStatus()">
                     <i class="fas fa-check" aria-hidden="true"></i>
                     <span>Mettre à Jour le Statut</span>

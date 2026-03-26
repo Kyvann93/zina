@@ -43,17 +43,11 @@ def get_menu():
     """Get full menu organized by category"""
     try:
         db = get_db_service()
-<<<<<<< Updated upstream
-        categories = await db.get_categories()
-        
-=======
         if not db:
             # Supabase not configured - return empty menu
             return jsonify({})
 
         categories = db.get_categories()
-
->>>>>>> Stashed changes
         menu_data = {}
         for category in categories:
             category_key = category.category_name.lower().replace(' ', '_').replace('-', '_')
@@ -308,17 +302,10 @@ def register_user():
         import re
         email_pattern = r'^[\w\.-]+@[\w\.-]+\.\w+$'
         if not re.match(email_pattern, data['email']):
-            
+
             flash("Format d'email invalide", 'error')
             return redirect(url_for('main.register'))
 
-<<<<<<< Updated upstream
-        # Generate UUID from employee ID
-        import hashlib
-        random_integer = str(random.randint(9, int(1e6)))
-        hash_bytes = hashlib.md5(random_integer.encode()).digest()
-        user_id = str(uuid.UUID(bytes=hash_bytes))
-=======
         # Check if Supabase is configured
         supabase_url = current_app.config.get('SUPABASE_URL')
         supabase_key = current_app.config.get('SUPABASE_KEY')
@@ -362,7 +349,7 @@ def register_user():
             return redirect(url_for('main.register'))
         if response.data:
             # Redirect to login page with success message
-            
+
             flash('Inscription réussie ! Vous pouvez maintenant vous connecter.', 'success')
             return redirect(url_for('main.login'))
         else:
@@ -450,7 +437,6 @@ def place_order():
         products = [db.get_product_by_id(pid) for pid in requested_product_ids]
         products = [p for p in products if p is not None]
         existing_ids = {p.product_id for p in products}
->>>>>>> Stashed changes
         invalid_product_ids = [pid for pid in requested_product_ids if pid not in existing_ids]
 
         if invalid_product_ids:
