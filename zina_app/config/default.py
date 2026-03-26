@@ -45,13 +45,6 @@ class DefaultConfig:
     ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME')
     ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD')
 
-<<<<<<< Updated upstream
-    # Admin credentials — must be set via environment variables
-    ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
-    ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', '')
-    
-=======
->>>>>>> Stashed changes
     # App Info
     APP_NAME = 'ZINA - Cantine BAD'
     APP_DESCRIPTION = 'Système de Gestion de Cantine - Banque Africaine de Développement'

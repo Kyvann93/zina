@@ -175,11 +175,7 @@ class DatabaseService:
 
             for item_request in order_request.items:
                 print(f"[DEBUG] Processing item: product_id={item_request.product_id}, quantity={item_request.quantity}")
-<<<<<<< Updated upstream
-                product = product_by_id.get(item_request.product_id)
-=======
                 product = self.get_product_by_id(item_request.product_id)
->>>>>>> Stashed changes
 
                 if not product:
                     print(f"[WARNING] Product {item_request.product_id} not found in database")
@@ -481,12 +477,7 @@ class DatabaseService:
                     product_by_id = {p.product_id: p for p in (products or [])}
 
                     for item in items_response.data:
-<<<<<<< Updated upstream
-                        pid = item.get('product_id')
-                        product = product_by_id.get(pid)
-=======
                         product = self.get_product_by_id(item['product_id'])
->>>>>>> Stashed changes
                         if product:
                             items.append({
                                 'product_id': product.product_id,
@@ -815,20 +806,6 @@ class DatabaseService:
         except Exception as e:
             print(f"Error updating transaction status: {e}")
             return False
-<<<<<<< Updated upstream
-
-    async def update_order_status(self, order_id: int, new_status: str) -> bool:
-        """Update order status"""
-        try:
-            response = self.supabase.table('orders')\
-                .update({'order_status': new_status})\
-                .eq('order_id', order_id)\
-                .execute()
-            return len(response.data) > 0
-        except Exception as e:
-            print(f"Error updating order status: {e}")
-            return False
-=======
     
     def get_transaction_summary(self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> dict:
         """Get transaction summary for reporting"""
@@ -866,4 +843,3 @@ class DatabaseService:
         except Exception as e:
             print(f"Error generating transaction summary: {e}")
             return {}
->>>>>>> Stashed changes

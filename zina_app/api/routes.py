@@ -16,6 +16,16 @@ from zina_app.models import CreateOrderRequest, OrderItemRequest, CreateTransact
 from zina_app import limiter
 
 
+def get_supabase():
+    """Get Supabase client if configured, None otherwise"""
+    supabase_url = current_app.config.get('SUPABASE_URL')
+    supabase_key = current_app.config.get('SUPABASE_KEY')
+    if not supabase_url or not supabase_key:
+        return None
+    from supabase import create_client
+    return create_client(supabase_url, supabase_key)
+
+
 def get_db_service():
     """Get database service from Flask app config"""
     from supabase import create_client
@@ -74,15 +84,10 @@ def get_menu():
             except Exception as cat_error:
                 current_app.logger.error('request error: %s', e)
                 continue
-<<<<<<< Updated upstream
-        
-        return jsonify(menu_data)
-=======
 
         resp = make_response(jsonify(menu_data))
         resp.headers['Cache-Control'] = 'public, max-age=300, stale-while-revalidate=60'
         return resp
->>>>>>> Stashed changes
     except Exception as e:
         current_app.logger.error('get_menu error: %s', e, exc_info=True)
         return jsonify({'error': 'Une erreur est survenue'}), 500
@@ -323,7 +328,6 @@ def register_user():
 
         # Generate a cryptographically random UUID
         user_id = str(uuid.uuid4())
->>>>>>> Stashed changes
 
         # Hash the user's chosen password with a salt (PBKDF2-SHA256 via Werkzeug)
         from werkzeug.security import generate_password_hash
@@ -385,13 +389,6 @@ def login_user():
             return redirect(url_for('main.login'))
 
         from supabase import create_client
-<<<<<<< Updated upstream
-        supabase = create_client(
-            current_app.config['SUPABASE_URL'],
-            current_app.config['SUPABASE_KEY']
-        )
-        response = supabase.table('users').select('*').eq('full_name', full_name).eq('phone', phone).execute()
-=======
         from werkzeug.security import check_password_hash
         supabase_url = current_app.config.get('SUPABASE_URL')
         supabase_key = current_app.config.get('SUPABASE_KEY')
@@ -403,7 +400,6 @@ def login_user():
 
         supabase = create_client(supabase_url, supabase_key)
         response = supabase.table('users').select('*').eq('phone', phone).execute()
->>>>>>> Stashed changes
         if response.data:
             user = response.data[0]
             stored_hash = user.get('password_hash', '')
@@ -451,10 +447,6 @@ def place_order():
         db = get_db_service()
 
         requested_product_ids = [item_request.product_id for item_request in order_items]
-<<<<<<< Updated upstream
-        products = await db.get_products_by_ids(requested_product_ids)
-        existing_ids = {p.product_id for p in (products or [])}
-=======
         products = [db.get_product_by_id(pid) for pid in requested_product_ids]
         products = [p for p in products if p is not None]
         existing_ids = {p.product_id for p in products}

@@ -15,16 +15,6 @@ function proxyImg(url) {
 // ========================================
 // Global State
 // ========================================
-<<<<<<< Updated upstream
-let menus = [];
-let categories = [];
-let orders = [];
-let users = [];
-let currentSection = 'dashboard';
-let editingCategoryId = null;
-let selectedMenuIds = new Set();
-
-=======
 var menus = [];
 var categories = [];
 var orders = [];
@@ -519,9 +509,6 @@ function showSection(section) {
         menu:       'Plats & Menus',
         categories: 'Catégories',
         orders:     'Commandes',
-<<<<<<< Updated upstream
-        users:      'Employés',
-=======
         users:      'Utilisateurs',
         admins:     'Administrateurs',
         roles:      'Rôles & Permissions',
@@ -810,38 +797,6 @@ function deleteCategory(id) {
 async function loadOrders() {
     const tbody = document.getElementById('ordersTableBody');
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
-
-    try {
-        const response = await fetch('/api/admin/orders', { signal: controller.signal });
-        const data = await response.json().catch(() => null);
-
-        if (!response.ok) {
-            const msg = data && data.error ? data.error : `Erreur HTTP ${response.status}`;
-            tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><i class="fas fa-exclamation-triangle"></i><h3>Erreur de chargement</h3><p>${msg}</p></div></td></tr>`;
-            return;
-        }
-
-        if (!Array.isArray(data)) {
-            const msg = data && data.error ? data.error : 'Réponse invalide du serveur';
-            tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><i class="fas fa-exclamation-triangle"></i><h3>Erreur de chargement</h3><p>${msg}</p></div></td></tr>`;
-            return;
-        }
-
-        // Convert API orders to our format
-        orders = data.map(order => ({
-            id: order.order_id,
-            client: order.user_id || 'Client',
-            items: order.items || [],
-            itemsCount: (order.items || []).length,
-            total: Number(order.total_amount || 0),
-            payment: order.payment?.payment_method || 'Non spécifié',
-            status: order.order_status,
-            time: order.created_at ? new Date(order.created_at).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'}) : 'N/A',
-            pickup_time: order.pickup_time,
-            prep_time_minutes: order.prep_time_minutes || 15
-        }));
     showSectionDataLoader('orders');
     adminFetch('/api/admin/orders')
         .then(response => response.json())
@@ -852,12 +807,8 @@ async function loadOrders() {
                 items: order.items || [],
                 itemsCount: (order.items || []).length,
                 total: order.total_amount,
-<<<<<<< Updated upstream
-                payment: order.payment?.payment_method || 'Non spécifié',
-=======
                 payment: order.payment?.payment_method || '',
                 transaction_status: order.payment?.transaction_status || 'N/A',
->>>>>>> Stashed changes
                 status: order.order_status,
                 rawDate: order.created_at || null,
                 time: order.created_at ? new Date(order.created_at).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'}) : 'N/A',
@@ -865,80 +816,6 @@ async function loadOrders() {
                 prep_time_minutes: order.prep_time_minutes || 15
             }));
 
-<<<<<<< Updated upstream
-        let filteredOrders = orders;
-
-        if (filter !== 'all') {
-            filteredOrders = orders.filter(o => o.status === filter);
-        }
-
-        if (filteredOrders.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><i class="fas fa-shopping-cart"></i><h3>Aucune commande</h3><p>Aucune commande trouvée</p></div></td></tr>';
-        } else {
-            tbody.innerHTML = filteredOrders.map(order => `
-                <tr>
-                    <td>#${order.id}</td>
-                    <td>${order.client}</td>
-                    <td>${order.itemsCount} articles</td>
-                    <td><strong>${order.total.toLocaleString('fr-FR')} FCFA</strong></td>
-                    <td>${order.payment}</td>
-                    <td>
-                        <span class="status-badge ${order.status}">
-                            ${order.status === 'completed' ? 'Complété' :
-                              order.status === 'processing' ? 'En cours' :
-                              order.status === 'pending' ? 'En attente' : 'Annulé'}
-                        </span>
-                    </td>
-                    <td>${order.time}</td>
-                    <td>
-                        <button class="action-btn edit" onclick="viewOrderDetails(${order.id})">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                    </td>
-                </tr>
-            `).join('');
-        }
-    } catch (error) {
-        const isTimeout = error && error.name === 'AbortError';
-        if (!isTimeout) {
-            console.error('Error loading orders:', error);
-        }
-
-        const msg = isTimeout
-            ? 'Le chargement des commandes a pris trop de temps. Vérifiez votre connexion ou réessayez.'
-            : 'Impossible de charger les commandes';
-        tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><i class="fas fa-exclamation-triangle"></i><h3>Erreur de chargement</h3><p>${msg}</p></div></td></tr>`;
-    } finally {
-        clearTimeout(timeoutId);
-        hideSectionDataLoader('orders');
-    }
-            if (filteredOrders.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><i class="fas fa-shopping-cart"></i><h3>Aucune commande</h3><p>Aucune commande trouvée</p></div></td></tr>';
-            } else {
-                tbody.innerHTML = filteredOrders.map(order => `
-                    <tr>
-                        <td>#${order.id}</td>
-                        <td>${order.client}</td>
-                        <td>${order.itemsCount} articles</td>
-                        <td><strong>${order.total.toLocaleString('fr-FR')} FCFA</strong></td>
-                        <td>${order.payment}</td>
-                        <td>
-                            <span class="status-badge ${getStatusClass(order.status)}">
-                                ${getStatusText(order.status)}
-                            </span>
-                        </td>
-                        <td>${order.time}</td>
-                        <td>
-                            <button class="action-btn edit" onclick="viewOrderDetails(${order.id})">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `).join('');
-            }
-
-=======
->>>>>>> Stashed changes
             hideSectionDataLoader('orders');
             applyOrderFilters();
         })
@@ -1253,7 +1130,6 @@ function updatePaymentMethod() {
     );
 }
 
->>>>>>> Stashed changes
 // ========================================
 // Dashboard helpers
 // ========================================
@@ -1811,4 +1687,3 @@ function handleAdminRegister(event) {
 }
 
 
->>>>>>> Stashed changes

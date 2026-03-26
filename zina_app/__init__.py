@@ -5,9 +5,6 @@ ZINA Cantine BAD - Application Package
 import os
 from flask import Flask
 from flask_cors import CORS
-<<<<<<< Updated upstream
-from flasgger import Swagger
-=======
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
@@ -16,7 +13,6 @@ limiter = Limiter(
     default_limits=[],
     storage_uri=os.environ.get('RATELIMIT_STORAGE_URI', 'memory://'),
 )
->>>>>>> Stashed changes
 
 
 def create_app(config_object=None):
